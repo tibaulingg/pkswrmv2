@@ -10,57 +10,78 @@ export default class HUDRenderer {
 		this.renderSpells(renderer, player, canvasWidth, canvasHeight);
 	}
 
+	renderStatLine(renderer, x, y, label, value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth) {
+		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = labelColor;
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeText(label, x + strokeOffset, y + strokeOffset);
+		renderer.ctx.fillText(label, x, y);
+		
+		const valueX = x + labelWidth + 2;
+
+		renderer.ctx.font = `${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeText(value, valueX + strokeOffset, y + strokeOffset);
+		renderer.ctx.fillText(value, valueX, y);
+	}
+
 	renderSimpleHUD(renderer, player, canvasWidth, mapData) {
 		const padding = 10;
 		const y = padding;
 		const fontSize = 16;
+		const lineHeight = fontSize + 4;
 		const strokeOffset = 1;
-		const strokeColor = '#333333';
+		const strokeColor = '#000000';
 		const labelColor = '#E58E72';
 		const barGreen = '#61F959';
 		const barRed = '#FE8D65';
+		const barXpBlue = '#87CEEB';
+		const barXpEmpty = '#4a5568';
 
 		renderer.ctx.save();
-
-		let currentX = padding;
-
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
 		renderer.ctx.strokeStyle = strokeColor;
 		renderer.ctx.lineWidth = 1;
 		renderer.ctx.textAlign = 'left';
 		renderer.ctx.textBaseline = 'top';
-		
-		const lvText = 'Lv';
-		renderer.ctx.strokeText(lvText, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(lvText, currentX, y);
-		
-		const lvTextWidth = renderer.ctx.measureText(lvText).width;
-		currentX += lvTextWidth + 2;
 
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = '#ffffff';
-		const levelText = player.level.toString();
-		renderer.ctx.strokeText(levelText, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(levelText, currentX, y);
-		
-		const levelTextWidth = renderer.ctx.measureText(levelText).width;
-		currentX += levelTextWidth + 15;
+		const stats = [
+			{ label: 'Lv', value: player.level.toString() },
+			{ label: 'ATK', value: Math.floor(player.damage).toString() },
+			{ label: 'SPD', value: player.speed.toFixed(1) },
+			{ label: 'ASP', value: player.attackSpeed.toFixed(1) },
+			{ label: 'RNG', value: Math.floor(player.range).toString() },
+		];
+
+		let maxLabelWidth = renderer.ctx.measureText('HP').width;
+		stats.forEach((stat) => {
+			const width = renderer.ctx.measureText(stat.label).width;
+			if (width > maxLabelWidth) {
+				maxLabelWidth = width;
+			}
+		});
+		const labelWidth = maxLabelWidth;
+
+		let currentX = padding;
+		let currentY = y;
 
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
 		const hpLabel = 'HP';
-		renderer.ctx.strokeText(hpLabel, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(hpLabel, currentX, y);
+		renderer.ctx.strokeText(hpLabel, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(hpLabel, currentX, currentY);
 		
-		const hpLabelWidth = renderer.ctx.measureText(hpLabel).width;
-		currentX += hpLabelWidth + 2;
+		currentX += labelWidth;
 
 		renderer.ctx.font = `${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = '#ffffff';
 		const currentHpText = Math.floor(player.hp).toString();
-		renderer.ctx.strokeText(currentHpText, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(currentHpText, currentX, y);
+		renderer.ctx.strokeText(currentHpText, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(currentHpText, currentX, currentY);
 		
 		const currentHpWidth = renderer.ctx.measureText(currentHpText).width;
 		currentX += currentHpWidth + 2;
@@ -68,8 +89,8 @@ export default class HUDRenderer {
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
 		const slashText = '/';
-		renderer.ctx.strokeText(slashText, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(slashText, currentX, y);
+		renderer.ctx.strokeText(slashText, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(slashText, currentX, currentY);
 		
 		const slashWidth = renderer.ctx.measureText(slashText).width;
 		currentX += slashWidth + 2;
@@ -77,8 +98,8 @@ export default class HUDRenderer {
 		renderer.ctx.font = `${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = '#ffffff';
 		const maxHpText = Math.floor(player.maxHp).toString();
-		renderer.ctx.strokeText(maxHpText, currentX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(maxHpText, currentX, y);
+		renderer.ctx.strokeText(maxHpText, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(maxHpText, currentX, currentY);
 		
 		const maxHpWidth = renderer.ctx.measureText(maxHpText).width;
 		currentX += maxHpWidth + 15;
@@ -86,7 +107,7 @@ export default class HUDRenderer {
 		const barWidth = 200;
 		const barHeight = fontSize;
 		const barX = currentX;
-		const barY = y;
+		const barY = currentY;
 
 		const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
 		const filledWidth = barWidth * hpPercent;
@@ -108,6 +129,43 @@ export default class HUDRenderer {
 		renderer.ctx.moveTo(barX, barY + barHeight);
 		renderer.ctx.lineTo(barX + barWidth, barY + barHeight);
 		renderer.ctx.stroke();
+
+		currentY += lineHeight;
+		currentX = padding;
+
+		stats.forEach((stat, index) => {
+			this.renderStatLine(renderer, currentX, currentY, stat.label, stat.value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth);
+			
+			if (index === 0) {
+				const xpBarWidth = barWidth;
+				const xpBarHeight = fontSize;
+				const xpBarX = barX;
+				const xpBarY = currentY;
+
+				const xpPercent = Math.max(0, Math.min(1, player.displayedXp / player.xpToNextLevel));
+				const xpFilledWidth = xpBarWidth * xpPercent;
+
+				renderer.ctx.fillStyle = barXpEmpty;
+				renderer.ctx.fillRect(xpBarX, xpBarY, xpBarWidth, xpBarHeight);
+
+				renderer.ctx.fillStyle = barXpBlue;
+				renderer.ctx.fillRect(xpBarX, xpBarY, xpFilledWidth, xpBarHeight);
+
+				renderer.ctx.strokeStyle = '#ffffff';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.beginPath();
+				renderer.ctx.moveTo(xpBarX, xpBarY);
+				renderer.ctx.lineTo(xpBarX + xpBarWidth, xpBarY);
+				renderer.ctx.stroke();
+
+				renderer.ctx.beginPath();
+				renderer.ctx.moveTo(xpBarX, xpBarY + xpBarHeight);
+				renderer.ctx.lineTo(xpBarX + xpBarWidth, xpBarY + xpBarHeight);
+				renderer.ctx.stroke();
+			}
+			
+			currentY += lineHeight;
+		});
 
 		renderer.ctx.restore();
 	}

@@ -110,15 +110,15 @@ export default class Projectile {
 			renderer.ctx.restore();
 			
 			renderer.ctx.save();
-			renderer.ctx.fillStyle = this.color;
-			renderer.ctx.beginPath();
-			renderer.ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
-			renderer.ctx.fill();
-			renderer.ctx.strokeStyle = '#fff';
-			renderer.ctx.lineWidth = 1;
-			renderer.ctx.stroke();
-			renderer.ctx.restore();
-			return;
+		renderer.ctx.fillStyle = this.color;
+		renderer.ctx.beginPath();
+		renderer.ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+		renderer.ctx.fill();
+		renderer.ctx.strokeStyle = '#000000';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.stroke();
+		renderer.ctx.restore();
+		return;
 		}
 		
 		renderer.ctx.save();
@@ -172,7 +172,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(150, 220, 255, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -206,7 +206,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x + flameOffset, this.y - 2, this.size / 3, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(255, 100, 0, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -237,7 +237,7 @@ export default class Projectile {
 			renderer.ctx.fillRect(sparkX - 1, sparkY - 1, 2, 2);
 		}
 		
-		renderer.ctx.strokeStyle = 'rgba(200, 200, 255, 0.9)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -269,7 +269,7 @@ export default class Projectile {
 			renderer.ctx.fill();
 		}
 		
-		renderer.ctx.strokeStyle = 'rgba(150, 255, 150, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -290,7 +290,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -320,7 +320,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(180, 130, 80, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -341,7 +341,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(200, 200, 200, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -373,7 +373,7 @@ export default class Projectile {
 			renderer.ctx.fill();
 		}
 		
-		renderer.ctx.strokeStyle = 'rgba(200, 200, 200, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
@@ -393,7 +393,7 @@ export default class Projectile {
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
 		renderer.ctx.fill();
 		
-		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+		renderer.ctx.strokeStyle = '#000000';
 		renderer.ctx.lineWidth = 2;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);

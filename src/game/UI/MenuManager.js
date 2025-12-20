@@ -4,6 +4,7 @@ export default class MenuManager {
 		this.activeMenu = null;
 		this.selectedIndex = 0;
 		this.originalMusicVolume = null;
+		this.blinkSpeed = 100;
 	}
 
 	openMenu(menuData) {
@@ -95,6 +96,8 @@ export default class MenuManager {
 		renderer.ctx.save();
 		renderer.ctx.fillStyle = color;
 		renderer.ctx.beginPath();
+
+		y-=10;
 		
 		if (direction === 'right') {
 			renderer.ctx.moveTo(x, y);
@@ -111,13 +114,33 @@ export default class MenuManager {
 		renderer.ctx.restore();
 	}
 
+	drawRoundedRect(ctx, x, y, width, height, radius) {
+		ctx.beginPath();
+		ctx.moveTo(x + radius, y);
+		ctx.lineTo(x + width - radius, y);
+		ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+		ctx.lineTo(x + width, y + height - radius);
+		ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+		ctx.lineTo(x + radius, y + height);
+		ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+		ctx.lineTo(x, y + radius);
+		ctx.quadraticCurveTo(x, y, x + radius, y);
+		ctx.closePath();
+	}
+
 	drawMenuBox(renderer, x, y, width, height) {
-		const backgroundColor = 'rgba(32, 72, 104, 0.90)';
+		const backgroundColor = 'rgba(0, 0, 50, 0.6)';
+		const borderColor = '#fff';
+		const borderWidth = 3;
 		
 		renderer.ctx.save();
 		
 		renderer.ctx.fillStyle = backgroundColor;
 		renderer.ctx.fillRect(x, y, width, height);
+		
+		renderer.ctx.strokeStyle = borderColor;
+		renderer.ctx.lineWidth = borderWidth;
+		renderer.ctx.strokeRect(x, y, width, height);
 		
 		renderer.ctx.restore();
 	}
@@ -187,26 +210,26 @@ export default class MenuManager {
 			
 			let currentY = statsY;
 			
-			this.drawTextWithOutline(renderer, 'Temps:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, 'Temps:', x + padding, currentY, '18px', '#fff', 'left');
 			this.drawTextWithOutline(renderer, stats.time, x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			currentY += statSpacing;
-			this.drawTextWithOutline(renderer, 'Niveau:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, 'Niveau:', x + padding, currentY, '18px', '#fff', 'left');
 			this.drawTextWithOutline(renderer, stats.level.toString(), x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			currentY += statSpacing;
-			this.drawTextWithOutline(renderer, 'Argent gagné:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, 'Argent gagné:', x + padding, currentY, '18px', '#fff', 'left');
 			this.drawTextWithOutline(renderer, `₽${Math.floor(stats.money)}`, x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			if (stats.enemiesKilled !== undefined) {
 				currentY += statSpacing;
-				this.drawTextWithOutline(renderer, 'Ennemis tués:', x + padding, currentY, '18px', '#aaa', 'left');
+				this.drawTextWithOutline(renderer, 'Ennemis tués:', x + padding, currentY, '18px', '#fff', 'left');
 				this.drawTextWithOutline(renderer, stats.enemiesKilled.toString(), x + width - padding, currentY, '18px', '#fff', 'right');
 			}
 
 			if (stats.killerPokemon && !this.activeMenu.title.includes('VICTOIRE')) {
 				currentY += statSpacing;
-				this.drawTextWithOutline(renderer, 'Tué par:', x + padding, currentY, '18px', '#aaa', 'left');
+				this.drawTextWithOutline(renderer, 'Tué par:', x + padding, currentY, '18px', '#fff', 'left');
 				
 				const iconSize = 32;
 				const iconX = x + width - padding - iconSize;
@@ -312,26 +335,42 @@ export default class MenuManager {
 			const itemY = startY + index * (itemHeight + itemSpacing);
 			
 			if (index === this.selectedIndex && !option.disabled) {
-				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
-				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
+				const blink = Math.sin(Date.now() / this.blinkSpeed) > 0;
+				if (blink) {
+					this.drawTriangle(renderer, x + padding + 10, itemY, 14, '#fff', 'right');
+				}
 			}
+			
+			const isExitOption = option.label.toLowerCase().includes('retour') || 
+			                     option.label.toLowerCase().includes('exit') || 
+			                     option.label.toLowerCase().includes('quitter') ||
+			                     option.label.toLowerCase().includes('menu');
 			
 			let color;
 			if (option.disabled) {
-				color = '#444';
+				color = '#888';
+			} else if (isExitOption) {
+				color = '#ff69b4';
 			} else {
-				color = index === this.selectedIndex ? '#fff' : '#888';
+				color = '#fff';
 			}
-			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 25, itemY, '22px', color, 'left');
 		});
 
+		const isLastExitOption = lastOption.label.toLowerCase().includes('retour') || 
+		                         lastOption.label.toLowerCase().includes('exit') || 
+		                         lastOption.label.toLowerCase().includes('quitter') ||
+		                         lastOption.label.toLowerCase().includes('menu');
+
 		if (lastIndex === this.selectedIndex) {
-			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
-			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
+			const blink = Math.sin(Date.now() / 200) > 0;
+			if (blink) {
+				this.drawTriangle(renderer, x + padding + 10, lastItemY, 14, '#fff', 'right');
+			}
 		}
 		
-		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
+		const lastColor = lastIndex === this.selectedIndex ? (isLastExitOption ? '#ff69b4' : '#fff') : (lastOption.disabled ? '#888' : (isLastExitOption ? '#ff69b4' : '#fff'));
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
 	}
 
 	renderRightMenu(renderer) {
@@ -358,27 +397,43 @@ export default class MenuManager {
 			const itemY = startY + index * (itemHeight + itemSpacing);
 			
 			if (index === this.selectedIndex && !option.disabled) {
-				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
-				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
+				const blink = Math.sin(Date.now() / this.blinkSpeed) > 0;
+				if (blink) {
+					this.drawTriangle(renderer, x + padding + 10, itemY, 14, '#fff', 'right');
+				}
 			}
+			
+			const isExitOption = option.label.toLowerCase().includes('retour') || 
+			                     option.label.toLowerCase().includes('exit') || 
+			                     option.label.toLowerCase().includes('quitter') ||
+			                     option.label.toLowerCase().includes('menu');
 			
 			let color;
 			if (option.disabled) {
-				color = '#444';
+				color = '#888';
+			} else if (isExitOption) {
+				color = '#ff69b4';
 			} else {
-				color = index === this.selectedIndex ? '#fff' : '#888';
+				color = '#fff';
 			}
-			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 25, itemY, '22px', color, 'left');
 		});
 
 		const lastItemY = height - padding - 20;
+		const isLastExitOption = lastOption.label.toLowerCase().includes('retour') || 
+		                         lastOption.label.toLowerCase().includes('exit') || 
+		                         lastOption.label.toLowerCase().includes('quitter') ||
+		                         lastOption.label.toLowerCase().includes('menu');
+
 		if (lastIndex === this.selectedIndex) {
-			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
-			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
+			const blink = Math.sin(Date.now() / 200) > 0;
+			if (blink) {
+				this.drawTriangle(renderer, x + padding + 10, lastItemY, 14, '#fff', 'right');
+			}
 		}
 		
-		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
+		const lastColor = lastIndex === this.selectedIndex ? (isLastExitOption ? '#ff69b4' : '#fff') : (lastOption.disabled ? '#888' : (isLastExitOption ? '#ff69b4' : '#fff'));
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
 	}
 
 	renderLeftMenu(renderer) {
@@ -405,27 +460,43 @@ export default class MenuManager {
 			const itemY = startY + index * (itemHeight + itemSpacing);
 			
 			if (index === this.selectedIndex && !option.disabled) {
-				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
-				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
+				const blink = Math.sin(Date.now() / this.blinkSpeed) > 0;
+				if (blink) {
+					this.drawTriangle(renderer, x + padding + 10, itemY, 14, '#fff', 'right');
+				}
 			}
+			
+			const isExitOption = option.label.toLowerCase().includes('retour') || 
+			                     option.label.toLowerCase().includes('exit') || 
+			                     option.label.toLowerCase().includes('quitter') ||
+			                     option.label.toLowerCase().includes('menu');
 			
 			let color;
 			if (option.disabled) {
-				color = '#444';
+				color = '#888';
+			} else if (isExitOption) {
+				color = '#ff69b4';
 			} else {
-				color = index === this.selectedIndex ? '#fff' : '#888';
+				color = '#fff';
 			}
-			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 25, itemY, '22px', color, 'left');
 		});
 
 		const lastItemY = height - padding - 20;
+		const isLastExitOption = lastOption.label.toLowerCase().includes('retour') || 
+		                         lastOption.label.toLowerCase().includes('exit') || 
+		                         lastOption.label.toLowerCase().includes('quitter') ||
+		                         lastOption.label.toLowerCase().includes('menu');
+
 		if (lastIndex === this.selectedIndex) {
-			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
-			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
+			const blink = Math.sin(Date.now() / 200) > 0;
+			if (blink) {
+				this.drawTriangle(renderer, x + padding + 10, lastItemY, 14, '#fff', 'right');
+			}
 		}
 		
-		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
+		const lastColor = lastIndex === this.selectedIndex ? (isLastExitOption ? '#ff69b4' : '#fff') : (lastOption.disabled ? '#888' : (isLastExitOption ? '#ff69b4' : '#fff'));
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
 	}
 }
 

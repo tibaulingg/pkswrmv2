@@ -485,8 +485,9 @@ export default class BattleScene {
 					projectile.hitEnemies.add(directHitEnemy);
 				}
 				
-				if (projectile.hasAoE && !projectile.exploded) {
-					this.particleSystem.createExplosion(projectile.x, projectile.y, projectile.color, Math.floor(projectile.aoeRadius / 2), projectile.type);
+				if (!projectile.exploded) {
+					const explosionCount = projectile.hasAoE ? Math.floor(projectile.aoeRadius / 2) : 15;
+					this.particleSystem.createExplosion(projectile.x, projectile.y, projectile.color, explosionCount, projectile.type);
 					projectile.exploded = true;
 					
 					enemies.forEach(enemy => {
