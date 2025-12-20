@@ -93,6 +93,18 @@ export default class AnimationSystem {
 				this.frameTime = 0;
 				this.wasMoving = false;
 			}
+		} else if (this.currentAnimation === 'idle') {
+			this.frameTime += deltaTime;
+			const anim = this.spriteConfig.animations[this.currentAnimation];
+			
+			if (this.frameTime >= this.frameDuration) {
+				this.frameTime = 0;
+				this.currentFrame = (this.currentFrame + 1) % anim.frames;
+			}
+			
+			if (this.forcedDirection === null && isMoving) {
+				this.updateDirection(directionX, directionY);
+			}
 		} else {
 			this.frameTime += deltaTime;
 			const anim = this.spriteConfig.animations[this.currentAnimation];

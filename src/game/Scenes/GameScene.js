@@ -5,7 +5,7 @@ import CollisionSystem from '../Systems/CollisionSystem.js';
 import EventSystem from '../Systems/EventSystem.js';
 import EventHandler from '../Systems/EventHandler.js';
 import AnimationSystem from '../Systems/AnimationSystem.js';
-import { HubMenuConfig } from '../Config/MenuConfig.js';
+import { HubMenuConfig, ShopMenuConfig } from '../Config/MenuConfig.js';
 import { HubCollisions, HubEvents, MapTileCollisions, tilesToCollisionRects } from '../Config/CollisionConfig.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
 
@@ -20,6 +20,15 @@ export default class GameScene {
 		this.eventHandler = null;
 		this.debugCollisions = false;
 		this.debugEvents = false;
+		this.kecleon = {
+			x: 500,
+			y: 420,
+			width: 64,
+			height: 64,
+			interactionRange: 80,
+			animationSystem: null
+		};
+		this.showInteractionPrompt = false;
 	}
 
 	init() {
@@ -43,10 +52,23 @@ export default class GameScene {
 		this.camera = new Camera(1280, 720, this.map.width, this.map.height);
 		this.debugCollisions = false;
 		
+		const kecleonConfig = getPokemonConfig('kecleon');
+		const kecleonIdleSprite = this.engine.sprites.get('kecleon_idle');
+		if (kecleonConfig && kecleonIdleSprite) {
+			this.kecleon.animationSystem = new AnimationSystem(kecleonConfig, { idle: kecleonIdleSprite });
+			const idleDuration = kecleonConfig.animations.idle?.duration || null;
+			this.kecleon.animationSystem.setAnimation('idle', idleDuration);
+			this.kecleon.animationSystem.setDirection('down');
+		}
+		
 		this.engine.audio.playMusic('hub');
 	}
 
 	update(deltaTime) {
+		if (this.kecleon.animationSystem) {
+			this.kecleon.animationSystem.update(deltaTime, false, 0, 0);
+		}
+		
 		if (this.engine.menuManager.isMenuOpen()) {
 			this.engine.menuManager.update();
 			return;
@@ -63,6 +85,10 @@ export default class GameScene {
 		if (key === 'KeyV') {
 			this.debugEvents = !this.debugEvents;
 		}
+		if (key === 'Enter' && this.showInteractionPrompt) {
+			this.engine.menuManager.openMenu(ShopMenuConfig);
+			return;
+		}
 		if (this.player) {
 			this.player.update(deltaTime, this.engine.input, this.map, this.collisionSystem);
 
@@ -71,6 +97,16 @@ export default class GameScene {
 			}
 			
 			this.camera.follow(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2);
+
+			const playerCenterX = this.player.x + this.player.width / 2;
+			const playerCenterY = this.player.y + this.player.height / 2;
+			const kecleonCenterX = this.kecleon.x + this.kecleon.width / 2;
+			const kecleonCenterY = this.kecleon.y + this.kecleon.height / 2;
+			const distance = Math.sqrt(
+				Math.pow(playerCenterX - kecleonCenterX, 2) + 
+				Math.pow(playerCenterY - kecleonCenterY, 2)
+			);
+			this.showInteractionPrompt = distance <= this.kecleon.interactionRange;
 		}
 	}
 
@@ -89,6 +125,15 @@ export default class GameScene {
 			this.eventSystem.render(renderer, true);
 		}
 		
+		if (this.kecleon.animationSystem) {
+			this.kecleon.animationSystem.render(renderer, this.kecleon.x, this.kecleon.y, 2);
+		} else {
+			const kecleonSprite = this.engine.sprites.get('kecleon_normal');
+			if (kecleonSprite) {
+				renderer.drawImage(kecleonSprite, this.kecleon.x, this.kecleon.y, this.kecleon.width, this.kecleon.height);
+			}
+		}
+		
 		if (this.player) {
 			this.player.render(renderer);
 		}
@@ -96,6 +141,10 @@ export default class GameScene {
 		this.camera.restore(renderer.ctx);
 		
 		this.renderHUD(renderer);
+		
+		if (this.showInteractionPrompt && !this.engine.menuManager.isMenuOpen()) {
+			this.renderInteractionPrompt(renderer);
+		}
 		
 		if (this.engine.menuManager.isMenuOpen()) {
 			this.engine.menuManager.render(renderer);
@@ -130,6 +179,29 @@ export default class GameScene {
 		renderer.ctx.font = 'bold 18px Pokemon';
 		renderer.ctx.textAlign = 'center';
 		renderer.ctx.fillText(Math.floor(this.engine.displayedMoney).toString(), x + boxWidth / 2, y + 55);
+	}
+
+	renderInteractionPrompt(renderer) {
+		const text = 'Interact (ENTER)';
+		const fontSize = '20px';
+		const padding = 10;
+		
+		renderer.ctx.save();
+		renderer.ctx.font = `${fontSize} Pokemon`;
+		renderer.ctx.textAlign = 'center';
+		const textMetrics = renderer.ctx.measureText(text);
+		const textWidth = textMetrics.width;
+		const textHeight = 25;
+		
+		const x = renderer.width / 2;
+		const y = renderer.height - 80;
+		
+		renderer.drawRect(x - textWidth / 2 - padding, y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2, 'rgba(0, 0, 0, 0.7)');
+		renderer.drawStrokeRect(x - textWidth / 2 - padding, y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2, '#fff', 2);
+		
+		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.fillText(text, x, y);
+		renderer.ctx.restore();
 	}
 }
 

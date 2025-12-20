@@ -39,6 +39,32 @@ export const PokemonSprites = {
 		projectileSize: 12,
 		projectileSpeed: 0.5
 	},
+	kecleon: {
+		name: 'kecleon',
+		walk: {
+			frames: 4
+		},
+		idle: {
+			frames: 4,
+			duration: 1200
+		},
+		hurt: {
+			frames: 2
+		},
+		attackType: 'melee',
+		type: 'normal',
+		hp: 20,
+		speed: 1.5,
+		damage: 5,
+		attackSpeed: 1.0,
+		range: 50,
+		knockback: 5,
+		particleColor: '#4b2666',
+		projectileColor: '#ffffff',
+		projectileSize: 6,
+		projectileSpeed: 0.6,
+		spells: []
+	},
 	rattata: {
 		name: 'rattata',
 		walk: {
@@ -62,7 +88,11 @@ export const PokemonSprites = {
 		projectileColor: '#ffffff',
 		projectileSize: 6,
 		projectileSpeed: 0.6,
-		spells: []
+		spells: [],
+		lootTable: [
+			{ itemId: 'rattata_tail', chance: 0.1, },
+			{ itemId: 'bronze_chest', chance: 0.05, },
+		]
 	},
 	caterpie: {
 		name: 'caterpie',
@@ -90,7 +120,10 @@ export const PokemonSprites = {
 		projectileColor: '#ffffff',
 		projectileSize: 10,
 		projectileSpeed: 0.2,
-		spells: []
+		spells: [],
+		lootTable: [
+			{ itemId: 'bronze_chest', chance: 0.05, },
+		]
 	},
 	pidgey: {
 		name: 'pidgey',
@@ -115,7 +148,10 @@ export const PokemonSprites = {
 		projectileColor: '#ffffff',
 		projectileSize: 10,
 		projectileSpeed: 0.2,
-		spells: []
+		spells: [],
+		lootTable: [
+			{ itemId: 'bronze_chest', chance: 0.05, },
+		]
 	},
 };
 
@@ -154,6 +190,14 @@ export function getPokemonConfig(pokemonName) {
 		animations.shoot = {
 			file: `/sprites/pokemon/${pokemon.name}/Shoot-Anim.png`,
 			frames: pokemon.shoot.frames
+		};
+	}
+
+	if (pokemon.idle) {
+		animations.idle = {
+			file: `/sprites/pokemon/${pokemon.name}/Idle-Anim.png`,
+			frames: pokemon.idle.frames,
+			duration: pokemon.idle.duration
 		};
 	}
 

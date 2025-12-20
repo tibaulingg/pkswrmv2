@@ -6,7 +6,7 @@ export default class HUDRenderer {
 	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null, mapData = null) {
 		if (!player) return;
 
-		this.renderSimpleHUD(renderer, player, canvasWidth, mapData);
+		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine);
 		this.renderSpells(renderer, player, canvasWidth, canvasHeight);
 	}
 
@@ -28,7 +28,7 @@ export default class HUDRenderer {
 		renderer.ctx.fillText(value, valueX, y);
 	}
 
-	renderSimpleHUD(renderer, player, canvasWidth, mapData) {
+	renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon = null, engine = null) {
 		const padding = 10;
 		const y = padding;
 		const fontSize = 16;
@@ -57,8 +57,10 @@ export default class HUDRenderer {
 			{ label: 'RNG', value: Math.floor(player.range).toString() },
 		];
 
-		let maxLabelWidth = renderer.ctx.measureText('HP').width;
+		// Calculate max label width for stats alignment
+		let maxLabelWidth = 0;
 		stats.forEach((stat) => {
+			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 			const width = renderer.ctx.measureText(stat.label).width;
 			if (width > maxLabelWidth) {
 				maxLabelWidth = width;
@@ -66,28 +68,98 @@ export default class HUDRenderer {
 		});
 		const labelWidth = maxLabelWidth;
 
+		const barWidth = 200;
+		const barHeight = fontSize;
 		let currentX = padding;
 		let currentY = y;
 
+		// Line 1: Pokemon name + Level (e.g., "quaksire Lv. 5")
+		if (selectedPokemon) {
+			const pokemonName = selectedPokemon.charAt(0).toUpperCase() + selectedPokemon.slice(1);
+			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+			renderer.ctx.fillStyle = labelColor;
+			renderer.ctx.strokeStyle = strokeColor;
+			renderer.ctx.lineWidth = 1;
+			renderer.ctx.strokeText(pokemonName, currentX + strokeOffset, currentY + strokeOffset);
+			renderer.ctx.fillText(pokemonName, currentX, currentY);
+			
+			const pokemonNameWidth = renderer.ctx.measureText(pokemonName).width;
+			currentX += pokemonNameWidth + 5;
+			
+			// Render "Lv."
+			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+			renderer.ctx.fillStyle = labelColor;
+			const lvLabel = 'Lv.';
+			renderer.ctx.strokeText(lvLabel, currentX + strokeOffset, currentY + strokeOffset);
+			renderer.ctx.fillText(lvLabel, currentX, currentY);
+			
+			const lvLabelWidth = renderer.ctx.measureText(lvLabel).width;
+			currentX += lvLabelWidth + 2;
+			
+			// Render level value
+			renderer.ctx.font = `${fontSize}px Pokemon`;
+			renderer.ctx.fillStyle = '#ffffff';
+			const levelValue = player.level.toString();
+			renderer.ctx.strokeText(levelValue, currentX + strokeOffset, currentY + strokeOffset);
+			renderer.ctx.fillText(levelValue, currentX, currentY);
+		}
+
+		// Line 2: HP + HP values + HP bar
+		currentY += lineHeight;
+		currentX = padding;
+
+		// Render pokemon icon to the left of HP
+		if (selectedPokemon && engine) {
+			const iconSize = lineHeight * 2; // Height of 2 lines
+			const iconX = currentX;
+			const iconY = currentY;
+			const pokemonSprite = engine.sprites.get(`pokemon_${selectedPokemon}_normal`);
+			
+			if (pokemonSprite) {
+				renderer.ctx.drawImage(pokemonSprite, iconX, iconY, iconSize, iconSize);
+				
+				// Draw white border around icon
+				renderer.ctx.strokeStyle = '#ffffff';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+			}
+			
+			currentX += iconSize + 10; // Add spacing after icon
+			
+			// Reset stroke style after icon border
+			renderer.ctx.strokeStyle = strokeColor;
+			renderer.ctx.lineWidth = 1;
+		}
+
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
 		const hpLabel = 'HP';
 		renderer.ctx.strokeText(hpLabel, currentX + strokeOffset, currentY + strokeOffset);
 		renderer.ctx.fillText(hpLabel, currentX, currentY);
 		
-		currentX += labelWidth;
+		const hpLabelWidth = renderer.ctx.measureText(hpLabel).width;
+		currentX += hpLabelWidth + 2;
 
+		// Calculate max width for HP values (use "999" as reference for 3-digit numbers)
 		renderer.ctx.font = `${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = '#ffffff';
+		const maxHpValueWidth = renderer.ctx.measureText('999').width;
 		const currentHpText = Math.floor(player.hp).toString();
-		renderer.ctx.strokeText(currentHpText, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(currentHpText, currentX, currentY);
-		
 		const currentHpWidth = renderer.ctx.measureText(currentHpText).width;
-		currentX += currentHpWidth + 2;
+		const currentHpX = currentX + maxHpValueWidth - currentHpWidth; // Right-align
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeText(currentHpText, currentHpX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(currentHpText, currentHpX, currentY);
+		
+		currentX += maxHpValueWidth + 2;
 
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
 		const slashText = '/';
 		renderer.ctx.strokeText(slashText, currentX + strokeOffset, currentY + strokeOffset);
 		renderer.ctx.fillText(slashText, currentX, currentY);
@@ -97,15 +169,15 @@ export default class HUDRenderer {
 
 		renderer.ctx.font = `${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
 		const maxHpText = Math.floor(player.maxHp).toString();
-		renderer.ctx.strokeText(maxHpText, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(maxHpText, currentX, currentY);
+		const maxHpX = currentX; // Left-align, collé au "/"
+		renderer.ctx.strokeText(maxHpText, maxHpX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(maxHpText, maxHpX, currentY);
 		
-		const maxHpWidth = renderer.ctx.measureText(maxHpText).width;
-		currentX += maxHpWidth + 15;
+		currentX += maxHpValueWidth + 15;
 
-		const barWidth = 200;
-		const barHeight = fontSize;
 		const barX = currentX;
 		const barY = currentY;
 
@@ -129,41 +201,103 @@ export default class HUDRenderer {
 		renderer.ctx.moveTo(barX, barY + barHeight);
 		renderer.ctx.lineTo(barX + barWidth, barY + barHeight);
 		renderer.ctx.stroke();
+		
+		// Reset stroke style to black for text rendering
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
 
+		// Line 3: XP + XP values + XP bar (exact same style as HP)
 		currentY += lineHeight;
 		currentX = padding;
 
-		stats.forEach((stat, index) => {
+		// Apply same offset as HP line (for icon alignment)
+		if (selectedPokemon && engine) {
+			const iconSize = lineHeight * 2;
+			currentX += iconSize + 10; // Same spacing as HP line
+		}
+
+		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = labelColor;
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		const xpLabel = 'XP';
+		renderer.ctx.strokeText(xpLabel, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(xpLabel, currentX, currentY);
+		
+		const xpLabelWidth = renderer.ctx.measureText(xpLabel).width;
+		currentX += xpLabelWidth + 2;
+
+		// Calculate max width for XP values (use "999" as reference for 3-digit numbers)
+		renderer.ctx.font = `${fontSize}px Pokemon`;
+		const maxXpValueWidth = renderer.ctx.measureText('999').width;
+		const currentXpText = Math.floor(player.displayedXp).toString();
+		const currentXpWidth = renderer.ctx.measureText(currentXpText).width;
+		const currentXpX = currentX + maxXpValueWidth - currentXpWidth; // Right-align
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeText(currentXpText, currentXpX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(currentXpText, currentXpX, currentY);
+		
+		currentX += maxXpValueWidth + 2;
+
+		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = labelColor;
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		const xpSlashText = '/';
+		renderer.ctx.strokeText(xpSlashText, currentX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(xpSlashText, currentX, currentY);
+		
+		const xpSlashWidth = renderer.ctx.measureText(xpSlashText).width;
+		currentX += xpSlashWidth + 2;
+
+		renderer.ctx.font = `${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		const maxXpText = Math.floor(player.xpToNextLevel).toString();
+		const maxXpX = currentX; // Left-align, collé au "/"
+		renderer.ctx.strokeText(maxXpText, maxXpX + strokeOffset, currentY + strokeOffset);
+		renderer.ctx.fillText(maxXpText, maxXpX, currentY);
+		
+		currentX += maxXpValueWidth + 15;
+
+		const xpBarX = currentX;
+		const xpBarY = currentY;
+
+		const xpPercent = Math.max(0, Math.min(1, player.displayedXp / player.xpToNextLevel));
+		const xpFilledWidth = barWidth * xpPercent;
+
+		renderer.ctx.fillStyle = barXpEmpty;
+		renderer.ctx.fillRect(xpBarX, xpBarY, barWidth, barHeight);
+
+		renderer.ctx.fillStyle = barXpBlue;
+		renderer.ctx.fillRect(xpBarX, xpBarY, xpFilledWidth, barHeight);
+
+		renderer.ctx.strokeStyle = '#ffffff';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(xpBarX, xpBarY);
+		renderer.ctx.lineTo(xpBarX + barWidth, xpBarY);
+		renderer.ctx.stroke();
+
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(xpBarX, xpBarY + barHeight);
+		renderer.ctx.lineTo(xpBarX + barWidth, xpBarY + barHeight);
+		renderer.ctx.stroke();
+		
+		// Reset stroke style to black for text rendering
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+
+
+		// Render other stats (ATK, SPD, ASP, RNG) below
+		currentY += lineHeight;
+		currentX = padding;
+
+		stats.slice(1).forEach((stat) => {
 			this.renderStatLine(renderer, currentX, currentY, stat.label, stat.value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth);
-			
-			if (index === 0) {
-				const xpBarWidth = barWidth;
-				const xpBarHeight = fontSize;
-				const xpBarX = barX;
-				const xpBarY = currentY;
-
-				const xpPercent = Math.max(0, Math.min(1, player.displayedXp / player.xpToNextLevel));
-				const xpFilledWidth = xpBarWidth * xpPercent;
-
-				renderer.ctx.fillStyle = barXpEmpty;
-				renderer.ctx.fillRect(xpBarX, xpBarY, xpBarWidth, xpBarHeight);
-
-				renderer.ctx.fillStyle = barXpBlue;
-				renderer.ctx.fillRect(xpBarX, xpBarY, xpFilledWidth, xpBarHeight);
-
-				renderer.ctx.strokeStyle = '#ffffff';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.beginPath();
-				renderer.ctx.moveTo(xpBarX, xpBarY);
-				renderer.ctx.lineTo(xpBarX + xpBarWidth, xpBarY);
-				renderer.ctx.stroke();
-
-				renderer.ctx.beginPath();
-				renderer.ctx.moveTo(xpBarX, xpBarY + xpBarHeight);
-				renderer.ctx.lineTo(xpBarX + xpBarWidth, xpBarY + xpBarHeight);
-				renderer.ctx.stroke();
-			}
-			
 			currentY += lineHeight;
 		});
 

@@ -307,7 +307,8 @@ export default class SpellSystem {
 			playerY: spellData.y,
 			waterProjectiles: [],
 			lastProjectileTime: Date.now(),
-			projectileInterval: 50
+			projectileInterval: 50,
+			spellId: spellData.id
 		};
 	}
 

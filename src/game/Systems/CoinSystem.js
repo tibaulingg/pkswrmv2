@@ -90,7 +90,7 @@ class Coin {
 	}
 }
 
-const COIN_DROP_CHANCE = 1 / 3 ;
+const COIN_DROP_CHANCE = 1 / 5 ;
 
 export { COIN_DROP_CHANCE };
 

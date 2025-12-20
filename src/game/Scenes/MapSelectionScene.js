@@ -107,7 +107,7 @@ export default class MapSelectionScene {
 		});
 		
 		allPokemonNames.forEach(pokemonName => {
-			const imagePath = `/sprites/pokemon/${pokemonName}/Normal.png`;
+			const imagePath = process.env.PUBLIC_URL + `/sprites/pokemon/${pokemonName}/Normal.png`;
 			const img = new Image();
 			img.src = imagePath;
 			this.pokemonImages[pokemonName] = img;
@@ -115,10 +115,19 @@ export default class MapSelectionScene {
 	}
 
 	loadMapIcons() {
-		const forestIconPath = `/maps/forest_icon.jpg`;
-		const img = new Image();
-		img.src = forestIconPath;
-		this.mapIcons['forest'] = img;
+		const maps = [
+			{ id: 0, image: 'forest' },
+			{ id: 1, image: 'mountain' },
+			{ id: 2, image: 'cave' },
+			{ id: 3, image: 'desert' },
+			{ id: 4, image: 'volcano' }
+		];
+		maps.forEach(map => {
+			const imagePath = process.env.PUBLIC_URL + `/maps/${map.image}_icon.jpg`;
+			const img = new Image();
+			img.src = imagePath;
+			this.mapIcons[map.image] = img;
+		});
 	}
 
 	getMapSelectionMenuConfig() {
@@ -258,12 +267,12 @@ export default class MapSelectionScene {
 		const bossX = contentX + mapPokemons.length * (pokemonCellSize + pokemonSpacing);
 		
 		renderer.drawRect(bossX, pokemonY, pokemonCellSize, pokemonCellSize, '#1a0a0a');
-		renderer.drawStrokeRect(bossX, pokemonY, pokemonCellSize, pokemonCellSize, '#ff0000', 3);
+		renderer.drawStrokeRect(bossX, pokemonY, pokemonCellSize, pokemonCellSize, '#cc4444', 3);
 		
 		renderer.ctx.save();
-		renderer.ctx.shadowColor = '#ff0000';
+		renderer.ctx.shadowColor = '#cc4444';
 		renderer.ctx.shadowBlur = 10;
-		renderer.ctx.strokeStyle = '#ff0000';
+		renderer.ctx.strokeStyle = '#cc4444';
 		renderer.ctx.lineWidth = 3;
 		renderer.ctx.strokeRect(bossX, pokemonY, pokemonCellSize, pokemonCellSize);
 		renderer.ctx.restore();

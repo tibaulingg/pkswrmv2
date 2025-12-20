@@ -5,6 +5,9 @@ import SpriteManager from '../Systems/SpriteManager.js';
 import MenuManager from '../UI/MenuManager.js';
 import GameManager from '../Systems/GameManager.js';
 import AudioManager from '../Systems/AudioManager.js';
+import { PokemonSprites } from '../Config/SpriteConfig.js';
+import { MapEnemies, EnemyTypes } from '../Config/EnemyConfig.js';
+import { ItemConfig } from '../Config/ItemConfig.js';
 
 export default class GameEngine {
 	constructor(canvas) {
@@ -28,6 +31,10 @@ export default class GameEngine {
 		this.assetsLoaded = false;
 		this.money = 0;
 		this.displayedMoney = 0;
+		this.inventory = {
+			rattata_tail: 5, 
+			bronze_chest: 1
+		};
 		this.encounteredPokemons = new Set();
 		this.playedPokemons = new Set();
 		this.playedMaps = new Set();
@@ -70,12 +77,19 @@ export default class GameEngine {
 			const pidgeyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Walk-Anim.png';
 			const pidgeyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Hurt-Anim.png';
 			const pidgeyFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Faint-Anim.png';
+			const rattataTailPath = process.env.PUBLIC_URL + '/sprites/items/rattata_tail.png';
+			const keyPath = process.env.PUBLIC_URL + '/sprites/items/key.png';
+			const bronzechestPath = process.env.PUBLIC_URL + '/sprites/items/bronze_chest.png';
 
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
 			await this.sprites.load('rattata_walk', rattataWalkPath);
 			await this.sprites.load('quaksire_hurt', quaksireHurtPath);
 			await this.sprites.load('rattata_hurt', rattataHurtPath);
+			await this.sprites.load('rattata_tail', rattataTailPath);
+			await this.sprites.load('key', keyPath);
+			await this.sprites.load('bronze_chest', bronzechestPath);
+
 			try {
 				await this.sprites.load('quaksire_faint', quaksireFaintPath);
 			} catch (error) {
@@ -131,6 +145,12 @@ export default class GameEngine {
 			const okSoundPath = process.env.PUBLIC_URL + '/ok.wav';
 			this.audio.load('ok', okSoundPath);
 
+			const earthquakeSoundPath = process.env.PUBLIC_URL + '/earthquake.wav';
+			this.audio.load('earthquake', earthquakeSoundPath);
+
+			const hydrocanonSoundPath = process.env.PUBLIC_URL + '/hydrocanon.wav';
+			this.audio.load('hydrocanon', hydrocanonSoundPath);
+
 			const victorySoundPath = process.env.PUBLIC_URL + '/victory.mp3';
 			this.audio.load('victory', victorySoundPath);
 
@@ -156,6 +176,61 @@ export default class GameEngine {
 					this.audio.loadMusic(`map_${mapName}`, mapMusicPath);
 				} catch (error) {
 					console.warn(`Map music ${mapName} not found, skipping`);
+				}
+			}
+
+			// Load pokemon profile images (Normal.png)
+			const pokemonSet = new Set();
+			Object.keys(PokemonSprites).forEach(pokemonName => {
+				pokemonSet.add(pokemonName);
+			});
+			Object.keys(MapEnemies).forEach(mapId => {
+				const enemyPool = MapEnemies[mapId];
+				enemyPool.forEach(enemyData => {
+					const enemyType = EnemyTypes[enemyData.type];
+					if (enemyType && enemyType.pokemon) {
+						pokemonSet.add(enemyType.pokemon);
+					}
+				});
+			});
+
+			for (const pokemonName of pokemonSet) {
+				try {
+					const normalImagePath = process.env.PUBLIC_URL + `/sprites/pokemon/${pokemonName}/Normal.png`;
+					await this.sprites.load(`pokemon_${pokemonName}_normal`, normalImagePath);
+				} catch (error) {
+					console.warn(`Pokemon normal image for ${pokemonName} not found, skipping`);
+				}
+			}
+
+			try {
+				const kecleonNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Normal.png';
+				await this.sprites.load('kecleon_normal', kecleonNormalPath);
+			} catch (error) {
+				console.warn('Kecleon normal image not found, skipping');
+			}
+			try {
+				const kecleonHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Happy.png';
+				await this.sprites.load('kecleon_happy', kecleonHappyPath);
+			} catch (error) {
+				console.warn('Kecleon happy image not found, skipping');
+			}
+			try {
+				const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
+				await this.sprites.load('kecleon_idle', kecleonIdlePath);
+			} catch (error) {
+				console.warn('Kecleon idle animation not found, skipping');
+			}
+
+			for (const itemId of Object.keys(ItemConfig)) {
+				const item = ItemConfig[itemId];
+				if (item.iconImage) {
+					try {
+						const itemImagePath = process.env.PUBLIC_URL + item.iconImage;
+						await this.sprites.load(`item_${itemId}`, itemImagePath);
+					} catch (error) {
+						console.warn(`Item image for ${itemId} not found, skipping`);
+					}
 				}
 			}
 		} catch (error) {

@@ -16,6 +16,18 @@ export default class MenuManager {
 		}
 		
 		this.activeMenu = menuData;
+		if (this.activeMenu.getOptions) {
+			this.activeMenu.options = this.activeMenu.getOptions(this.engine);
+		}
+		if (this.activeMenu.isShop) {
+			if (this.activeMenu.mode === 'main' && this.activeMenu.getMainOptions) {
+				this.activeMenu.options = this.activeMenu.getMainOptions();
+			} else if (this.activeMenu.mode === 'buy' && this.activeMenu.getBuyOptions) {
+				this.activeMenu.options = this.activeMenu.getBuyOptions();
+			} else if (this.activeMenu.mode === 'sell' && this.activeMenu.getSellOptions) {
+				this.activeMenu.options = this.activeMenu.getSellOptions(this.engine);
+			}
+		}
 		this.selectedIndex = 0;
 		this.triggerHover();
 	}
@@ -36,15 +48,29 @@ export default class MenuManager {
 
 	update() {
 		if (!this.activeMenu) return;
+		
+		if (this.activeMenu.getOptions) {
+			this.activeMenu.options = this.activeMenu.getOptions(this.engine);
+		}
+		if (this.activeMenu.isShop && this.activeMenu.mode === 'sell' && this.activeMenu.getSellOptions) {
+			this.activeMenu.options = this.activeMenu.getSellOptions(this.engine);
+		}
 
 		const key = this.engine.input.consumeLastKey();
 		if (!key) return;
 
 		if (key === 'Escape' && this.activeMenu.closeable) {
-			const onCloseCallback = this.activeMenu.onClose;
-			this.closeMenu();
-			if (onCloseCallback) {
-				onCloseCallback(this.engine);
+			if (this.activeMenu.isShop && this.activeMenu.mode !== 'main') {
+				this.engine.audio.play('ok', 0.3, 0.2);
+				this.activeMenu.mode = 'main';
+				this.activeMenu.options = this.activeMenu.getMainOptions();
+				this.selectedIndex = 0;
+			} else {
+				const onCloseCallback = this.activeMenu.onClose;
+				this.closeMenu();
+				if (onCloseCallback) {
+					onCloseCallback(this.engine);
+				}
 			}
 		} else if (key === 'ArrowUp' || key === 'KeyW') {
 			if (this.selectedIndex > 0) {
@@ -67,8 +93,23 @@ export default class MenuManager {
 		} else if (key === 'Enter' || key === 'Space') {
 			const option = this.activeMenu.options[this.selectedIndex];
 			if (option && option.action && !option.disabled) {
-				this.engine.audio.play('ok', 0.3, 0.2);
-				option.action(this.engine);
+				if (this.activeMenu.isShop && option.price !== undefined) {
+					const isBuyMode = this.activeMenu.mode === 'buy';
+					if (isBuyMode) {
+						if (this.engine.money >= option.price) {
+							this.engine.audio.play('ok', 0.3, 0.2);
+							option.action(this.engine);
+						} else {
+							this.engine.audio.play('ok', 0.1, 0.1);
+						}
+					} else {
+						this.engine.audio.play('ok', 0.3, 0.2);
+						option.action(this.engine);
+					}
+				} else {
+					this.engine.audio.play('ok', 0.3, 0.2);
+					option.action(this.engine);
+				}
 			}
 		}
 	}
@@ -128,6 +169,39 @@ export default class MenuManager {
 		ctx.closePath();
 	}
 
+	renderShopItem(renderer, option, x, y, width, padding, color, isBuyMode) {
+		const canAfford = isBuyMode ? (this.engine.money >= option.price) : true;
+		const priceText = `₽${option.price}`;
+		
+		const itemImage = option.itemImage || (option.iconImage ? this.engine.sprites.get(`item_${option.itemId}`) : null);
+		const iconSize = 24;
+		const iconX = x + padding + 25;
+		const iconY = y - iconSize / 2;
+		
+		if (option.iconImage && itemImage && itemImage.complete && itemImage.naturalWidth > 0) {
+			renderer.ctx.save();
+			renderer.ctx.drawImage(itemImage, iconX, iconY, iconSize, iconSize);
+			renderer.ctx.restore();
+		} else if (option.icon) {
+			renderer.ctx.save();
+			renderer.ctx.fillStyle = '#fff';
+			renderer.ctx.font = 'bold 20px Arial';
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'middle';
+			renderer.ctx.fillText(option.icon, iconX, y);
+			renderer.ctx.restore();
+		}
+		
+		let displayText = option.label;
+		if (!isBuyMode && option.quantity !== undefined) {
+			displayText += ` x${option.quantity}`;
+		}
+		const textX = iconX + iconSize + 10;
+		
+		this.drawTextWithOutline(renderer, displayText, textX, y, '15px', canAfford ? color : '#888', 'left');
+		this.drawTextWithOutline(renderer, priceText, x + width - padding - 90, y, '20px', canAfford ? '#ffd700' : '#666', 'right');
+	}
+
 	drawMenuBox(renderer, x, y, width, height) {
 		const backgroundColor = 'rgba(0, 0, 50, 0.6)';
 		const borderColor = '#fff';
@@ -161,7 +235,9 @@ export default class MenuManager {
 
 	renderCenterMenu(renderer) {
 		const hasVictoryData = this.activeMenu.victoryData !== undefined && this.activeMenu.victoryData !== null;
-		const width = hasVictoryData ? 700 : 450;
+		const isShop = this.activeMenu.isShop;
+		const isInventory = this.activeMenu.isInventory;
+		const width = hasVictoryData ? 700 : (isShop || isInventory ? 600 : 450);
 		const itemHeight = 50;
 		const itemSpacing = 10;
 		const padding = 20;
@@ -191,9 +267,11 @@ export default class MenuManager {
 			}
 		}
 		const statsHeight = hasVictoryData ? (statCount * statSpacing + padding + pokemonIconsHeight) : 0;
+		const shopHeaderHeight = isShop && this.activeMenu.mode === 'main' ? 80 : 0;
 		const buttonsHeight = hasVictoryData ? (itemHeight * 2 + itemSpacing) : (this.activeMenu.options.length * (itemHeight + itemSpacing));
-		const height = titleHeight + statsHeight + buttonsHeight + padding * 3;
-		
+		const titleBottomPadding = isShop && this.activeMenu.mode !== 'main' ? 10 : (isShop && this.activeMenu.mode === 'main' ? 10 : padding);
+		const height = titleHeight + statsHeight + shopHeaderHeight + buttonsHeight + padding + titleBottomPadding;
+	
 		const x = (renderer.width - width) / 2;
 		const y = (renderer.height - height) / 2;
 
@@ -202,7 +280,35 @@ export default class MenuManager {
 		this.drawMenuBox(renderer, x, y, width, height);
 
 		const titleY = y + padding + 30;
-		this.drawTextWithOutline(renderer, this.activeMenu.title, x + padding, titleY, '28px', '#fff', 'left');
+		let title = this.activeMenu.title;
+		if (isShop && this.activeMenu.mode === 'buy') {
+			title = 'Acheter';
+		} else if (isShop && this.activeMenu.mode === 'sell') {
+			title = 'Vendre';
+		}
+		this.drawTextWithOutline(renderer, title, x + padding, titleY, '28px', '#fff', 'left');
+	
+		if (isShop) {
+			const kecleonIconSize = 80;
+			const iconX = x + width - padding - kecleonIconSize;
+			const iconY = y + padding;
+			
+			const timeSincePurchase = Date.now() - (this.activeMenu.lastPurchaseTime || 0);
+			const showHappy = timeSincePurchase < 2000;
+			const kecleonSprite = this.engine.sprites.get(showHappy ? 'kecleon_happy' : 'kecleon_normal');
+			
+			if (kecleonSprite) {
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+				renderer.ctx.fillRect(iconX - 5, iconY - 5, kecleonIconSize + 10, kecleonIconSize + 10);
+				renderer.ctx.strokeStyle = '#fff';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeRect(iconX - 5, iconY - 5, kecleonIconSize + 10, kecleonIconSize + 10);
+				renderer.ctx.drawImage(kecleonSprite, iconX, iconY, kecleonIconSize, kecleonIconSize);
+				renderer.ctx.restore();
+			}
+			
+		}
 		
 		if (hasVictoryData) {
 			const statsY = y + titleHeight + padding * 2;
@@ -325,11 +431,26 @@ export default class MenuManager {
 		}
 
 		const lastIndex = this.activeMenu.options.length - 1;
-		const mainOptions = this.activeMenu.options.slice(0, -1);
 		const lastOption = this.activeMenu.options[lastIndex];
+		const isReturnButton = lastOption.label && (lastOption.label.includes('Retour') || lastOption.label.includes('←'));
+		
+		let mainOptions;
+		if (isShop && this.activeMenu.mode !== 'main' && isReturnButton) {
+			mainOptions = this.activeMenu.options.filter(opt => !opt.label || (!opt.label.includes('Retour') && !opt.label.includes('←')));
+		} else {
+			mainOptions = this.activeMenu.options.slice(0, -1);
+		}
 
-		const lastItemY = y + height - padding - 20;
-		const startY = lastItemY - mainOptions.length * (itemHeight + itemSpacing);
+		const returnButtonSpacing = (isShop && this.activeMenu.mode !== 'main' && isReturnButton) ? 30 : 0;
+		const lastItemY = y + height - padding - 20 - returnButtonSpacing;
+		let startY;
+		if (isShop && this.activeMenu.mode !== 'main') {
+			startY = titleY + titleHeight + 40;
+		} else if (isShop && this.activeMenu.mode === 'main') {
+			startY = titleY + titleHeight + 10;
+		} else {
+			startY = lastItemY - mainOptions.length * (itemHeight + itemSpacing);
+		}
 
 		mainOptions.forEach((option, index) => {
 			const itemY = startY + index * (itemHeight + itemSpacing);
@@ -354,7 +475,19 @@ export default class MenuManager {
 			} else {
 				color = '#fff';
 			}
-			this.drawTextWithOutline(renderer, option.label, x + padding + 25, itemY, '22px', color, 'left');
+			
+			const isReturnOption = option.label && (option.label.includes('Retour') || option.label.includes('←'));
+			if (this.activeMenu.isShop && option.price !== undefined && !isReturnOption) {
+				const isBuyMode = this.activeMenu.mode === 'buy';
+				this.renderShopItem(renderer, option, x, itemY, width, padding, color, isBuyMode);
+			} else if (this.activeMenu.isInventory && option.quantity !== undefined) {
+				const iconText = option.icon ? `${option.icon} ` : '';
+				const quantityText = `x${option.quantity}`;
+				this.drawTextWithOutline(renderer, iconText + option.label, x + padding + 25, itemY, '22px', color, 'left');
+				this.drawTextWithOutline(renderer, quantityText, x + width - padding - 25, itemY, '20px', '#4af626', 'right');
+			} else {
+				this.drawTextWithOutline(renderer, option.label, x + padding + 25, itemY, '22px', color, 'left');
+			}
 		});
 
 		const isLastExitOption = lastOption.label.toLowerCase().includes('retour') || 
@@ -370,7 +503,18 @@ export default class MenuManager {
 		}
 		
 		const lastColor = lastIndex === this.selectedIndex ? (isLastExitOption ? '#ff69b4' : '#fff') : (lastOption.disabled ? '#888' : (isLastExitOption ? '#ff69b4' : '#fff'));
-		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
+		const isLastReturnOption = lastOption.label && (lastOption.label.includes('Retour') || lastOption.label.includes('←'));
+		if (this.activeMenu.isShop && lastOption.price !== undefined && !isLastReturnOption) {
+			const isBuyMode = this.activeMenu.mode === 'buy';
+			this.renderShopItem(renderer, lastOption, x, lastItemY, width, padding, lastColor, isBuyMode);
+		} else if (this.activeMenu.isInventory && lastOption.quantity !== undefined) {
+			const iconText = lastOption.icon ? `${lastOption.icon} ` : '';
+			const quantityText = `x${lastOption.quantity}`;
+			this.drawTextWithOutline(renderer, iconText + lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
+			this.drawTextWithOutline(renderer, quantityText, x + width - padding - 25, lastItemY, '20px', '#4af626', 'right');
+		} else {
+			this.drawTextWithOutline(renderer, lastOption.label, x + padding + 25, lastItemY, '22px', lastColor, 'left');
+		}
 	}
 
 	renderRightMenu(renderer) {

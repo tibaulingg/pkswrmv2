@@ -7,9 +7,12 @@ import ParticleSystem from '../Systems/ParticleSystem.js';
 import DamageNumberSystem from '../Systems/DamageNumberSystem.js';
 import XPOrbSystem from '../Systems/XPOrbSystem.js';
 import CoinSystem, { COIN_DROP_CHANCE } from '../Systems/CoinSystem.js';
+import ItemDropSystem from '../Systems/ItemDropSystem.js';
+import { ItemConfig } from '../Config/ItemConfig.js';
 import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
-import { getPokemonConfig } from '../Config/SpriteConfig.js';
+import { Spells } from '../Config/SpellConfig.js';
+import { getPokemonConfig, PokemonSprites } from '../Config/SpriteConfig.js';
 import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType,  } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
@@ -33,10 +36,12 @@ export default class BattleScene {
 		this.damageNumberSystem = new DamageNumberSystem();
 		this.xpOrbSystem = new XPOrbSystem();
 		this.coinSystem = null;
+		this.itemDropSystem = new ItemDropSystem();
 		this.hudRenderer = new HUDRenderer();
 		this.spellSystem = new SpellSystem();
 		this.activeSpellEffects = [];
 		this.debug = 0;
+		this.debugMode = false;
 		this.upgradeChoices = null;
 		this.selectedUpgradeIndex = 0;
 		this.upgradeAnimationProgress = 0;
@@ -85,6 +90,12 @@ export default class BattleScene {
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
 			this.player.money = this.engine.money;
 			this.player.displayedMoney = this.engine.displayedMoney;
+			
+			if (this.debugMode) {
+				this.player.unlockSpell('earthquake');
+				this.player.unlockSpell('rock_trap');
+				this.player.unlockSpell('hydrocanon');
+			}
 			
 			if (this.selectedPokemon) {
 				this.engine.playedPokemons.add(this.selectedPokemon);
@@ -174,6 +185,14 @@ export default class BattleScene {
 		}
 		if (key === 'KeyC' && !this.upgradeChoices) {
 			this.debugCollisions = !this.debugCollisions;
+		}
+		if (key === 'KeyD' && !this.upgradeChoices) {
+			this.debugMode = !this.debugMode;
+			if (this.debugMode && this.player) {
+				this.player.unlockSpell('earthquake');
+				this.player.unlockSpell('rock_trap');
+				this.player.unlockSpell('hydrocanon');
+			}
 		}
 		if ((key === 'Digit1' || key === 'Numpad1') && !this.upgradeChoices) {
 			this.castPlayerSpell(0);
@@ -286,11 +305,33 @@ export default class BattleScene {
 				this.engine.defeatedPokemonCounts[pokemonName] = 0;
 			}
 			this.engine.defeatedPokemonCounts[pokemonName]++;
+			
+			this.dropLootFromPokemon(enemyCenterX, enemyCenterY, pokemonName);
 		}
 
 		if (enemy.isBoss) {
 			this.showVictoryScreen();
 		}
+	}
+
+	dropLootFromPokemon(x, y, pokemonName) {
+		const pokemonConfig = PokemonSprites[pokemonName];
+		if (!pokemonConfig || !pokemonConfig.lootTable) return;
+
+		pokemonConfig.lootTable.forEach(loot => {
+			if (Math.random() < loot.chance) {
+				const itemConfig = ItemConfig[loot.itemId];
+				if (itemConfig) {
+					const itemImage = this.engine.sprites.get(`item_${loot.itemId}`);
+					const offsetAngle = Math.random() * Math.PI * 2;
+					const offsetDistance = 25 + Math.random() * 15;
+					const itemX = x + Math.cos(offsetAngle) * offsetDistance;
+					const itemY = y + Math.sin(offsetAngle) * offsetDistance;
+					const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
+					this.itemDropSystem.spawnItem(itemX, itemY, loot.itemId, itemImage, dropScale);
+				}
+			}
+		});
 	}
 
 	spawnRegularCoin(centerX, centerY, reward) {
@@ -376,6 +417,17 @@ export default class BattleScene {
 				this.engine.money = this.player.money;
 				this.engine.displayedMoney = this.player.displayedMoney;
 			}
+		}
+
+		const collectedItems = this.itemDropSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange);
+		if (collectedItems.length > 0) {
+			collectedItems.forEach(itemId => {
+				if (!this.engine.inventory[itemId]) {
+					this.engine.inventory[itemId] = 0;
+				}
+				this.engine.inventory[itemId]++;
+				this.engine.audio.play('ok', 0.3, 0.2);
+			});
 		}
 	}
 
@@ -630,6 +682,11 @@ export default class BattleScene {
 
 			const now = Date.now();
 			if (now - effect.lastProjectileTime >= effect.projectileInterval) {
+				const spellConfig = Spells[effect.spellId || 'hydrocanon'];
+				if (spellConfig && spellConfig.waveSoundEnabled) {
+					this.engine.audio.play('hydrocanon', 0.3, 0.2);
+				}
+				
 				const projectileCount = 3;
 				for (let i = 0; i < projectileCount; i++) {
 					const spread = (i - (projectileCount - 1) / 2) * 0.15;
@@ -1098,6 +1155,7 @@ export default class BattleScene {
 		if (this.coinSystem) {
 			this.coinSystem.render(renderer);
 		}
+		this.itemDropSystem.render(renderer);
 		this.damageNumberSystem.render(renderer);
 
 		this.activeSpellEffects.forEach(effect => {
@@ -1255,9 +1313,12 @@ export default class BattleScene {
 		renderer.ctx.translate(renderer.width / 2, titleY);
 		renderer.ctx.scale(titleScale, titleScale);
 		renderer.ctx.globalAlpha = animProgress;
-		renderer.ctx.font = '48px Pokemon';
-		renderer.ctx.fillStyle = '#ffd700';
+		renderer.ctx.font = 'bold 48px Pokemon';
+		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 2;
 		renderer.ctx.textAlign = 'center';
+		renderer.ctx.strokeText('NIVEAU SUPÉRIEUR !', 0, 0);
 		renderer.ctx.fillText('NIVEAU SUPÉRIEUR !', 0, 0);
 		renderer.ctx.restore();
 
@@ -1265,8 +1326,12 @@ export default class BattleScene {
 		renderer.ctx.globalAlpha = Math.max(0, (animProgress - 0.2) * 1.25);
 		renderer.ctx.font = '24px Pokemon';
 		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 1;
 		renderer.ctx.textAlign = 'center';
-		renderer.ctx.fillText('Choisissez une amélioration', renderer.width / 2, titleY + 50);
+		const subtitleY = titleY + 50;
+		renderer.ctx.strokeText('Choisissez une amélioration', renderer.width / 2, subtitleY);
+		renderer.ctx.fillText('Choisissez une amélioration', renderer.width / 2, subtitleY);
 		renderer.ctx.restore();
 
 		const cardWidth = 280;
@@ -1339,33 +1404,37 @@ export default class BattleScene {
 				renderer.ctx.shadowBlur = 0;
 			}
 			
-			const bgGradient = renderer.ctx.createLinearGradient(cardCenterX, cardCenterY, cardCenterX + cardWidth, cardCenterY + cardHeight);
-			if (upgrade.rarity === 'common') {
-				bgGradient.addColorStop(0, '#2a2a2a');
-				bgGradient.addColorStop(1, '#1a1a1a');
-			} else if (upgrade.rarity === 'rare') {
-				bgGradient.addColorStop(0, '#1a2332');
-				bgGradient.addColorStop(1, '#0d1419');
-			} else if (upgrade.rarity === 'epic') {
-				bgGradient.addColorStop(0, '#2d1b3d');
-				bgGradient.addColorStop(1, '#1a0f26');
-			} else if (upgrade.rarity === 'legendary') {
-				bgGradient.addColorStop(0, '#3d2a1a');
-				bgGradient.addColorStop(1, '#261a0d');
-			}
-			renderer.ctx.fillStyle = bgGradient;
+			// Modern card style matching the rest of the app
+			const backgroundColor = 'rgba(0, 0, 50, 0.7)';
+			renderer.ctx.fillStyle = backgroundColor;
 			renderer.ctx.fillRect(cardCenterX, cardCenterY, cardWidth, cardHeight);
 			
-			renderer.ctx.strokeStyle = borderColor;
-			renderer.ctx.lineWidth = isSelected ? 5 : 3;
+			// White border (thicker if selected)
+			renderer.ctx.strokeStyle = '#fff';
+			renderer.ctx.lineWidth = isSelected ? 4 : 3;
 			renderer.ctx.strokeRect(cardCenterX, cardCenterY, cardWidth, cardHeight);
 
-			if (isSelected && cardProgress >= 1) {
-				renderer.ctx.shadowColor = borderColor;
-				renderer.ctx.shadowBlur = 25;
-				renderer.ctx.strokeRect(cardCenterX, cardCenterY, cardWidth, cardHeight);
-				renderer.ctx.shadowBlur = 0;
-			}
+			// Rarity indicator bar at top
+			const rarityBarHeight = 4;
+			renderer.ctx.fillStyle = borderColor;
+			renderer.ctx.fillRect(cardCenterX, cardCenterY, cardWidth, rarityBarHeight);
+
+			// Rarity text label
+			const rarityNames = {
+				'common': 'COMMUN',
+				'rare': 'RARE',
+				'epic': 'ÉPIQUE',
+				'legendary': 'LÉGENDAIRE'
+			};
+			const rarityName = rarityNames[upgrade.rarity] || upgrade.rarity.toUpperCase();
+			renderer.ctx.font = 'bold 14px Pokemon';
+			renderer.ctx.fillStyle = borderColor;
+			renderer.ctx.textAlign = 'center';
+			renderer.ctx.strokeStyle = '#000';
+			renderer.ctx.lineWidth = 1;
+			const rarityY = cardCenterY + 25;
+			renderer.ctx.strokeText(rarityName, 0, rarityY);
+			renderer.ctx.fillText(rarityName, 0, rarityY);
 
 			let icon = UpgradeIcons[upgrade.type];
 			if (upgrade.type === UpgradeType.SPELL && upgrade.value) {
@@ -1377,18 +1446,24 @@ export default class BattleScene {
 				icon = spellEmojis[upgrade.value] || icon;
 			}
 			renderer.ctx.font = '48px Pokemon';
-			renderer.ctx.fillStyle = borderColor;
+			renderer.ctx.fillStyle = '#fff';
 			renderer.ctx.textAlign = 'center';
-			renderer.ctx.shadowColor = glowColor;
-			renderer.ctx.shadowBlur = 15;
-			renderer.ctx.fillText(icon, 0, cardCenterY + 70);
-			renderer.ctx.shadowBlur = 0;
+			renderer.ctx.strokeStyle = '#000';
+			renderer.ctx.lineWidth = 2;
+			const iconY = cardCenterY + 70;
+			renderer.ctx.strokeText(icon, 0, iconY);
+			renderer.ctx.fillText(icon, 0, iconY);
+			renderer.ctx.lineWidth = 1;
 
 			const currentStacks = this.player.upgrades[upgrade.id] || 0;
-			renderer.ctx.font = '24px Pokemon';
-			renderer.ctx.fillStyle = borderColor;
+			renderer.ctx.font = 'bold 24px Pokemon';
+			renderer.ctx.fillStyle = '#fff';
 			renderer.ctx.textAlign = 'center';
-			renderer.ctx.fillText(upgrade.name, 0, cardCenterY + 120);
+			renderer.ctx.strokeStyle = '#000';
+			renderer.ctx.lineWidth = 1;
+			const nameY = cardCenterY + 120;
+			renderer.ctx.strokeText(upgrade.name, 0, nameY);
+			renderer.ctx.fillText(upgrade.name, 0, nameY);
 
 			let valueText = '';
 			if (typeof upgrade.value === 'number') {
@@ -1399,18 +1474,25 @@ export default class BattleScene {
 					const percent = Math.round(upgrade.value * 100);
 					valueText = `+${percent}%`;
 				} else {
-					valueText = `+${upgrade.value}`;
+					// Don't display value if it's not a percentage (e.g., regen, maxHp)
+					valueText = '';
 				}
 			}
 			if (valueText) {
 				renderer.ctx.font = '20px Pokemon';
 				renderer.ctx.fillStyle = borderColor;
-				renderer.ctx.fillText(valueText, 0, cardCenterY + 150);
+				renderer.ctx.strokeStyle = '#000';
+				renderer.ctx.lineWidth = 1;
+				const valueY = cardCenterY + 150;
+				renderer.ctx.strokeText(valueText, 0, valueY);
+				renderer.ctx.fillText(valueText, 0, valueY);
 			}
 
-			renderer.ctx.fillStyle = '#cccccc';
+			renderer.ctx.fillStyle = '#fff';
 			renderer.ctx.font = '16px Pokemon';
 			renderer.ctx.textAlign = 'center';
+			renderer.ctx.strokeStyle = '#000';
+			renderer.ctx.lineWidth = 1;
 			let description = upgrade.description;
 			if (upgrade.type === 'projectileEnhancement' && this.player) {
 				if (this.player.hasAoE) {
@@ -1428,6 +1510,7 @@ export default class BattleScene {
 				const testLine = line + word + ' ';
 				const metrics = renderer.ctx.measureText(testLine);
 				if (metrics.width > cardWidth - 40) {
+					renderer.ctx.strokeText(line, 0, lineY);
 					renderer.ctx.fillText(line, 0, lineY);
 					line = word + ' ';
 					lineY += 25;
@@ -1435,12 +1518,20 @@ export default class BattleScene {
 					line = testLine;
 				}
 			});
+			renderer.ctx.strokeText(line, 0, lineY);
 			renderer.ctx.fillText(line, 0, lineY);
 
-			const stackText = `Niv. ${currentStacks + 1}/${upgrade.maxStacks}`;
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.fillStyle = '#ffd700';
-			renderer.ctx.fillText(stackText, 0, cardCenterY + cardHeight - 30);
+			// Only display stack text if maxStacks > 1 (not single use)
+			if (upgrade.maxStacks > 1) {
+				const stackText = `Niv. ${currentStacks + 1}/${upgrade.maxStacks}`;
+				renderer.ctx.font = 'bold 18px Pokemon';
+				renderer.ctx.fillStyle = '#E58E72';
+				renderer.ctx.strokeStyle = '#000';
+				renderer.ctx.lineWidth = 1;
+				const stackY = cardCenterY + cardHeight - 30;
+				renderer.ctx.strokeText(stackText, 0, stackY);
+				renderer.ctx.fillText(stackText, 0, stackY);
+			}
 
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
@@ -1459,12 +1550,16 @@ export default class BattleScene {
 		renderer.ctx.save();
 		renderer.ctx.globalAlpha = Math.max(0, (animProgress - 0.5) * 2);
 		renderer.ctx.font = '20px Pokemon';
-		renderer.ctx.fillStyle = '#aaa';
+		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 1;
 		renderer.ctx.textAlign = 'center';
 		const instructionText = this.upgradeAnimationProgress >= this.upgradeAnimationDuration 
 			? '← → pour naviguer | ENTRÉE pour choisir'
 			: 'Chargement...';
-		renderer.ctx.fillText(instructionText, renderer.width / 2, renderer.height - 50);
+		const instructionY = renderer.height - 50;
+		renderer.ctx.strokeText(instructionText, renderer.width / 2, instructionY);
+		renderer.ctx.fillText(instructionText, renderer.width / 2, instructionY);
 		renderer.ctx.restore();
 
 		renderer.ctx.restore();
@@ -1485,8 +1580,11 @@ export default class BattleScene {
 		const spellEffect = this.spellSystem.castSpell(spell, this.player, enemies);
 
 		if (spellEffect) {
-			if (spellEffect.type === 'earthquake' && this.camera) {
-				this.camera.shake(15, 400, this.engine.settings.screenshakeEnabled);
+			if (spellEffect.type === 'earthquake') {
+				if (this.camera) {
+					this.camera.shake(15, 400, this.engine.settings.screenshakeEnabled);
+				}
+				this.engine.audio.play('earthquake', 0.5, 0.2);
 			}
 			if (spellEffect.hitEnemies) {
 				spellEffect.hitEnemies.forEach(hit => {

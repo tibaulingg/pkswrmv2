@@ -1,6 +1,7 @@
 import MenuScene from '../Scenes/MenuScene.js';
 import GameScene from '../Scenes/GameScene.js';
 import CollectionScene from '../Scenes/CollectionScene.js';
+import InventoryScene from '../Scenes/InventoryScene.js';
 import MapSelectionScene from '../Scenes/MapSelectionScene.js';
 import BattleScene from '../Scenes/BattleScene.js';
 import SettingsScene from '../Scenes/SettingsScene.js';
@@ -12,6 +13,7 @@ export default class SceneManager {
 			menu: new MenuScene(this.engine),
 			game: new GameScene(this.engine),
 			collection: new CollectionScene(this.engine),
+			inventory: new InventoryScene(this.engine),
 			mapSelection: new MapSelectionScene(this.engine),
 			battle: new BattleScene(this.engine),
 			settings: new SettingsScene(this.engine)

@@ -38,7 +38,8 @@ export const Spells = {
 		animation: 'charge',
 		animationDuration: 3000,
 		particleColor: '#4dd0e1',
-		knockback: 10
+		knockback: 10,
+		waveSoundEnabled: true
 	}
 };
 

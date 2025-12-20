@@ -46,9 +46,9 @@ export const EnemyTypes = {
 
 export const MapEnemies = {
 	0: [
-		{ type: 'rattata', weight: 5 },
-		{ type: 'caterpie', weight: 5 },
-		{ type: 'pidgey', weight: 5 }
+		{ type: 'rattata', weight: 6 },
+		{ type: 'caterpie', weight: 2 },
+		{ type: 'pidgey', weight: 3 }
 	],
 	1: [
 		{ type: 'rattata', weight: 4 },

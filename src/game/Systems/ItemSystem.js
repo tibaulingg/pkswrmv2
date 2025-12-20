@@ -1,3 +1,5 @@
+import { ItemConfig } from '../Config/ItemConfig.js';
+
 export const ItemType = {
 	WEAPON: 'weapon',
 	PASSIVE: 'passive',
@@ -11,20 +13,6 @@ export const ItemRarity = {
 	LEGENDARY: 'legendary'
 };
 
-export const Items = {
-	explosive_ammo: {
-		id: 'explosive_ammo',
-		name: 'Munitions Explosives',
-		description: 'Vos projectiles font des dégâts de zone',
-		type: ItemType.PASSIVE,
-		rarity: ItemRarity.RARE,
-		icon: '💣',
-		effect: {
-			aoeRadius: 80
-		}
-	}
-};
-
 export default class ItemSystem {
 	constructor(player) {
 		this.player = player;
@@ -32,8 +20,8 @@ export default class ItemSystem {
 	}
 
 	addItem(itemId) {
-		const item = Items[itemId];
-		if (!item) return false;
+		const item = ItemConfig[itemId];
+		if (!item || !item.effect) return false;
 
 		this.activeItems.push(item);
 		this.applyItemEffect(item);
