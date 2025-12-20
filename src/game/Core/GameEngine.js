@@ -31,6 +31,7 @@ export default class GameEngine {
 		this.encounteredPokemons = new Set();
 		this.playedPokemons = new Set();
 		this.playedMaps = new Set();
+		this.defeatedPokemonCounts = {};
 	}
 
 	async start() {
@@ -42,7 +43,9 @@ export default class GameEngine {
 
 	async loadAssets() {
 		try {
-			const backgroundPath = process.env.PUBLIC_URL + '/background.png';
+			await this.sprites.load('background_1', process.env.PUBLIC_URL + '/background_1.png');
+			await this.sprites.load('background_2', process.env.PUBLIC_URL + '/background_2.png');
+			await this.sprites.load('background_3', process.env.PUBLIC_URL + '/background_3.png');
 			const hubPath = process.env.PUBLIC_URL + '/hub.png';
 			const quaksireWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Walk-Anim.png';
 			const rattataWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Walk-Anim.png';
@@ -55,7 +58,6 @@ export default class GameEngine {
 			const pidgeyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Walk-Anim.png';
 			const pidgeyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Hurt-Anim.png';
 
-			await this.sprites.load('background', backgroundPath);
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
 			await this.sprites.load('rattata_walk', rattataWalkPath);

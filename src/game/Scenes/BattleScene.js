@@ -200,6 +200,14 @@ export default class BattleScene {
 			this.spawnRegularCoin(enemyCenterX, enemyCenterY, moneyReward);
 		}
 
+		if (enemy.pokemonConfig && enemy.pokemonConfig.name) {
+			const pokemonName = enemy.pokemonConfig.name;
+			if (!this.engine.defeatedPokemonCounts[pokemonName]) {
+				this.engine.defeatedPokemonCounts[pokemonName] = 0;
+			}
+			this.engine.defeatedPokemonCounts[pokemonName]++;
+		}
+
 		if (enemy.isBoss) {
 			this.showVictoryScreen();
 		}
@@ -719,21 +727,24 @@ export default class BattleScene {
 			targetY = attackData.aimY;
 		}
 
-		const 				projectile = new Projectile(
-					this.player.getCenterX(),
-					this.player.getCenterY(),
-					targetX,
-					targetY,
-					attackData.damage,
-					0.6 * (attackData.projectileSpeed || 1),
-					this.player.range,
-					attackData.projectileColor || '#ffff00',
-					attackData.projectileSize || 8,
-					attackData.playerVelocityX || 0,
-					attackData.playerVelocityY || 0,
-					attackData.isCrit || false,
-					attackData.aoeRadius || 0
-				);
+		const playerVelX = attackData.autoShoot ? 0 : (attackData.playerVelocityX || 0);
+		const playerVelY = attackData.autoShoot ? 0 : (attackData.playerVelocityY || 0);
+		
+		const projectile = new Projectile(
+			this.player.getCenterX(),
+			this.player.getCenterY(),
+			targetX,
+			targetY,
+			attackData.damage,
+			0.6 * (attackData.projectileSpeed || 1),
+			this.player.range,
+			attackData.projectileColor || '#ffff00',
+			attackData.projectileSize || 8,
+			playerVelX,
+			playerVelY,
+			attackData.isCrit || false,
+			attackData.aoeRadius || 0
+		);
 		this.projectiles.push(projectile);
 	}
 

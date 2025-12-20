@@ -468,27 +468,9 @@ export default class BattlePlayer {
 			renderer.ctx.restore();
 		}
 
-		if (this.attackType === 'melee' && this.range > 0) {
+		if (this.range > 0) {
 			renderer.ctx.save();
-			renderer.ctx.strokeStyle = 'rgba(255, 255, 100, 0.3)';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.setLineDash([5, 5]);
-			renderer.ctx.beginPath();
-			renderer.ctx.arc(
-				this.getCenterX(),
-				this.getCenterY(),
-				this.range,
-				0,
-				Math.PI * 2
-			);
-			renderer.ctx.stroke();
-			renderer.ctx.setLineDash([]);
-			renderer.ctx.restore();
-		}
-
-		if (this.attackType === 'range' && this.range > 0) {
-			renderer.ctx.save();
-			renderer.ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+			renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
 			renderer.ctx.lineWidth = 2;
 			renderer.ctx.setLineDash([5, 5]);
 			renderer.ctx.beginPath();
@@ -505,12 +487,20 @@ export default class BattlePlayer {
 		}
 
 		if (this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
+			const dx = this.aimX - this.getCenterX();
+			const dy = this.aimY - this.getCenterY();
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			const sightLength = 40;
+			const ratio = sightLength / Math.max(distance, sightLength);
+			const sightX = this.getCenterX() + dx * ratio;
+			const sightY = this.getCenterY() + dy * ratio;
+			
 			renderer.ctx.save();
 			renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
 			renderer.ctx.lineWidth = 2;
 			renderer.ctx.beginPath();
 			renderer.ctx.moveTo(this.getCenterX(), this.getCenterY());
-			renderer.ctx.lineTo(this.aimX, this.aimY);
+			renderer.ctx.lineTo(sightX, sightY);
 			renderer.ctx.stroke();
 			renderer.ctx.restore();
 		}

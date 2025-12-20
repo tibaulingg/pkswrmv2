@@ -3,7 +3,7 @@ class XPOrb {
 		this.x = x;
 		this.y = y;
 		this.xpAmount = xpAmount;
-		this.size = 3;
+		this.size = 2.5 + Math.random() * 1.5;
 		this.isActive = true;
 		this.lifetime = 0;
 		this.bobOffset = Math.random() * Math.PI * 2;
@@ -11,6 +11,7 @@ class XPOrb {
 		this.velocityY = 0;
 		this.isBeingPulled = false;
 		this.justCollected = false;
+		this.points = 4 + Math.floor(Math.random() * 3);
 	}
 
 	update(deltaTime, playerX, playerY, fetchRange) {
@@ -56,60 +57,66 @@ class XPOrb {
 
 		const bobAmount = Math.sin((this.lifetime / 300) + this.bobOffset) * 2;
 		const renderY = this.y + bobAmount;
-		const pulseAmount = Math.sin((this.lifetime / 150) + this.bobOffset) * 0.25 + 1;
+		const pulseAmount = Math.sin((this.lifetime / 150) + this.bobOffset) * 0.15 + 1;
 		const glowPulse = Math.sin((this.lifetime / 200) + this.bobOffset) * 0.5 + 0.5;
 		const rotationAmount = (this.lifetime / 800) + this.bobOffset;
+		const currentSize = this.size * pulseAmount;
 
 		renderer.ctx.save();
 		
-		renderer.ctx.shadowColor = '#5AA5E6';
-		renderer.ctx.shadowBlur = 15 + glowPulse * 8;
+		renderer.ctx.shadowColor = '#87CEEB';
+		renderer.ctx.shadowBlur = 12 + glowPulse * 6;
 		
-		renderer.ctx.fillStyle = `rgba(90, 165, 230, ${0.2 + glowPulse * 0.15})`;
+		renderer.ctx.fillStyle = `rgba(135, 206, 235, ${0.15 + glowPulse * 0.1})`;
 		renderer.ctx.beginPath();
-		renderer.ctx.arc(this.x, renderY, (this.size + 6) * pulseAmount, 0, Math.PI * 2);
+		renderer.ctx.arc(this.x, renderY, (currentSize + 4), 0, Math.PI * 2);
 		renderer.ctx.fill();
 
 		const gradient1 = renderer.ctx.createRadialGradient(
 			this.x, renderY, 0,
-			this.x, renderY, this.size * pulseAmount
+			this.x, renderY, currentSize
 		);
-		gradient1.addColorStop(0, '#6BB6FF');
-		gradient1.addColorStop(0.2, '#5AA5E6');
-		gradient1.addColorStop(0.5, '#4A95CC');
-		gradient1.addColorStop(1, '#3A85B3');
+		gradient1.addColorStop(0, '#B0E0E6');
+		gradient1.addColorStop(0.3, '#ADD8E6');
+		gradient1.addColorStop(0.6, '#87CEEB');
+		gradient1.addColorStop(1, '#87CEEB');
 		
 		renderer.ctx.fillStyle = gradient1;
 		renderer.ctx.beginPath();
-		renderer.ctx.arc(this.x, renderY, this.size * pulseAmount, 0, Math.PI * 2);
+		
+		const outerRadius = currentSize;
+		const innerRadius = currentSize * 0.4;
+		
+		for (let i = 0; i < this.points * 2; i++) {
+			const angle = (Math.PI * 2 * i) / (this.points * 2) + rotationAmount;
+			const radius = i % 2 === 0 ? outerRadius : innerRadius;
+			const px = this.x + Math.cos(angle) * radius;
+			const py = renderY + Math.sin(angle) * radius;
+			
+			if (i === 0) {
+				renderer.ctx.moveTo(px, py);
+			} else {
+				renderer.ctx.lineTo(px, py);
+			}
+		}
+		renderer.ctx.closePath();
 		renderer.ctx.fill();
 
-		const sparkleSize = this.size * 0.7 * pulseAmount;
-		const sparkleAngle = rotationAmount;
-		
-		for (let i = 0; i < 4; i++) {
-			const angle = sparkleAngle + (Math.PI / 2) * i;
-			const sparkleX = this.x + Math.cos(angle) * sparkleSize * 0.8;
-			const sparkleY = renderY + Math.sin(angle) * sparkleSize * 0.8;
-			
-			renderer.ctx.shadowBlur = 8;
-			renderer.ctx.fillStyle = '#5AA5E6';
-			renderer.ctx.beginPath();
-			renderer.ctx.arc(sparkleX, sparkleY, 1.2, 0, Math.PI * 2);
-			renderer.ctx.fill();
-		}
+		renderer.ctx.strokeStyle = '#2E5C8A';
+		renderer.ctx.lineWidth = 1.5;
+		renderer.ctx.stroke();
 
-		const highlight1 = renderer.ctx.createRadialGradient(
-			this.x - this.size * 0.3, renderY - this.size * 0.3, 0,
-			this.x, renderY, this.size * 0.6 * pulseAmount
+		const highlightGradient = renderer.ctx.createRadialGradient(
+			this.x - currentSize * 0.3, renderY - currentSize * 0.3, 0,
+			this.x, renderY, currentSize * 0.5
 		);
-		highlight1.addColorStop(0, 'rgba(90, 165, 230, 0.8)');
-		highlight1.addColorStop(0.5, 'rgba(90, 165, 230, 0.5)');
-		highlight1.addColorStop(1, 'rgba(90, 165, 230, 0)');
+		highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+		highlightGradient.addColorStop(0.5, 'rgba(173, 216, 230, 0.5)');
+		highlightGradient.addColorStop(1, 'rgba(135, 206, 235, 0)');
 		
-		renderer.ctx.fillStyle = highlight1;
+		renderer.ctx.fillStyle = highlightGradient;
 		renderer.ctx.beginPath();
-		renderer.ctx.arc(this.x, renderY, this.size * 0.7 * pulseAmount, 0, Math.PI * 2);
+		renderer.ctx.arc(this.x - currentSize * 0.2, renderY - currentSize * 0.2, currentSize * 0.5, 0, Math.PI * 2);
 		renderer.ctx.fill();
 
 		renderer.ctx.restore();

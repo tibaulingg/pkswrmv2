@@ -1,5 +1,6 @@
 import { PokemonSprites } from '../Config/SpriteConfig.js';
 import { MapEnemies, EnemyTypes } from '../Config/EnemyConfig.js';
+import { HubMenuConfig } from '../Config/MenuConfig.js';
 
 export default class CollectionScene {
 	constructor(engine) {
@@ -68,7 +69,9 @@ export default class CollectionScene {
 			style: 'left',
 			closeable: true,
 			onClose: (engine) => {
+				engine.menuManager.closeMenu();
 				engine.sceneManager.popScene();
+				engine.menuManager.openMenu(HubMenuConfig);
 			},
 			options: [
 				{
@@ -97,6 +100,7 @@ export default class CollectionScene {
 					action: (engine) => {
 						engine.menuManager.closeMenu();
 						engine.sceneManager.popScene();
+						engine.menuManager.openMenu(HubMenuConfig);
 					}
 				}
 			]
@@ -134,57 +138,97 @@ export default class CollectionScene {
 		};
 		renderer.drawText(categoryTitles[this.currentCategory], gridX + 30, gridY + 50, '28px', '#fff', 'left');
 
-		let collectionData = [];
+		const cols = 10;
+		const cellSize = 60;
+		const cellSpacing = 10;
+		const startX = gridX + 30;
+		let currentY = gridY + 80;
+
 		if (this.currentCategory === 'pokemons') {
 			const allPokemons = this.getAllPokemons();
-			collectionData = allPokemons.map(pokemonName => ({
-				id: pokemonName,
-				name: pokemonName,
-				unlocked: this.engine.encounteredPokemons.has(pokemonName) || this.engine.playedPokemons.has(pokemonName),
-				played: this.engine.playedPokemons.has(pokemonName)
-			}));
+			this.renderPokemonGrid(renderer, allPokemons, startX, currentY, cols, cellSize, cellSpacing);
 		} else if (this.currentCategory === 'map') {
 			const allMaps = this.getAllMaps();
-			collectionData = allMaps.map(map => ({
+			const collectionData = allMaps.map(map => ({
 				id: map.id,
 				name: map.name,
 				image: map.image,
 				unlocked: this.engine.playedMaps.has(map.id)
 			}));
-		} else {
-			collectionData = [];
+			this.renderMapGrid(renderer, collectionData, startX, currentY, cols, cellSize, cellSpacing);
 		}
+	}
 
-		const cols = 10;
-		const cellSize = 60;
-		const cellSpacing = 10;
-		const startX = gridX + 30;
-		const startY = gridY + 80;
+	formatNumber(num) {
+		if (num >= 1000000) {
+			return (num / 1000000).toFixed(1) + 'M';
+		} else if (num >= 1000) {
+			return (num / 1000).toFixed(1) + 'k';
+		}
+		return num.toString();
+	}
 
-		collectionData.forEach((item, index) => {
+	renderPokemonGrid(renderer, pokemons, startX, startY, cols, cellSize, cellSpacing) {
+		pokemons.forEach((pokemonName, index) => {
 			const col = index % cols;
 			const row = Math.floor(index / cols);
 			const x = startX + col * (cellSize + cellSpacing);
 			const y = startY + row * (cellSize + cellSpacing);
 
-			if (item.unlocked) {
+			const isPlayed = this.engine.playedPokemons.has(pokemonName);
+			const isEncountered = this.engine.encounteredPokemons.has(pokemonName);
+			const isUnlocked = isPlayed || isEncountered;
+
+			if (isUnlocked) {
 				renderer.drawRect(x, y, cellSize, cellSize, '#4a90e2');
-				renderer.drawStrokeRect(x, y, cellSize, cellSize, item.played ? '#ffd700' : '#fff', 2);
+				renderer.drawStrokeRect(x, y, cellSize, cellSize, isPlayed ? '#ffd700' : '#fff', 2);
 				
-				if (this.currentCategory === 'pokemons') {
-					const pokemonImage = this.pokemonImages[item.name];
-					if (pokemonImage && pokemonImage.complete && pokemonImage.naturalHeight > 0) {
-						renderer.ctx.save();
-						renderer.ctx.drawImage(pokemonImage, x + 2, y + 2, cellSize - 4, cellSize - 4);
-						renderer.ctx.restore();
-					}
-				} else if (this.currentCategory === 'map') {
-					const mapIcon = this.mapIcons[item.id];
-					if (mapIcon && mapIcon.complete && mapIcon.naturalHeight > 0) {
-						renderer.ctx.save();
-						renderer.ctx.drawImage(mapIcon, x + 2, y + 2, cellSize - 4, cellSize - 4);
-						renderer.ctx.restore();
-					}
+				const pokemonImage = this.pokemonImages[pokemonName];
+				if (pokemonImage && pokemonImage.complete && pokemonImage.naturalHeight > 0) {
+					renderer.ctx.save();
+					renderer.ctx.drawImage(pokemonImage, x + 2, y + 2, cellSize - 4, cellSize - 4);
+					renderer.ctx.restore();
+				}
+
+				if (!isPlayed && this.engine.defeatedPokemonCounts[pokemonName]) {
+					const count = this.engine.defeatedPokemonCounts[pokemonName];
+					const countText = this.formatNumber(count);
+					
+					renderer.ctx.save();
+					renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+					renderer.ctx.fillRect(x, y + cellSize - 16, cellSize, 16);
+					
+					renderer.ctx.fillStyle = '#fff';
+					renderer.ctx.font = 'bold 10px Pokemon';
+					renderer.ctx.textAlign = 'center';
+					renderer.ctx.textBaseline = 'middle';
+					renderer.ctx.fillText(countText, x + cellSize / 2, y + cellSize - 8);
+					renderer.ctx.restore();
+				}
+			} else {
+				renderer.drawRect(x, y, cellSize, cellSize, '#333');
+				renderer.drawStrokeRect(x, y, cellSize, cellSize, '#555', 2);
+				renderer.drawText('?', x + cellSize / 2, y + cellSize / 2 + 8, '24px', '#666', 'center');
+			}
+		});
+	}
+
+	renderMapGrid(renderer, maps, startX, startY, cols, cellSize, cellSpacing) {
+		maps.forEach((map, index) => {
+			const col = index % cols;
+			const row = Math.floor(index / cols);
+			const x = startX + col * (cellSize + cellSpacing);
+			const y = startY + row * (cellSize + cellSpacing);
+
+			if (map.unlocked) {
+				renderer.drawRect(x, y, cellSize, cellSize, '#4a90e2');
+				renderer.drawStrokeRect(x, y, cellSize, cellSize, '#fff', 2);
+				
+				const mapIcon = this.mapIcons[map.id];
+				if (mapIcon && mapIcon.complete && mapIcon.naturalHeight > 0) {
+					renderer.ctx.save();
+					renderer.ctx.drawImage(mapIcon, x + 2, y + 2, cellSize - 4, cellSize - 4);
+					renderer.ctx.restore();
 				}
 			} else {
 				renderer.drawRect(x, y, cellSize, cellSize, '#333');
