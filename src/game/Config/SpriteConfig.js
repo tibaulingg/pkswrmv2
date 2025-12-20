@@ -20,21 +20,26 @@ export const PokemonSprites = {
 		hurt: {
 			frames: 2
 		},
+		faint: {
+			frames: 2,
+			rows: 1,
+			duration: 1500
+		},
 		charge: {
 			frames: 10
 		},
 		attackType: 'range',
-		type: 'fire',
-		hp: 100,
+		type: 'water',
+		hp: 1,
 		speed: 2.0,
 		damage: 150,
-		attackSpeed: 3.0,
+		attackSpeed: 2.0,
 		range: 180,
 		knockback: 10,
 		particleColor: 'blue',
 		projectileColor: 'blue',
-		projectileSize: 8,
-		projectileSpeed: 0.6,
+		projectileSize: 12,
+		projectileSpeed: 0.5,
 		spells: [
 			{
 				id: 'earthquake',
@@ -78,6 +83,9 @@ export const PokemonSprites = {
 		hurt: {
 			frames: 2
 		},
+		faint: {
+			frames: 4
+		},
 		attackType: 'melee',
 		type: 'normal',
 		hp: 20,
@@ -99,6 +107,9 @@ export const PokemonSprites = {
 		},
 		hurt: {
 			frames: 2
+		},
+		faint: {
+			frames: 4
 		},
 		shoot: {
 			frames: 8
@@ -124,6 +135,9 @@ export const PokemonSprites = {
 		},
 		hurt: {
 			frames: 2
+		},
+		faint: {
+			frames: 4
 		},
 		attackType: 'melee',
 		type: 'flying',
@@ -155,6 +169,15 @@ export function getPokemonConfig(pokemonName) {
 			frames: pokemon.hurt.frames
 		}
 	};
+
+	if (pokemon.faint) {
+		animations.faint = {
+			file: `/sprites/pokemon/${pokemon.name}/Faint-Anim.png`,
+			frames: pokemon.faint.frames,
+			rows: pokemon.faint.rows || SPRITE_ROWS,
+			duration: pokemon.faint.duration || 1000
+		};
+	}
 
 	if (pokemon.charge) {
 		animations.charge = {

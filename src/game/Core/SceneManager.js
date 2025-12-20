@@ -3,6 +3,7 @@ import GameScene from '../Scenes/GameScene.js';
 import CollectionScene from '../Scenes/CollectionScene.js';
 import MapSelectionScene from '../Scenes/MapSelectionScene.js';
 import BattleScene from '../Scenes/BattleScene.js';
+import SettingsScene from '../Scenes/SettingsScene.js';
 
 export default class SceneManager {
 	constructor(engine) {
@@ -12,7 +13,8 @@ export default class SceneManager {
 			game: new GameScene(this.engine),
 			collection: new CollectionScene(this.engine),
 			mapSelection: new MapSelectionScene(this.engine),
-			battle: new BattleScene(this.engine)
+			battle: new BattleScene(this.engine),
+			settings: new SettingsScene(this.engine)
 		};
 		this.stack = [];
 	}

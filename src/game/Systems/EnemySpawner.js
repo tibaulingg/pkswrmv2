@@ -228,6 +228,10 @@ export default class EnemySpawner {
 		return this.enemies;
 	}
 
+	getBoss() {
+		return this.enemies.find(enemy => enemy.isBoss && enemy.isAlive);
+	}
+
 	render(renderer, debug = 0) {
 		this.enemies.forEach(enemy => {
 			enemy.render(renderer, debug);

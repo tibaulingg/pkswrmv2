@@ -19,7 +19,10 @@ export const MainMenuConfig = {
 		},
 		{
 			label: 'Paramètres',
-			action: (engine) => {}
+			action: (engine) => {
+				engine.menuManager.closeMenu();
+				engine.sceneManager.pushScene('settings');
+			}
 		},
 		{
 			label: 'Exit',
@@ -46,6 +49,7 @@ export const HubMenuConfig = {
 			label: 'Paramètres',
 			action: (engine) => {
 				engine.menuManager.closeMenu();
+				engine.sceneManager.pushScene('settings');
 			}
 		},
 		{
@@ -67,6 +71,13 @@ export const PauseMenuConfig = {
 			label: 'Reprendre',
 			action: (engine) => {
 				engine.menuManager.closeMenu();
+			}
+		},
+		{
+			label: 'Paramètres',
+			action: (engine) => {
+				engine.menuManager.closeMenu();
+				engine.sceneManager.pushScene('settings');
 			}
 		},
 		{

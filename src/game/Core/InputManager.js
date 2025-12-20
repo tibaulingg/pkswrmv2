@@ -72,6 +72,20 @@ export default class InputManager {
 		return !!this.keys[code];
 	}
 
+	getLastKey() {
+		if (!this.lastKeyWasNewPress || !this.lastKeyPressed) {
+			return null;
+		}
+		
+		const key = this.lastKeyPressed;
+		
+		if (!this.keys[key]) {
+			return null;
+		}
+		
+		return key;
+	}
+
 	consumeLastKey() {
 		if (!this.lastKeyWasNewPress || !this.lastKeyPressed) {
 			return null;

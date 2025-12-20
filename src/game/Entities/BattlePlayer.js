@@ -19,17 +19,17 @@ export default class BattlePlayer {
 			this.height = 32;
 		}
 		
-		this.speed = 3;
+		this.speed = pokemonConfig?.speed || 3;
 		this.directionX = 0;
 		this.directionY = 0;
 		this.velocityX = 0;
 		this.velocityY = 0;
 		
-		this.hp = 100;
-		this.maxHp = 100;
-		this.displayedHp = 100;
+		this.hp = pokemonConfig?.hp || 100;
+		this.maxHp = this.hp;
+		this.displayedHp = this.hp;
 		this.lostHp = 0;
-		this.lostHpDecaySpeed = 0.5;
+		this.lostHpDecaySpeed = 0.8;
 		this.isAlive = true;
 		
 		this.invulnerableTime = 0;
@@ -37,6 +37,9 @@ export default class BattlePlayer {
 		this.hitFlashTime = 0;
 		this.hurtAnimationTime = 0;
 		this.hurtAnimationDuration = 300;
+		this.faintAnimationTime = 0;
+		this.faintAnimationDuration = pokemonConfig?.animations?.faint?.duration || 1000;
+		this.isDying = false;
 		
 		this.attackType = pokemonConfig?.attackType || 'melee';
 		this.type = pokemonConfig?.type || 'normal';
@@ -103,7 +106,22 @@ export default class BattlePlayer {
 	}
 
 	update(deltaTime, input, mapWidth, mapHeight, camera = null) {
-		if (!this.isAlive) return;
+		if (!this.isAlive && !this.isDying) return;
+		
+		if (this.isDying) {
+			this.faintAnimationTime -= deltaTime;
+			if (this.faintAnimationTime <= 0) {
+				this.faintAnimationTime = 0;
+				this.isDying = false;
+			}
+			
+			// Mettre à jour l'animation pendant la mort
+			if (this.animationSystem) {
+				this.animationSystem.update(deltaTime, false, 0, 0);
+			}
+			
+			return;
+		}
 
 		let moveX = 0;
 		let moveY = 0;
@@ -433,6 +451,20 @@ export default class BattlePlayer {
 			this.displayedHp = 0;
 			this.lostHp = 0;
 			this.isAlive = false;
+			
+			this.isDying = true;
+			this.faintAnimationTime = this.faintAnimationDuration;
+			
+			if (this.animationSystem) {
+				const hasFaintAnimation = this.pokemonConfig && this.pokemonConfig.animations && this.pokemonConfig.animations.faint;
+				if (hasFaintAnimation) {
+					this.animationSystem.setAnimation('faint');
+				} else {
+					// Utiliser l'animation hurt par défaut si faint n'existe pas
+					this.animationSystem.setAnimation('hurt');
+				}
+			}
+			
 			return true;
 		}
 
@@ -468,25 +500,38 @@ export default class BattlePlayer {
 			renderer.ctx.restore();
 		}
 
-		if (this.range > 0) {
-			renderer.ctx.save();
-			renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.setLineDash([5, 5]);
-			renderer.ctx.beginPath();
-			renderer.ctx.arc(
-				this.getCenterX(),
-				this.getCenterY(),
-				this.range,
-				0,
-				Math.PI * 2
-			);
-			renderer.ctx.stroke();
-			renderer.ctx.setLineDash([]);
-			renderer.ctx.restore();
+		if (this.isAlive && this.range > 0 && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
+			const centerX = this.getCenterX();
+			const centerY = this.getCenterY();
+			const dx = this.aimX - centerX;
+			const dy = this.aimY - centerY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			if (distance > 0) {
+				const angle = Math.atan2(dy, dx);
+				const arcAngle = Math.PI / 3;
+				const arcStart = angle - arcAngle / 2;
+				const arcEnd = angle + arcAngle / 2;
+				
+				renderer.ctx.save();
+				renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.setLineDash([5, 5]);
+				renderer.ctx.beginPath();
+				renderer.ctx.arc(
+					centerX,
+					centerY,
+					this.range,
+					arcStart,
+					arcEnd
+				);
+				renderer.ctx.stroke();
+				renderer.ctx.setLineDash([]);
+				renderer.ctx.restore();
+			}
 		}
 
-		if (this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
+		if (this.isAlive && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
 			const dx = this.aimX - this.getCenterX();
 			const dy = this.aimY - this.getCenterY();
 			const distance = Math.sqrt(dx * dx + dy * dy);

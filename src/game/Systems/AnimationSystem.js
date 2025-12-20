@@ -20,7 +20,8 @@ export default class AnimationSystem {
 		
 		const anim = this.spriteConfig.animations[this.currentAnimation];
 		this.frameWidth = spriteImage.width / anim.frames;
-		this.frameHeight = spriteImage.height / this.spriteConfig.rows;
+		const rows = anim.rows || this.spriteConfig.rows;
+		this.frameHeight = spriteImage.height / rows;
 	}
 
 	getCurrentSpriteImage() {
@@ -137,7 +138,9 @@ export default class AnimationSystem {
 
 		this.calculateFrameDimensions();
 
-		const directionRow = this.spriteConfig.directions[this.currentDirection];
+		const anim = this.spriteConfig.animations[this.currentAnimation];
+		const rows = anim.rows || this.spriteConfig.rows;
+		const directionRow = rows === 1 ? 0 : this.spriteConfig.directions[this.currentDirection];
 		const sourceX = this.currentFrame * this.frameWidth;
 		const sourceY = directionRow * this.frameHeight;
 

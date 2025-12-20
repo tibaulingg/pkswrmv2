@@ -41,22 +41,34 @@ export default class BattleScene {
 		this.upgradeAnimationDuration = 600;
 		this.survivalTime = 0;
 		this.originalMusicVolume = null;
+		this.playerDying = false;
+		this.deathAnimationComplete = false;
+		this.deathZoomStart = 1.5;
+		this.deathZoomEnd = 3.0;
+		this.deathZoomProgress = 0;
+		this.killerEnemy = null;
 	}
 
-	init(mapData) {
+		init(mapData) {
 		if (mapData) {
 			this.mapData = mapData;
 			this.state = 'playing';
 			this.survivalTime = 0;
+		this.playerDying = false;
+		this.deathAnimationComplete = false;
+		this.deathZoomProgress = 0;
+		this.killerEnemy = null;
 			
 			const pokemonConfig = getPokemonConfig(this.selectedPokemon);
 			const pokemonWalkSprite = this.engine.sprites.get(`${this.selectedPokemon}_walk`);
 			const pokemonHurtSprite = this.engine.sprites.get(`${this.selectedPokemon}_hurt`);
 			const pokemonChargeSprite = this.engine.sprites.get(`${this.selectedPokemon}_charge`);
+			const pokemonFaintSprite = this.engine.sprites.get(`${this.selectedPokemon}_faint`);
 			const spriteImages = {};
 			if (pokemonWalkSprite) spriteImages.walk = pokemonWalkSprite;
 			if (pokemonHurtSprite) spriteImages.hurt = pokemonHurtSprite;
 			if (pokemonChargeSprite) spriteImages.charge = pokemonChargeSprite;
+			if (pokemonFaintSprite) spriteImages.faint = pokemonFaintSprite;
 			const hasSprites = Object.keys(spriteImages).length > 0;
 			const animationSystem = pokemonConfig && hasSprites ? 
 				new AnimationSystem(pokemonConfig, spriteImages) : null;
@@ -109,12 +121,32 @@ export default class BattleScene {
 			return;
 		}
 
-		if (this.state === 'playing') {
+		if (this.state === 'playing' || this.state === 'dying') {
 			this.updateBattle(deltaTime);
 		}
 	}
 
 	updateBattle(deltaTime) {
+		if (this.state === 'dying') {
+			if (this.player && this.player.isDying) {
+				this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera);
+				
+				// Zoom progressif pendant l'animation de mort
+				const animationProgress = 1 - (this.player.faintAnimationTime / this.player.faintAnimationDuration);
+				this.deathZoomProgress = Math.min(1, animationProgress);
+				const currentZoom = this.deathZoomStart + (this.deathZoomEnd - this.deathZoomStart) * this.deathZoomProgress;
+				this.camera.zoom = currentZoom;
+				
+				this.camera.update(deltaTime);
+				this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
+			} else if (this.player && !this.deathAnimationComplete) {
+				// Si pas d'animation faint ou animation terminée, afficher le menu
+				this.deathAnimationComplete = true;
+				this.showDefeatMenu();
+			}
+			return;
+		}
+		
 		this.survivalTime += deltaTime;
 		
 		const key = this.engine.input.consumeLastKey();
@@ -167,6 +199,33 @@ export default class BattleScene {
 
 	getAllEnemies() {
 		return this.enemySpawner ? this.enemySpawner.getEnemies() : [];
+	}
+
+	findEnemyByProjectile(projectile) {
+		if (projectile.sourceEnemy) {
+			return projectile.sourceEnemy;
+		}
+		
+		const enemies = this.getAllEnemies();
+		let closestEnemy = null;
+		let closestDistance = Infinity;
+		
+		enemies.forEach(enemy => {
+			if (!enemy.isAlive) return;
+			
+			const enemyCenterX = enemy.getCenterX();
+			const enemyCenterY = enemy.getCenterY();
+			const dx = projectile.x - enemyCenterX;
+			const dy = projectile.y - enemyCenterY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			if (distance < closestDistance && enemy.attackType === 'range') {
+				closestDistance = distance;
+				closestEnemy = enemy;
+			}
+		});
+		
+		return closestEnemy;
 	}
 
 	calculateKnockbackDirection(fromX, fromY, toX, toY) {
@@ -260,12 +319,15 @@ export default class BattleScene {
 			
 			if (projectile.collidesWith(this.player.getHitboxX(), this.player.getHitboxY(), this.player.width, this.player.height)) {
 				this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, projectile.damage, true);
-				this.camera.shake(8, 150);
+				this.camera.shake(8, 150, this.engine.settings.screenshakeEnabled);
+				this.engine.audio.play('hit', 0.3, 0.3);
+				const killerEnemy = this.findEnemyByProjectile(projectile);
+				if (killerEnemy) {
+					this.killerEnemy = killerEnemy;
+				}
 				const died = this.player.takeDamage(projectile.damage);
 				if (died) {
-					this.state = 'gameover';
-					this.engine.audio.play('defeat', 0.7, 0);
-					this.engine.gameManager.endGame('defeat');
+					this.startDeathAnimation();
 				}
 				projectile.isActive = false;
 			}
@@ -326,6 +388,7 @@ export default class BattleScene {
 							0,
 							true
 						);
+						projectile.sourceEnemy = enemy;
 						this.enemyProjectiles.push(projectile);
 					}
 				}
@@ -334,13 +397,13 @@ export default class BattleScene {
 					if (enemy.canAttack()) {
 						const attackData = enemy.attack();
 						if (attackData && attackData.type === 'melee') {
+							this.killerEnemy = enemy;
 							this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, attackData.damage, true);
-							this.camera.shake(8, 150);
+							this.camera.shake(8, 150, this.engine.settings.screenshakeEnabled);
+							this.engine.audio.play('hit', 0.3, 0.3);
 							const died = this.player.takeDamage(attackData.damage);
 							if (died) {
-								this.state = 'gameover';
-								this.engine.audio.play('defeat', 0.7, 0);
-								this.engine.gameManager.endGame('defeat');
+								this.startDeathAnimation();
 							}
 						}
 					}
@@ -786,8 +849,12 @@ export default class BattleScene {
 	}
 
 	render(renderer) {
-		if (this.state === 'playing' || this.state === 'gameover' || this.state === 'victory') {
+		if (this.state === 'playing' || this.state === 'gameover' || this.state === 'victory' || this.state === 'dying') {
 			this.renderBattle(renderer);
+			
+			if (this.state === 'dying') {
+				this.applyGrayscaleFilter(renderer);
+			}
 		}
 
 		if (this.upgradeChoices) {
@@ -891,7 +958,8 @@ export default class BattleScene {
 		if (this.player) {
 			const bossTimerRemaining = this.enemySpawner ? this.enemySpawner.getBossTimerRemaining() : null;
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
-			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, this.selectedPokemon, this.engine);
+			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
+			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, this.selectedPokemon, this.engine, currentBoss);
 		}
 
 		this.renderMinimap(renderer);
@@ -1172,7 +1240,7 @@ export default class BattleScene {
 
 		if (spellEffect) {
 			if (spellEffect.type === 'earthquake' && this.camera) {
-				this.camera.shake(15, 400);
+				this.camera.shake(15, 400, this.engine.settings.screenshakeEnabled);
 			}
 			if (spellEffect.hitEnemies) {
 				spellEffect.hitEnemies.forEach(hit => {
@@ -1217,51 +1285,42 @@ export default class BattleScene {
 
 	showVictoryScreen() {
 		if (this.engine.menuManager.isMenuOpen()) return;
-
-		this.engine.audio.play('victory', 0.7, 0);
-
-		const totalEnemiesKilled = this.enemySpawner ? this.enemySpawner.totalEnemiesKilled || 0 : 0;
-
-		const victoryMenuConfig = {
-			title: 'VICTOIRE !',
-			style: 'center',
-			closeable: false,
-			victoryData: {
-				time: this.formatTime(this.survivalTime),
-				level: this.player ? this.player.level : 1,
-				money: this.player ? this.player.money : 0,
-				enemiesKilled: totalEnemiesKilled
-			},
-			options: [
-				{
-					label: 'Continue (endless)',
-					action: (engine) => {
-						engine.menuManager.closeMenu();
-						this.state = 'playing';
-					}
-				},
-				{
-					label: 'Retour au village',
-					action: (engine) => {
-						if (this.player) {
-							engine.money = this.player.money;
-							engine.displayedMoney = this.player.displayedMoney;
-						}
-						engine.menuManager.closeMenu();
-						engine.sceneManager.changeScene('game');
-					}
-				}
-			]
-		};
-
-		this.engine.menuManager.openMenu(victoryMenuConfig);
-		this.state = 'victory';
+		this.engine.gameManager.endGame('victory', this);
 	}
 
 	formatTime(milliseconds) {
 		const minutes = Math.floor(milliseconds / 60000);
 		const seconds = Math.floor((milliseconds % 60000) / 1000);
 		return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+	}
+
+	startDeathAnimation() {
+		this.engine.audio.playMusic('defeat', 0.7, false);
+		if (this.playerDying) return;
+		this.playerDying = true;
+		this.state = 'dying';
+	}
+
+	showDefeatMenu() {
+		if (this.engine.menuManager.isMenuOpen()) return;
+
+		this.engine.gameManager.endGame('defeat', this);
+	}
+
+	applyGrayscaleFilter(renderer) {
+		renderer.ctx.save();
+		const imageData = renderer.ctx.getImageData(0, 0, renderer.width, renderer.height);
+		const data = imageData.data;
+		
+		for (let i = 0; i < data.length; i += 4) {
+			const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+			data[i] = gray;
+			data[i + 1] = gray;
+			data[i + 2] = gray;
+		}
+		
+		renderer.ctx.putImageData(imageData, 0, 0);
+		renderer.ctx.restore();
 	}
 }
 

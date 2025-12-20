@@ -10,7 +10,7 @@ export default class HUDRenderer {
 		this.elementHeight = 50;
 	}
 
-	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null) {
+	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null) {
 		if (!player) return;
 
 		this.renderBackground(renderer, canvasWidth);
@@ -19,31 +19,29 @@ export default class HUDRenderer {
 		this.renderXPBar(renderer, player);
 		this.renderMoney(renderer, player);
 		
-		if (bossTimer !== null && maxBossTimer !== null && bossTimer > 0) {
+		if (currentBoss) {
+			this.renderBossBar(renderer, canvasWidth, currentBoss, engine);
+		} else if (bossTimer !== null && maxBossTimer !== null && bossTimer > 0) {
 			this.renderBossProgressBar(renderer, canvasWidth, bossTimer, maxBossTimer);
 		} else {
 			this.renderTimer(renderer, canvasWidth, survivalTime);
 		}
 		
-		this.renderStats(renderer, player, canvasWidth, bossTimer, maxBossTimer);
+		this.renderStats(renderer, player, canvasWidth, bossTimer, maxBossTimer, currentBoss);
 
 		this.renderSpells(renderer, player, canvasWidth, canvasHeight);
 	}
 
 	renderBackground(renderer, canvasWidth) {
 		renderer.ctx.save();
-		const gradient = renderer.ctx.createLinearGradient(0, 0, 0, this.hudHeight);
-		gradient.addColorStop(0, 'rgba(20, 20, 30, 0.95)');
-		gradient.addColorStop(1, 'rgba(15, 15, 25, 0.85)');
-		renderer.ctx.fillStyle = gradient;
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(0, 0, canvasWidth, this.hudHeight);
 		
-		renderer.ctx.strokeStyle = 'rgba(100, 100, 120, 0.3)';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.beginPath();
-		renderer.ctx.moveTo(0, this.hudHeight);
-		renderer.ctx.lineTo(canvasWidth, this.hudHeight);
-		renderer.ctx.stroke();
+		const gradient = renderer.ctx.createLinearGradient(0, this.hudHeight - 1, 0, this.hudHeight);
+		gradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+		gradient.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+		renderer.ctx.fillStyle = gradient;
+		renderer.ctx.fillRect(0, this.hudHeight - 1, canvasWidth, 1);
 		renderer.ctx.restore();
 	}
 
@@ -54,12 +52,12 @@ export default class HUDRenderer {
 		
 		renderer.ctx.save();
 		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
 		
-		renderer.ctx.strokeStyle = '#ffd700';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(iconX + 0.5, iconY + 0.5, iconSize - 1, iconSize - 1);
 		
 		if (selectedPokemon && engine && engine.sprites) {
 			const spriteKey = `${selectedPokemon}_normal`;
@@ -96,8 +94,11 @@ export default class HUDRenderer {
 		
 		renderer.ctx.save();
 		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(barsX, barY, this.barWidth, this.barHeight);
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(barsX + 0.5, barY + 0.5, this.barWidth - 1, this.barHeight - 1);
 		
 		const displayedHpPercent = player.displayedHp / player.maxHp;
 		if (player.lostHp > 0) {
@@ -120,9 +121,6 @@ export default class HUDRenderer {
 		renderer.ctx.fillStyle = hpGradient;
 		renderer.ctx.fillRect(barsX + 2, barY + 2, (this.barWidth - 4) * hpPercent, this.barHeight - 4);
 		
-		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(barsX, barY, this.barWidth, this.barHeight);
 		
 		renderer.ctx.fillStyle = '#fff';
 		renderer.ctx.font = '11px Pokemon';
@@ -140,8 +138,11 @@ export default class HUDRenderer {
 		
 		renderer.ctx.save();
 		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(barsX, barY, this.barWidth, this.barHeight);
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(barsX + 0.5, barY + 0.5, this.barWidth - 1, this.barHeight - 1);
 		
 		const xpPercent = player.displayedXp / player.xpToNextLevel;
 		const xpGradient = renderer.ctx.createLinearGradient(barsX, 0, barsX + this.barWidth * xpPercent, 0);
@@ -161,9 +162,6 @@ export default class HUDRenderer {
 			renderer.ctx.shadowBlur = 0;
 		}
 		
-		renderer.ctx.strokeStyle = 'rgba(135, 206, 235, 0.5)';
-		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(barsX, barY, this.barWidth, this.barHeight);
 		
 		renderer.ctx.fillStyle = '#fff';
 		renderer.ctx.font = '11px Pokemon';
@@ -184,11 +182,11 @@ export default class HUDRenderer {
 		
 		renderer.ctx.save();
 		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(currencyX, currencyY, currencyWidth, halfHeight);
-		renderer.ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
 		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(currencyX, currencyY, currencyWidth, halfHeight);
+		renderer.ctx.strokeRect(currencyX + 0.5, currencyY + 0.5, currencyWidth - 1, halfHeight - 1);
 		
 		renderer.ctx.fillStyle = '#ffd700';
 		renderer.ctx.font = '16px Pokemon';
@@ -203,23 +201,10 @@ export default class HUDRenderer {
 		renderer.ctx.restore();
 	}
 
-	renderStats(renderer, player, canvasWidth, bossTimer = null, maxBossTimer = null) {
+	renderStats(renderer, player, canvasWidth, bossTimer = null, maxBossTimer = null, currentBoss = null) {
 		const compactStatWidth = 50;
 		const compactStatHeight = this.elementHeight;
 		const statSpacing = 5;
-		
-		let statsStartX;
-		if (bossTimer !== null && maxBossTimer !== null && bossTimer > 0) {
-			const barWidth = 300;
-			const barX = (canvasWidth - barWidth) / 2;
-			statsStartX = barX + barWidth + 10;
-		} else {
-			const timerWidth = 100;
-			const timerX = (canvasWidth - timerWidth) / 2;
-			statsStartX = timerX + timerWidth + 10;
-		}
-		
-		const statsY = (this.hudHeight - compactStatHeight) / 2;
 		
 		const stats = [
 			{ icon: '⚔', value: Math.floor(player.damage), color: '#ff6b6b' },
@@ -230,16 +215,21 @@ export default class HUDRenderer {
 			{ icon: '✦', value: `${player.critDamage.toFixed(1)}x`, color: '#ff9100' }
 		];
 		
+		const totalStatsWidth = stats.length * compactStatWidth + (stats.length - 1) * statSpacing;
+		const statsStartX = canvasWidth - this.padding - totalStatsWidth;
+		
+		const statsY = (this.hudHeight - compactStatHeight) / 2;
+		
 		stats.forEach((stat, index) => {
 			const x = statsStartX + index * (compactStatWidth + statSpacing);
 			
 			renderer.ctx.save();
 			
-			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+			renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 			renderer.ctx.fillRect(x, statsY, compactStatWidth, compactStatHeight);
 			renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
 			renderer.ctx.lineWidth = 1;
-			renderer.ctx.strokeRect(x, statsY, compactStatWidth, compactStatHeight);
+			renderer.ctx.strokeRect(x + 0.5, statsY + 0.5, compactStatWidth - 1, compactStatHeight - 1);
 			
 			renderer.ctx.fillStyle = stat.color;
 			renderer.ctx.font = '20px Pokemon';
@@ -264,13 +254,13 @@ export default class HUDRenderer {
 		
 		renderer.ctx.save();
 		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(barX, barY, barWidth, barHeight);
 		
 		const progressGradient = renderer.ctx.createLinearGradient(barX, 0, barX + barWidth * progress, 0);
-		progressGradient.addColorStop(0, '#ff4444');
-		progressGradient.addColorStop(0.5, '#ff8800');
-		progressGradient.addColorStop(1, '#ffd700');
+		progressGradient.addColorStop(0, '#cc0000');
+		progressGradient.addColorStop(0.5, '#ff4444');
+		progressGradient.addColorStop(1, '#ff6666');
 		renderer.ctx.fillStyle = progressGradient;
 		renderer.ctx.fillRect(barX + 2, barY + 2, (barWidth - 4) * progress, barHeight - 4);
 		
@@ -284,17 +274,121 @@ export default class HUDRenderer {
 			renderer.ctx.shadowBlur = 0;
 		}
 		
-		renderer.ctx.strokeStyle = '#ffd700';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.strokeRect(barX, barY, barWidth, barHeight);
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(barX + 0.5, barY + 0.5, barWidth - 1, barHeight - 1);
+		
+		const minutes = Math.floor(bossTimer / 60000);
+		const seconds = Math.floor((bossTimer % 60000) / 1000);
+		const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 		
 		renderer.ctx.fillStyle = '#fff';
 		renderer.ctx.font = 'bold 16px Pokemon';
 		renderer.ctx.textAlign = 'center';
 		renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
 		renderer.ctx.shadowBlur = 3;
-		renderer.ctx.fillText('BOSS', barX + barWidth / 2, barY + barHeight / 2 + 5);
+		renderer.ctx.fillText('BOSS', barX + barWidth / 2, barY + barHeight / 2 - 5);
+		
+		renderer.ctx.fillStyle = '#ff6666';
+		renderer.ctx.font = 'bold 12px Pokemon';
+		renderer.ctx.fillText(timeString, barX + barWidth / 2, barY + barHeight / 2 + 12);
 		renderer.ctx.shadowBlur = 0;
+		
+		renderer.ctx.restore();
+	}
+
+	renderBossBar(renderer, canvasWidth, boss, engine) {
+		const compactStatWidth = 50;
+		const statSpacing = 5;
+		const statsCount = 6;
+		const totalStatsWidth = statsCount * compactStatWidth + (statsCount - 1) * statSpacing;
+		const statsStartX = canvasWidth - this.padding - totalStatsWidth;
+		
+		const barHeight = this.elementHeight;
+		const barY = (this.hudHeight - barHeight) / 2;
+		const iconSize = 40;
+		const iconX = this.padding + 50 + 15 + this.barWidth + 15 + this.statWidth + 15;
+		const iconY = barY + (barHeight - iconSize) / 2;
+		
+		const hpBarX = iconX + iconSize + 10;
+		const hpBarY = barY + 25;
+		const hpBarWidth = statsStartX - hpBarX - 10;
+		const hpBarHeight = 12;
+		
+		renderer.ctx.save();
+		
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
+		renderer.ctx.fillRect(iconX - 5, barY, hpBarX + hpBarWidth + 5 - (iconX - 5), barHeight);
+		renderer.ctx.strokeStyle = 'rgba(255, 102, 102, 0.3)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(iconX - 5 + 0.5, barY + 0.5, hpBarX + hpBarWidth + 5 - (iconX - 5) - 1, barHeight - 1);
+		
+		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+		renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
+		renderer.ctx.strokeStyle = 'rgba(255, 102, 102, 0.3)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(iconX + 0.5, iconY + 0.5, iconSize - 1, iconSize - 1);
+		
+		if (boss.pokemonConfig && engine && engine.sprites) {
+			const pokemonName = boss.pokemonConfig.name;
+			const spriteKey = `${pokemonName}_normal`;
+			let pokemonImage = engine.sprites.get(spriteKey);
+			
+			if (!pokemonImage) {
+				const img = new Image();
+				img.src = process.env.PUBLIC_URL + `/sprites/pokemon/${pokemonName}/Normal.png`;
+				img.onload = () => {
+					engine.sprites.sprites[spriteKey] = img;
+				};
+				pokemonImage = img;
+			}
+			
+			if (pokemonImage && pokemonImage.complete && pokemonImage.naturalHeight > 0) {
+				renderer.ctx.drawImage(pokemonImage, iconX + 2, iconY + 2, iconSize - 4, iconSize - 4);
+			}
+		}
+		
+		const bossName = boss.pokemonConfig ? boss.pokemonConfig.name.toUpperCase() : 'BOSS';
+		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.font = 'bold 14px Pokemon';
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+		renderer.ctx.shadowBlur = 2;
+		renderer.ctx.fillText(bossName, hpBarX, hpBarY - 8);
+		
+		renderer.ctx.fillStyle = '#fff';
+		renderer.ctx.font = '11px Pokemon';
+		renderer.ctx.textAlign = 'right';
+		renderer.ctx.fillText(`${Math.floor(boss.hp)} / ${boss.maxHp}`, hpBarX + hpBarWidth, hpBarY - 8);
+		renderer.ctx.shadowBlur = 0;
+		
+		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+		renderer.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight);
+		
+		const displayedHpPercent = boss.displayedHp / boss.maxHp;
+		if (boss.lostHp > 0) {
+			renderer.ctx.fillStyle = '#ff6b6b';
+			renderer.ctx.fillRect(hpBarX + 1, hpBarY + 1, (hpBarWidth - 2) * displayedHpPercent, hpBarHeight - 2);
+		}
+		
+		const hpPercent = boss.hp / boss.maxHp;
+		const hpGradient = renderer.ctx.createLinearGradient(hpBarX, 0, hpBarX + hpBarWidth * hpPercent, 0);
+		if (hpPercent > 0.6) {
+			hpGradient.addColorStop(0, '#4af626');
+			hpGradient.addColorStop(1, '#2ed616');
+		} else if (hpPercent > 0.3) {
+			hpGradient.addColorStop(0, '#ffcc00');
+			hpGradient.addColorStop(1, '#ff8800');
+		} else {
+			hpGradient.addColorStop(0, '#ff4444');
+			hpGradient.addColorStop(1, '#cc0000');
+		}
+		renderer.ctx.fillStyle = hpGradient;
+		renderer.ctx.fillRect(hpBarX + 1, hpBarY + 1, (hpBarWidth - 2) * hpPercent, hpBarHeight - 2);
+		
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(hpBarX + 0.5, hpBarY + 0.5, hpBarWidth - 1, hpBarHeight - 1);
 		
 		renderer.ctx.restore();
 	}
@@ -304,17 +398,23 @@ export default class HUDRenderer {
 		const seconds = Math.floor((survivalTime % 60000) / 1000);
 		const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 		
-		const timerWidth = 100;
+		const compactStatWidth = 50;
+		const statSpacing = 5;
+		const statsCount = 6;
+		const totalStatsWidth = statsCount * compactStatWidth + (statsCount - 1) * statSpacing;
+		const statsStartX = canvasWidth - this.padding - totalStatsWidth;
+		
 		const timerHeight = this.elementHeight;
-		const timerX = (canvasWidth - timerWidth) / 2;
+		const timerX = this.padding + 50 + 15 + this.barWidth + 15 + this.statWidth + 15;
 		const timerY = (this.hudHeight - timerHeight) / 2;
+		const timerWidth = statsStartX - timerX - 10;
 		
 		renderer.ctx.save();
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
 		renderer.ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
-		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
 		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(timerX, timerY, timerWidth, timerHeight);
+		renderer.ctx.strokeRect(timerX + 0.5, timerY + 0.5, timerWidth - 1, timerHeight - 1);
 		
 		renderer.ctx.fillStyle = '#fff';
 		renderer.ctx.font = 'bold 24px Pokemon';
@@ -337,9 +437,10 @@ export default class HUDRenderer {
 		
 		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
 		renderer.ctx.fillRect(modeX, modeY, modeWidth, modeHeight);
-		renderer.ctx.strokeStyle = modeColor;
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.strokeRect(modeX, modeY, modeWidth, modeHeight);
+		const strokeColor = modeColor === '#4af626' ? 'rgba(74, 246, 38, 0.4)' : 'rgba(255, 107, 107, 0.4)';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.strokeRect(modeX + 0.5, modeY + 0.5, modeWidth - 1, modeHeight - 1);
 		
 		renderer.ctx.fillStyle = modeColor;
 		renderer.ctx.font = 'bold 14px Pokemon';
@@ -374,10 +475,10 @@ export default class HUDRenderer {
 			renderer.ctx.fillRect(spellX, spellY, spellSize, spellSize);
 			
 			if (isEmpty) {
-				renderer.ctx.strokeStyle = '#444';
-				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
+				renderer.ctx.lineWidth = 1;
 				renderer.ctx.setLineDash([5, 5]);
-				renderer.ctx.strokeRect(spellX, spellY, spellSize, spellSize);
+				renderer.ctx.strokeRect(spellX + 0.5, spellY + 0.5, spellSize - 1, spellSize - 1);
 				renderer.ctx.setLineDash([]);
 
 				renderer.ctx.fillStyle = '#666';
@@ -388,9 +489,9 @@ export default class HUDRenderer {
 				const isOnCooldown = spell.cooldown > 0;
 				const cooldownPercent = isOnCooldown ? spell.cooldown / spell.cooldownMax : 0;
 
-				renderer.ctx.strokeStyle = isOnCooldown ? '#666' : '#ab47bc';
-				renderer.ctx.lineWidth = 3;
-				renderer.ctx.strokeRect(spellX, spellY, spellSize, spellSize);
+				renderer.ctx.strokeStyle = isOnCooldown ? 'rgba(102, 102, 102, 0.4)' : 'rgba(171, 71, 188, 0.5)';
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.strokeRect(spellX + 0.5, spellY + 0.5, spellSize - 1, spellSize - 1);
 
 				if (isOnCooldown) {
 					renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -405,7 +506,7 @@ export default class HUDRenderer {
 					const arcStart = -Math.PI / 2;
 					const arcEnd = arcStart + (2 * Math.PI * (1 - cooldownPercent));
 					renderer.ctx.strokeStyle = '#ab47bc';
-					renderer.ctx.lineWidth = 4;
+					renderer.ctx.lineWidth = 4
 					renderer.ctx.beginPath();
 					renderer.ctx.arc(
 						spellX + spellSize / 2,

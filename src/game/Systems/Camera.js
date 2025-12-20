@@ -33,7 +33,8 @@ export default class Camera {
 		}
 	}
 
-	shake(intensity = 10, duration = 200) {
+	shake(intensity = 10, duration = 200, enabled = true) {
+		if (!enabled) return;
 		this.shakeIntensity = intensity;
 		this.shakeTime = duration;
 	}

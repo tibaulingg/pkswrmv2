@@ -1,6 +1,6 @@
 import { PokemonSprites } from '../Config/SpriteConfig.js';
 import { MapEnemies, EnemyTypes } from '../Config/EnemyConfig.js';
-import { HubMenuConfig } from '../Config/MenuConfig.js';
+import { HubMenuConfig, MainMenuConfig } from '../Config/MenuConfig.js';
 
 export default class CollectionScene {
 	constructor(engine) {
@@ -70,8 +70,21 @@ export default class CollectionScene {
 			closeable: true,
 			onClose: (engine) => {
 				engine.menuManager.closeMenu();
-				engine.sceneManager.popScene();
-				engine.menuManager.openMenu(HubMenuConfig);
+				const stackLength = engine.sceneManager.stack.length;
+				const previousSceneIndex = stackLength - 2;
+				
+				if (previousSceneIndex >= 0) {
+					const previousScene = engine.sceneManager.stack[previousSceneIndex];
+					engine.sceneManager.popScene();
+					
+					if (previousScene && previousScene.constructor.name === 'MenuScene') {
+						engine.menuManager.openMenu(MainMenuConfig);
+					} else {
+						engine.menuManager.openMenu(HubMenuConfig);
+					}
+				} else {
+					engine.sceneManager.popScene();
+				}
 			},
 			options: [
 				{
@@ -99,8 +112,21 @@ export default class CollectionScene {
 					label: 'Retour',
 					action: (engine) => {
 						engine.menuManager.closeMenu();
-						engine.sceneManager.popScene();
-						engine.menuManager.openMenu(HubMenuConfig);
+						const stackLength = engine.sceneManager.stack.length;
+						const previousSceneIndex = stackLength - 2;
+						
+						if (previousSceneIndex >= 0) {
+							const previousScene = engine.sceneManager.stack[previousSceneIndex];
+							engine.sceneManager.popScene();
+							
+							if (previousScene && previousScene.constructor.name === 'MenuScene') {
+								engine.menuManager.openMenu(MainMenuConfig);
+							} else {
+								engine.menuManager.openMenu(HubMenuConfig);
+							}
+						} else {
+							engine.sceneManager.popScene();
+						}
 					}
 				}
 			]

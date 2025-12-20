@@ -94,14 +94,23 @@ export default class MenuManager {
 	}
 
 	renderCenterMenu(renderer) {
-		const hasVictoryData = this.activeMenu.victoryData !== undefined;
+		const hasVictoryData = this.activeMenu.victoryData !== undefined && this.activeMenu.victoryData !== null;
 		const width = hasVictoryData ? 600 : 450;
 		const itemHeight = 50;
 		const itemSpacing = 10;
 		const padding = 20;
 		const titleHeight = 60;
 		const statSpacing = 35;
-		const statCount = hasVictoryData ? (this.activeMenu.victoryData.enemiesKilled !== undefined ? 4 : 3) : 0;
+		let statCount = 0;
+		if (hasVictoryData) {
+			statCount = 3;
+			if (this.activeMenu.victoryData.enemiesKilled !== undefined) {
+				statCount += 1;
+			}
+			if (this.activeMenu.victoryData.killerPokemon && !this.activeMenu.title.includes('VICTOIRE')) {
+				statCount += 1;
+			}
+		}
 		const statsHeight = hasVictoryData ? (statCount * statSpacing + padding) : 0;
 		const buttonsHeight = hasVictoryData ? (itemHeight * 2 + itemSpacing) : (this.activeMenu.options.length * (itemHeight + itemSpacing));
 		const height = titleHeight + statsHeight + buttonsHeight + padding * 3;
@@ -162,6 +171,43 @@ export default class MenuManager {
 				renderer.ctx.font = '18px Pokemon';
 				renderer.ctx.textAlign = 'right';
 				renderer.ctx.fillText(stats.enemiesKilled.toString(), x + width - padding, currentY);
+			}
+
+			if (stats.killerPokemon && !this.activeMenu.title.includes('VICTOIRE')) {
+				currentY += statSpacing;
+				renderer.ctx.fillStyle = '#aaa';
+				renderer.ctx.font = '18px Pokemon';
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.fillText('Tué par:', x + padding, currentY);
+				
+				const iconSize = 32;
+				const iconX = x + width - padding - iconSize;
+				const iconY = currentY - iconSize / 2 + 9;
+				
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+				renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
+				renderer.ctx.strokeStyle = '#ff6666';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+				
+				const spriteKey = `${stats.killerPokemon}_normal`;
+				let pokemonImage = this.engine.sprites.get(spriteKey);
+				
+				if (!pokemonImage) {
+					const img = new Image();
+					img.src = process.env.PUBLIC_URL + `/sprites/pokemon/${stats.killerPokemon}/Normal.png`;
+					img.onload = () => {
+						this.engine.sprites.sprites[spriteKey] = img;
+					};
+					pokemonImage = img;
+				}
+				
+				if (pokemonImage && pokemonImage.complete && pokemonImage.naturalHeight > 0) {
+					renderer.ctx.drawImage(pokemonImage, iconX + 2, iconY + 2, iconSize - 4, iconSize - 4);
+				}
+				
+				renderer.ctx.restore();
 			}
 		}
 

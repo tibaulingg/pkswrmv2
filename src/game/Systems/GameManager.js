@@ -19,97 +19,89 @@ export default class GameManager {
 			this.engine.money = battleScene.player.money;
 			this.engine.displayedMoney = battleScene.player.displayedMoney;
 		}
+		
 		this.showEndGameMenu(result, battleScene);
 	}
 
 	showEndGameMenu(result, battleScene = null) {
 		const isVictory = result === 'victory';
-		
-		if (isVictory && battleScene) {
-			this.engine.audio.stopMusic();
-			const victoryMusic = this.engine.audio.musics.get('victory');
-			if (victoryMusic) {
-				this.engine.audio.playMusic('victory', 0.7);
-			} else {
-				this.engine.audio.playMusic('hub', 0.7);
-			}
-			this.showVictoryMenu(battleScene);
-		} else {
-			const endMenuConfig = {
-				title: isVictory ? 'VICTOIRE !' : 'DÉFAITE',
-				style: 'center',
-				closeable: false,
-				options: [
-					{
-						label: 'Recommencer',
-						action: (engine) => {
-							engine.menuManager.closeMenu();
-							this.startGame(this.currentMap);
-						}
-					},
-					{
-						label: 'Retour au Hub',
-						action: (engine) => {
-							engine.menuManager.closeMenu();
-							this.currentMap = null;
-							engine.sceneManager.changeScene('game');
-						}
-					}
-				]
-			};
-			this.engine.menuManager.openMenu(endMenuConfig);
-		}
-	}
-
-	showVictoryMenu(battleScene) {
+	
 		const player = battleScene.player;
-		const survivalTime = battleScene.survivalTime;
-		const minutes = Math.floor(survivalTime / 60000);
-		const seconds = Math.floor((survivalTime % 60000) / 1000);
+		const survivalTime = battleScene.survivalTime || 0;
+		const totalSeconds = Math.floor(survivalTime / 1000);
+		const minutes = Math.floor(totalSeconds / 60);
+		const seconds = totalSeconds % 60;
 		const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+		const totalEnemiesKilled = battleScene.enemySpawner ? (battleScene.enemySpawner.totalEnemiesKilled || 0) : 0;
+
+
+		const options = [];
 		
-		const moneyEarned = player.money;
-		const levelReached = player.level;
-		const enemiesKilled = 0;
+		if (isVictory) {
+			this.engine.audio.playMusic('victory', 0.7, false);
+			options.push({
+				label: 'Continuer (Endless)',
+				action: (engine) => {
+					engine.menuManager.closeMenu();
+					battleScene.bossDefeated = false;
+					battleScene.bossSpawned = false;
+					battleScene.boss = null;
+					if (battleScene.mapData && battleScene.mapData.bossTimer) {
+						battleScene.bossTimer = battleScene.mapData.bossTimer;
+					}
+					battleScene.state = 'playing';
+					engine.audio.stopMusic();
+					const musicName = `map_${battleScene.mapData.image}`;
+					engine.audio.playMusic(musicName);
+				}
+			});
+		} else {
+			options.push({
+				label: 'Recommencer',
+				action: (engine) => {
+					engine.menuManager.closeMenu();
+					this.startGame(this.currentMap);
+				}
+			});
+		}
 		
-		const victoryMenuConfig = {
-			title: 'VICTOIRE !',
+		options.push({
+			label: 'Retour au Village',
+			action: (engine) => {
+				engine.menuManager.closeMenu();
+				this.currentMap = null;
+				engine.sceneManager.changeScene('game');
+			}
+		});
+
+		const killerPokemon = battleScene.killerEnemy && battleScene.killerEnemy.pokemonConfig ? battleScene.killerEnemy.pokemonConfig.name : null;
+
+		const victoryData = {
+			time: timeString,
+			level: player ? player.level : 1,
+			money: player ? player.money : 0,
+			enemiesKilled: totalEnemiesKilled,
+			killerPokemon: killerPokemon
+		};
+
+		console.log('[GameManager] victoryData object:', victoryData);
+
+		const endMenuConfig = {
+			title: isVictory ? 'VICTOIRE !' : 'DÉFAITE',
 			style: 'center',
 			closeable: false,
-			victoryData: {
-				time: timeString,
-				money: moneyEarned,
-				level: levelReached,
-				enemies: enemiesKilled
-			},
-			options: [
-				{
-					label: 'Continuer (Endless)',
-					action: (engine) => {
-						engine.menuManager.closeMenu();
-						battleScene.bossDefeated = false;
-						battleScene.bossSpawned = false;
-						battleScene.boss = null;
-						if (battleScene.mapData && battleScene.mapData.bossTimer) {
-							battleScene.bossTimer = battleScene.mapData.bossTimer;
-						}
-						battleScene.state = 'playing';
-						engine.audio.stopMusic();
-						const musicName = `map_${battleScene.mapData.image}`;
-						engine.audio.playMusic(musicName);
-					}
-				},
-				{
-					label: 'Retour au Village',
-					action: (engine) => {
-						engine.menuManager.closeMenu();
-						this.currentMap = null;
-						engine.sceneManager.changeScene('game');
-					}
-				}
-			]
+			victoryData: victoryData,
+			options: options
 		};
-		this.engine.menuManager.openMenu(victoryMenuConfig);
+
+		console.log('[GameManager] endMenuConfig:', {
+			title: endMenuConfig.title,
+			hasVictoryData: !!endMenuConfig.victoryData,
+			victoryData: endMenuConfig.victoryData,
+			optionsCount: endMenuConfig.options.length
+		});
+
+		this.engine.menuManager.openMenu(endMenuConfig);
 	}
 }
 

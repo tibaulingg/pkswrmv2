@@ -32,6 +32,15 @@ export default class GameEngine {
 		this.playedPokemons = new Set();
 		this.playedMaps = new Set();
 		this.defeatedPokemonCounts = {};
+		
+		this.settings = {
+			screenshakeEnabled: true,
+			soundEnabled: true,
+			musicEnabled: true
+		};
+		
+		this.loadSettings();
+		this.applySettings();
 	}
 
 	async start() {
@@ -51,25 +60,49 @@ export default class GameEngine {
 			const rattataWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Walk-Anim.png';
 			const quaksireHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Hurt-Anim.png';
 			const rattataHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Hurt-Anim.png';
+			const quaksireFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Faint-Anim.png';
+			const rattataFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Faint-Anim.png';
 			const quaksireChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Charge-Anim.png';
 			const caterpieWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Walk-Anim.png';
 			const caterpieHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Hurt-Anim.png';
+			const caterpieFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Faint-Anim.png';
 			const caterpieShootPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Shoot-Anim.png';
 			const pidgeyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Walk-Anim.png';
 			const pidgeyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Hurt-Anim.png';
+			const pidgeyFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Faint-Anim.png';
 
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
 			await this.sprites.load('rattata_walk', rattataWalkPath);
 			await this.sprites.load('quaksire_hurt', quaksireHurtPath);
 			await this.sprites.load('rattata_hurt', rattataHurtPath);
+			try {
+				await this.sprites.load('quaksire_faint', quaksireFaintPath);
+			} catch (error) {
+				console.warn('Quaksire faint animation not found, skipping');
+			}
+			try {
+				await this.sprites.load('rattata_faint', rattataFaintPath);
+			} catch (error) {
+				console.warn('Rattata faint animation not found, skipping');
+			}
 			await this.sprites.load('quaksire_charge', quaksireChargePath);
 			await this.sprites.load('caterpie_walk', caterpieWalkPath);
 			await this.sprites.load('caterpie_hurt', caterpieHurtPath);
+			try {
+				await this.sprites.load('caterpie_faint', caterpieFaintPath);
+			} catch (error) {
+				console.warn('Caterpie faint animation not found, skipping');
+			}
 			await this.sprites.load('caterpie_shoot', caterpieShootPath);
 			
 			await this.sprites.load('pidgey_walk', pidgeyWalkPath);
 			await this.sprites.load('pidgey_hurt', pidgeyHurtPath);
+			try {
+				await this.sprites.load('pidgey_faint', pidgeyFaintPath);
+			} catch (error) {
+				console.warn('Pidgey faint animation not found, skipping');
+			}
 			const coinsSpritePath = process.env.PUBLIC_URL + '/coins.png';
 			await this.sprites.load('coins', coinsSpritePath);
 
@@ -110,6 +143,9 @@ export default class GameEngine {
 			const victoryMusicPath = process.env.PUBLIC_URL + '/victory.mp3';
 			this.audio.loadMusic('victory', victoryMusicPath);
 
+			const defeatMusicPath = process.env.PUBLIC_URL + '/defeat.mp3';
+			this.audio.loadMusic('defeat', defeatMusicPath);
+
 			const mapMusics = ['forest', 'mountain', 'cave', 'desert', 'volcano'];
 			for (const mapName of mapMusics) {
 				try {
@@ -141,6 +177,39 @@ export default class GameEngine {
 	render() {
 		this.renderer.clear();
 		this.sceneManager.render(this.renderer);
+	}
+
+	loadSettings() {
+		try {
+			const saved = localStorage.getItem('poksrm_settings');
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (parsed.soundVolume !== undefined) {
+					parsed.soundEnabled = parsed.soundVolume > 0;
+					delete parsed.soundVolume;
+				}
+				if (parsed.musicVolume !== undefined) {
+					parsed.musicEnabled = parsed.musicVolume > 0;
+					delete parsed.musicVolume;
+				}
+				this.settings = { ...this.settings, ...parsed };
+			}
+		} catch (error) {
+			console.warn('Failed to load settings:', error);
+		}
+	}
+
+	saveSettings() {
+		try {
+			localStorage.setItem('poksrm_settings', JSON.stringify(this.settings));
+		} catch (error) {
+			console.warn('Failed to save settings:', error);
+		}
+	}
+
+	applySettings() {
+		this.audio.setEnabled(this.settings.soundEnabled);
+		this.audio.setMusicEnabled(this.settings.musicEnabled);
 	}
 }
 

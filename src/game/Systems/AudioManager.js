@@ -3,6 +3,7 @@ export default class AudioManager {
 		this.sounds = new Map();
 		this.musics = new Map();
 		this.currentMusic = null;
+		this.currentMusicName = null;
 		this.pendingMusic = null;
 		this.pendingMusicVolume = null;
 		this.userInteracted = false;
@@ -44,8 +45,8 @@ export default class AudioManager {
 		clone.play();
 	}
 
-	playMusic(name, volume = null) {
-		if (!this.musicEnabled) return;
+	playMusic(name, volume = null, loop = true) {
+		this.currentMusicName = name;
 
 		if (this.currentMusic) {
 			this.currentMusic.pause();
@@ -60,7 +61,11 @@ export default class AudioManager {
 
 		this.currentMusic = music;
 		this.currentMusic.volume = volume !== null ? volume : this.musicVolume;
-		this.currentMusic.loop = true;
+		this.currentMusic.loop = loop;
+		
+		if (!this.musicEnabled) {
+			return;
+		}
 		
 		if (!this.userInteracted) {
 			this.pendingMusic = name;
@@ -115,11 +120,15 @@ export default class AudioManager {
 	setMusicEnabled(enabled) {
 		this.musicEnabled = enabled;
 		if (!enabled && this.currentMusic) {
-			this.stopMusic();
-		} else if (enabled && this.currentMusic) {
-			this.currentMusic.play().catch(error => {
-				console.warn('Error resuming music:', error);
-			});
+			this.currentMusic.pause();
+		} else if (enabled && this.currentMusicName && this.userInteracted) {
+			if (this.currentMusic) {
+				this.currentMusic.play().catch(error => {
+					console.warn('Error resuming music:', error);
+				});
+			} else {
+				this.playMusic(this.currentMusicName);
+			}
 		}
 	}
 }
