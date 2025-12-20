@@ -1,3 +1,5 @@
+import { getSpellConfig } from '../Config/SpellConfig.js';
+
 export default class BattlePlayer {
 	constructor(x, y, animationSystem = null, pokemonConfig = null) {
 		this.x = x;
@@ -78,6 +80,13 @@ export default class BattlePlayer {
 		this.critDamage = 1.5;
 		this.aoeRadius = 0;
 		this.hasAoE = false;
+		this.hasPiercing = false;
+		this.hasBounce = false;
+		this.bounceCount = 0;
+		this.aoeDamageMultiplier = 1;
+		this.aoeRadiusMultiplier = 1;
+		this.piercingCount = 0;
+		this.bounceRange = 600;
 		this.lifeSteal = 0;
 		this.xpGainMultiplier = 1;
 		this.moneyGainMultiplier = 1;
@@ -85,24 +94,8 @@ export default class BattlePlayer {
 	
 		this.spells = [];
 		this.maxSpells = 3;
+		this.spellPressAnimations = {};
 		this.forcedDirection = null;
-		if (pokemonConfig && pokemonConfig.spells) {
-			pokemonConfig.spells.forEach(spellConfig => {
-				this.spells.push({
-					id: spellConfig.id,
-					name: spellConfig.name,
-					cooldownMax: spellConfig.cooldownMax,
-					cooldown: 0,
-					damageMultiplier: spellConfig.damageMultiplier,
-					radius: spellConfig.radius,
-					animation: spellConfig.animation,
-					animationDuration: spellConfig.animationDuration,
-					particleColor: spellConfig.particleColor,
-					knockback: spellConfig.knockback,
-					unlocked: true
-				});
-			});
-		}
 	}
 
 	update(deltaTime, input, mapWidth, mapHeight, camera = null) {
@@ -196,6 +189,14 @@ export default class BattlePlayer {
 			this.spellAnimationTime -= deltaTime;
 			if (this.spellAnimationTime <= 0 && this.animationSystem && !this.spinRotation) {
 				this.animationSystem.setAnimation('walk');
+			}
+		}
+
+		// Update spell press animations
+		for (let index in this.spellPressAnimations) {
+			this.spellPressAnimations[index] -= deltaTime;
+			if (this.spellPressAnimations[index] <= 0) {
+				delete this.spellPressAnimations[index];
 			}
 		}
 
@@ -318,6 +319,33 @@ export default class BattlePlayer {
 			case 'projectileSize':
 				this.projectileSize *= upgrade.value;
 				break;
+			case 'projectileAoe':
+				this.hasAoE = true;
+				this.hasPiercing = false;
+				this.hasBounce = false;
+				break;
+			case 'projectilePiercing':
+				this.hasPiercing = true;
+				this.hasAoE = false;
+				this.hasBounce = false;
+				break;
+			case 'projectileBounce':
+				this.hasBounce = true;
+				this.bounceCount = upgrade.value;
+				this.hasAoE = false;
+				this.hasPiercing = false;
+				break;
+			case 'projectileEnhancement':
+				if (this.hasAoE) {
+					this.aoeDamageMultiplier += 0.2;
+					this.aoeRadiusMultiplier += 0.15;
+				} else if (this.hasPiercing) {
+					this.piercingCount += 1;
+				} else if (this.hasBounce) {
+					this.bounceCount += 1;
+					this.bounceRange += 50;
+				}
+				break;
 			case 'fetchRange':
 				this.fetchRange *= upgrade.value;
 				break;
@@ -358,8 +386,26 @@ export default class BattlePlayer {
 	}
 
 	unlockSpell(spellId) {
-		const spell = this.spells.find(s => s.id === spellId);
-		if (spell && !spell.unlocked) {
+		const spellConfig = getSpellConfig(spellId);
+		if (!spellConfig) return;
+		
+		let spell = this.spells.find(s => s.id === spellId);
+		if (!spell) {
+			spell = {
+				id: spellConfig.id,
+				name: spellConfig.name,
+				cooldownMax: spellConfig.cooldownMax,
+				cooldown: 0,
+				damageMultiplier: spellConfig.damageMultiplier,
+				radius: spellConfig.baseRadius,
+				animation: spellConfig.animation,
+				animationDuration: spellConfig.animationDuration,
+				particleColor: spellConfig.particleColor,
+				knockback: spellConfig.knockback,
+				unlocked: true
+			};
+			this.spells.push(spell);
+		} else if (!spell.unlocked) {
 			spell.unlocked = true;
 		}
 	}
@@ -380,6 +426,8 @@ export default class BattlePlayer {
 		if (spellIndex < 0 || spellIndex >= unlockedSpells.length) return null;
 		const spell = unlockedSpells[spellIndex];
 		if (!spell || spell.cooldown > 0) return null;
+		
+		this.spellPressAnimations[spellIndex] = 200;
 		
 		if (spell.animation && this.animationSystem) {
 			this.spellAnimationDuration = spell.animationDuration || 600;
@@ -426,7 +474,13 @@ export default class BattlePlayer {
 				projectileColor: this.projectileColor,
 				projectileSize: this.projectileSize,
 				projectileSpeed: this.projectileSpeedMultiplier,
-				aoeRadius: this.aoeRadius
+				aoeRadius: this.hasAoE ? this.projectileSize * 6 * this.aoeRadiusMultiplier : 0,
+				hasPiercing: this.hasPiercing,
+				hasBounce: this.hasBounce,
+				bounceCount: this.bounceCount,
+				piercingCount: this.piercingCount,
+				bounceRange: this.bounceRange,
+				projectileType: this.type
 			};
 		}
 		

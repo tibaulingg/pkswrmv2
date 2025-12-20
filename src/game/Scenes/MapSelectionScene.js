@@ -21,7 +21,7 @@ export default class MapSelectionScene {
 				image: 'forest',
 				pokemons: [1, 2, 3, 5, 8],
 				boss: 12,
-				bossTimer: 5000,
+				bossTimer: 180000,
 				bossType: 'boss_rattata'
 			},
 			{ 

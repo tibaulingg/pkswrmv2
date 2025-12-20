@@ -6,6 +6,8 @@ class XPOrb {
 		this.size = 2.5 + Math.random() * 1.5;
 		this.isActive = true;
 		this.lifetime = 0;
+		this.maxLifetime = 10000;
+		this.fadeStartTime = 8000;
 		this.bobOffset = Math.random() * Math.PI * 2;
 		this.velocityX = 0;
 		this.velocityY = 0;
@@ -17,6 +19,11 @@ class XPOrb {
 	update(deltaTime, playerX, playerY, fetchRange) {
 		if (!this.isActive) return;
 		this.lifetime += deltaTime;
+
+		if (this.lifetime >= this.maxLifetime) {
+			this.isActive = false;
+			return;
+		}
 
 		const dx = playerX - this.x;
 		const dy = playerY - this.y;
@@ -62,7 +69,16 @@ class XPOrb {
 		const rotationAmount = (this.lifetime / 800) + this.bobOffset;
 		const currentSize = this.size * pulseAmount;
 
+		let alpha = 1;
+		if (this.lifetime >= this.fadeStartTime) {
+			const fadeProgress = (this.lifetime - this.fadeStartTime) / (this.maxLifetime - this.fadeStartTime);
+			const blinkSpeed = 200;
+			const blink = Math.sin(this.lifetime / blinkSpeed) * 0.5 + 0.5;
+			alpha = (1 - fadeProgress) * blink;
+		}
+
 		renderer.ctx.save();
+		renderer.ctx.globalAlpha = alpha;
 		
 		renderer.ctx.shadowColor = '#87CEEB';
 		renderer.ctx.shadowBlur = 12 + glowPulse * 6;
@@ -119,6 +135,7 @@ class XPOrb {
 		renderer.ctx.arc(this.x - currentSize * 0.2, renderY - currentSize * 0.2, currentSize * 0.5, 0, Math.PI * 2);
 		renderer.ctx.fill();
 
+		renderer.ctx.globalAlpha = 1;
 		renderer.ctx.restore();
 	}
 }

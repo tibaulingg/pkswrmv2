@@ -43,9 +43,11 @@ export default class EnemySpawner {
 		}
 
 		if (this.spawnTimer >= this.spawnInterval && this.enemies.length < this.maxEnemies) {
-			for (let i = 0; i < this.spawnCount; i++) {
+			const spawnCount = Math.min(this.spawnCount, this.maxEnemies - this.enemies.length);
+			for (let i = 0; i < spawnCount; i++) {
 				if (this.enemies.length < this.maxEnemies) {
-					this.spawnEnemy(playerX, playerY);
+					const angle = (Math.PI * 2 / spawnCount) * i + Math.random() * 0.5;
+					this.spawnEnemy(playerX, playerY, angle);
 				}
 			}
 			this.spawnTimer = 0;
@@ -68,18 +70,20 @@ export default class EnemySpawner {
 		
 		this.maxEnemies = Math.min(200, this.baseMaxEnemies + Math.floor(minutes * 15));
 		
-		if (minutes >= 1 && this.spawnCount === 1) {
-			this.spawnCount = 2;
-		} else if (minutes >= 3 && this.spawnCount === 2) {
+		if (minutes < 1) {
 			this.spawnCount = 3;
-		} else if (minutes >= 5 && this.spawnCount === 3) {
+		} else if (minutes >= 1 && this.spawnCount < 4) {
 			this.spawnCount = 4;
-		} else if (minutes >= 8 && this.spawnCount === 4) {
+		} else if (minutes >= 3 && this.spawnCount < 5) {
 			this.spawnCount = 5;
+		} else if (minutes >= 5 && this.spawnCount < 6) {
+			this.spawnCount = 6;
+		} else if (minutes >= 8 && this.spawnCount < 8) {
+			this.spawnCount = 8;
 		}
 	}
 
-	spawnEnemy(playerX, playerY) {
+	spawnEnemy(playerX, playerY, angle = null) {
 		const enemyType = this.getRandomEnemyType();
 		if (!enemyType) return;
 
@@ -90,7 +94,9 @@ export default class EnemySpawner {
 		
 		const spawnDistance = 400;
 		
-		const angle = Math.random() * Math.PI * 2;
+		if (angle === null) {
+			angle = Math.random() * Math.PI * 2;
+		}
 		const x = playerX + Math.cos(angle) * spawnDistance;
 		const y = playerY + Math.sin(angle) * spawnDistance;
 

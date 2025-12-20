@@ -1,3 +1,5 @@
+import { canPokemonUnlockSpell } from './SpellConfig.js';
+
 export const UpgradeRarity = {
 	COMMON: 'common',
 	RARE: 'rare',
@@ -14,6 +16,10 @@ export const UpgradeType = {
 	HP_REGEN: 'hpRegen',
 	PROJECTILE_SPEED: 'projectileSpeed',
 	PROJECTILE_SIZE: 'projectileSize',
+	PROJECTILE_AOE: 'projectileAoe',
+	PROJECTILE_PIERCING: 'projectilePiercing',
+	PROJECTILE_BOUNCE: 'projectileBounce',
+	PROJECTILE_ENHANCEMENT: 'projectileEnhancement',
 	KNOCKBACK: 'knockback',
 	FETCH_RANGE: 'fetchRange',
 	CRIT_CHANCE: 'critChance',
@@ -295,6 +301,42 @@ export const Upgrades = {
 		type: UpgradeType.SPELL,
 		value: 'hydrocanon',
 		maxStacks: 1
+	},
+	projectileAoe_1: {
+		id: 'projectileAoe_1',
+		name: 'Explosion',
+		description: 'Les projectiles infligent des dégâts de zone',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_AOE,
+		value: 1,
+		maxStacks: 1
+	},
+	projectilePiercing_1: {
+		id: 'projectilePiercing_1',
+		name: 'Transperçant',
+		description: 'Les projectiles traversent les ennemis',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_PIERCING,
+		value: 1,
+		maxStacks: 1
+	},
+	projectileBounce_1: {
+		id: 'projectileBounce_1',
+		name: 'Rebond',
+		description: 'Les projectiles rebondissent sur les ennemis',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_BOUNCE,
+		value: 3,
+		maxStacks: 1
+	},
+	projectileEnhancement_1: {
+		id: 'projectileEnhancement_1',
+		name: 'Amélioration des Projectiles',
+		description: 'Améliore les projectiles spéciaux',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_ENHANCEMENT,
+		value: 1,
+		maxStacks: 5
 	}
 };
 
@@ -336,6 +378,10 @@ export const UpgradeIcons = {
 	[UpgradeType.KNOCKBACK]: '↯',
 	[UpgradeType.PROJECTILE_SPEED]: '➢',
 	[UpgradeType.PROJECTILE_SIZE]: '●',
+	[UpgradeType.PROJECTILE_AOE]: '💥',
+	[UpgradeType.PROJECTILE_PIERCING]: '➡',
+	[UpgradeType.PROJECTILE_BOUNCE]: '↻',
+	[UpgradeType.PROJECTILE_ENHANCEMENT]: '⬆',
 	[UpgradeType.FETCH_RANGE]: '✦',
 	[UpgradeType.CRIT_CHANCE]: '★',
 	[UpgradeType.CRIT_DAMAGE]: '✦',
@@ -347,6 +393,16 @@ export const UpgradeIcons = {
 };
 
 export function getRandomUpgrades(count, playerUpgrades, player = null) {
+	const projectileTypeUpgrades = [
+		UpgradeType.PROJECTILE_AOE,
+		UpgradeType.PROJECTILE_PIERCING,
+		UpgradeType.PROJECTILE_BOUNCE
+	];
+	
+	const hasProjectileType = player && (
+		player.hasAoE || player.hasPiercing || player.hasBounce
+	);
+	
 	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
 		const currentStacks = playerUpgrades[upgrade.id] || 0;
 		if (currentStacks >= upgrade.maxStacks) return false;
@@ -356,6 +412,19 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 			const spellId = upgrade.value;
 			const isAlreadyUnlocked = unlockedSpells.some(spell => spell.id === spellId);
 			if (isAlreadyUnlocked) return false;
+			
+			const pokemonName = player.pokemonConfig?.name;
+			if (pokemonName && !canPokemonUnlockSpell(pokemonName, spellId)) {
+				return false;
+			}
+		}
+		
+		if (projectileTypeUpgrades.includes(upgrade.type) && hasProjectileType) {
+			return false;
+		}
+		
+		if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT && !hasProjectileType) {
+			return false;
 		}
 		
 		return true;
@@ -365,6 +434,7 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 
 	const selected = [];
 	const used = new Set();
+
 
 	for (let i = 0; i < count && selected.length < availableUpgrades.length; i++) {
 		const totalWeight = availableUpgrades

@@ -66,6 +66,7 @@ export default class MenuManager {
 		} else if (key === 'Enter' || key === 'Space') {
 			const option = this.activeMenu.options[this.selectedIndex];
 			if (option && option.action && !option.disabled) {
+				this.engine.audio.play('ok', 0.3, 0.2);
 				option.action(this.engine);
 			}
 		}
@@ -95,13 +96,14 @@ export default class MenuManager {
 
 	renderCenterMenu(renderer) {
 		const hasVictoryData = this.activeMenu.victoryData !== undefined && this.activeMenu.victoryData !== null;
-		const width = hasVictoryData ? 600 : 450;
+		const width = hasVictoryData ? 700 : 450;
 		const itemHeight = 50;
 		const itemSpacing = 10;
 		const padding = 20;
 		const titleHeight = 60;
 		const statSpacing = 35;
 		let statCount = 0;
+		let pokemonIconsHeight = 0;
 		if (hasVictoryData) {
 			statCount = 3;
 			if (this.activeMenu.victoryData.enemiesKilled !== undefined) {
@@ -110,8 +112,20 @@ export default class MenuManager {
 			if (this.activeMenu.victoryData.killerPokemon && !this.activeMenu.title.includes('VICTOIRE')) {
 				statCount += 1;
 			}
+			if (this.activeMenu.victoryData.defeatedPokemonCounts) {
+				const pokemonEntries = Object.entries(this.activeMenu.victoryData.defeatedPokemonCounts)
+					.filter(([name, count]) => count > 0);
+				if (pokemonEntries.length > 0) {
+					statCount += 1;
+					const iconSize = 28;
+					const iconSpacing = 5;
+					const maxIconsPerRow = 6;
+					const rows = Math.ceil(pokemonEntries.length / maxIconsPerRow);
+					pokemonIconsHeight = rows * (iconSize + iconSpacing) + 20;
+				}
+			}
 		}
-		const statsHeight = hasVictoryData ? (statCount * statSpacing + padding) : 0;
+		const statsHeight = hasVictoryData ? (statCount * statSpacing + padding + pokemonIconsHeight) : 0;
 		const buttonsHeight = hasVictoryData ? (itemHeight * 2 + itemSpacing) : (this.activeMenu.options.length * (itemHeight + itemSpacing));
 		const height = titleHeight + statsHeight + buttonsHeight + padding * 3;
 		
@@ -208,6 +222,68 @@ export default class MenuManager {
 				}
 				
 				renderer.ctx.restore();
+			}
+			
+			if (stats.defeatedPokemonCounts) {
+				const pokemonEntries = Object.entries(stats.defeatedPokemonCounts)
+					.filter(([name, count]) => count > 0)
+					.sort((a, b) => b[1] - a[1]);
+				
+				if (pokemonEntries.length > 0) {
+					currentY += statSpacing;
+					
+					const iconSize = 28;
+					const iconSpacing = 5;
+					const maxIconsPerRow = 6;
+					let currentRow = 0;
+					let currentCol = 0;
+					
+					pokemonEntries.forEach(([pokemonName, count]) => {
+						const iconX = x + padding + currentCol * (iconSize + iconSpacing);
+						const iconY = currentY + currentRow * (iconSize + iconSpacing);
+						
+						renderer.ctx.save();
+						renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+						renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
+						renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+						renderer.ctx.lineWidth = 1;
+						renderer.ctx.strokeRect(iconX + 0.5, iconY + 0.5, iconSize - 1, iconSize - 1);
+						
+						const spriteKey = `${pokemonName}_normal`;
+						let pokemonImage = this.engine.sprites.get(spriteKey);
+						
+						if (!pokemonImage) {
+							const img = new Image();
+							img.src = process.env.PUBLIC_URL + `/sprites/pokemon/${pokemonName}/Normal.png`;
+							img.onload = () => {
+								this.engine.sprites.sprites[spriteKey] = img;
+							};
+							pokemonImage = img;
+						}
+						
+						if (pokemonImage && pokemonImage.complete && pokemonImage.naturalHeight > 0) {
+							renderer.ctx.drawImage(pokemonImage, iconX + 2, iconY + 2, iconSize - 4, iconSize - 4);
+						}
+						
+						renderer.ctx.fillStyle = '#fff';
+						renderer.ctx.font = 'bold 12px Pokemon';
+						renderer.ctx.textAlign = 'center';
+						renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+						renderer.ctx.shadowBlur = 2;
+						renderer.ctx.fillText(count.toString(), iconX + iconSize / 2, iconY + iconSize + 14);
+						renderer.ctx.shadowBlur = 0;
+						
+						renderer.ctx.restore();
+						
+						currentCol++;
+						if (currentCol >= maxIconsPerRow) {
+							currentCol = 0;
+							currentRow++;
+						}
+					});
+					
+					currentY += currentRow * (iconSize + iconSpacing) + 20;
+				}
 			}
 		}
 

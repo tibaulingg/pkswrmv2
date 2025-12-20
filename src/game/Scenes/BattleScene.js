@@ -10,7 +10,7 @@ import CoinSystem, { COIN_DROP_CHANCE } from '../Systems/CoinSystem.js';
 import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
-import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons } from '../Config/UpgradeConfig.js';
+import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType, Upgrades } from '../Config/UpgradeConfig.js';
 import { EnemyTypes } from '../Config/EnemyConfig.js';
 import Enemy from '../Entities/Enemy.js';
 
@@ -39,6 +39,9 @@ export default class BattleScene {
 		this.selectedUpgradeIndex = 0;
 		this.upgradeAnimationProgress = 0;
 		this.upgradeAnimationDuration = 600;
+		this.upgradePressAnimation = 0;
+		this.wasEnterPressed = false;
+		this.isEnterHeld = false;
 		this.survivalTime = 0;
 		this.originalMusicVolume = null;
 		this.playerDying = false;
@@ -76,11 +79,12 @@ export default class BattleScene {
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
 			this.player.money = this.engine.money;
 			this.player.displayedMoney = this.engine.displayedMoney;
+			
 			if (this.selectedPokemon) {
 				this.engine.playedPokemons.add(this.selectedPokemon);
 			}
 			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine);
-			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1.5);
+			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1);
 			this.projectiles = [];
 			this.enemyProjectiles = [];
 			this.particleSystem.clear();
@@ -95,7 +99,6 @@ export default class BattleScene {
 			const musicName = `map_${mapData.image}`;
 			this.engine.audio.playMusic(musicName);
 			
-			console.log('Battle scene initialized with map:', mapData.name);
 		}
 	}
 
@@ -112,6 +115,9 @@ export default class BattleScene {
 	update(deltaTime) {
 		if (this.upgradeChoices) {
 			this.upgradeAnimationProgress = Math.min(this.upgradeAnimationProgress + deltaTime, this.upgradeAnimationDuration);
+			if (this.upgradePressAnimation > 0) {
+				this.upgradePressAnimation = Math.max(0, this.upgradePressAnimation - deltaTime);
+			}
 			this.updateUpgradeMenu();
 			return;
 		}
@@ -415,37 +421,146 @@ export default class BattleScene {
 	updateProjectileCollisions() {
 		const enemies = this.getAllEnemies();
 		
-		enemies.forEach(enemy => {
-			const hitboxOffsetX = (enemy.spriteWidth - enemy.width) / 2;
-			const hitboxOffsetY = (enemy.spriteHeight - enemy.height) / 2;
+		this.projectiles.forEach(projectile => {
+			if (!projectile.isActive) return;
 			
-			this.projectiles.forEach(projectile => {
-				const directHit = projectile.collidesWith(enemy.x + hitboxOffsetX, enemy.y + hitboxOffsetY, enemy.width, enemy.height);
-				const aoeHit = projectile.hasAoE && projectile.isInAoERange(enemy.getCenterX(), enemy.getCenterY()) && !projectile.hitEnemies.has(enemy);
+			let directHitEnemy = null;
+			
+			enemies.forEach(enemy => {
+				if (!enemy.isAlive) return;
 				
-				if (directHit || aoeHit) {
-					const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, enemy.getCenterX(), enemy.getCenterY());
-					const knockbackStrength = this.player.knockback * 0.5 * (enemy.isBoss ? 0.2 : 1);
-					const knockbackX = knockbackDir.x * knockbackStrength;
-					const knockbackY = knockbackDir.y * knockbackStrength;
-					
-					this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, projectile.damage, false, projectile.isCrit);
-					this.engine.audio.play('hit', 0.2, 0.2);
-					const died = enemy.takeDamage(projectile.damage, knockbackX, knockbackY, projectile.isCrit);
-					
-					this.applyLifeSteal(projectile.damage);
-					
-					if (died) {
-						this.handleEnemyDeath(enemy);
+				const hitboxOffsetX = (enemy.spriteWidth - enemy.width) / 2;
+				const hitboxOffsetY = (enemy.spriteHeight - enemy.height) / 2;
+				
+				const directHit = projectile.collidesWith(enemy.x + hitboxOffsetX, enemy.y + hitboxOffsetY, enemy.width, enemy.height);
+				
+				if (directHit && !directHitEnemy) {
+					if (projectile.hasPiercing && projectile.hitEnemies.has(enemy)) {
+						return;
 					}
-					
-					if (directHit) {
-						projectile.isActive = false;
-					} else if (aoeHit) {
-						projectile.hitEnemies.add(enemy);
-					}
+					directHitEnemy = enemy;
 				}
 			});
+			
+			if (directHitEnemy) {
+				if (projectile.hasPiercing && projectile.hitEnemies.has(directHitEnemy)) {
+					return;
+				}
+				
+				if (projectile.hasBounce && projectile.hitEnemies.has(directHitEnemy)) {
+					return;
+				}
+				
+				const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, directHitEnemy.getCenterX(), directHitEnemy.getCenterY());
+				const knockbackStrength = this.player.knockback * 0.5 * (directHitEnemy.isBoss ? 0.2 : 1);
+				const knockbackX = knockbackDir.x * knockbackStrength;
+				const knockbackY = knockbackDir.y * knockbackStrength;
+				
+				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() - 30, projectile.damage, false, projectile.isCrit);
+				this.engine.audio.play('hit', 0.2, 0.2);
+				const died = directHitEnemy.takeDamage(projectile.damage, knockbackX, knockbackY, projectile.isCrit);
+				
+				this.applyLifeSteal(projectile.damage);
+				
+				if (died) {
+					this.handleEnemyDeath(directHitEnemy);
+				}
+				
+				if (projectile.hasBounce) {
+					projectile.hitEnemies.add(directHitEnemy);
+				}
+				
+				if (projectile.hasAoE && !projectile.exploded) {
+					this.particleSystem.createExplosion(projectile.x, projectile.y, projectile.color, Math.floor(projectile.aoeRadius / 2), projectile.type);
+					projectile.exploded = true;
+					
+					enemies.forEach(enemy => {
+						if (!enemy.isAlive || enemy === directHitEnemy || projectile.hitEnemies.has(enemy)) return;
+						
+						const dx = enemy.getCenterX() - projectile.x;
+						const dy = enemy.getCenterY() - projectile.y;
+						const distance = Math.sqrt(dx * dx + dy * dy);
+						
+						if (distance <= projectile.aoeRadius) {
+							const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, enemy.getCenterX(), enemy.getCenterY());
+							const knockbackStrength = this.player.knockback * 0.5 * (enemy.isBoss ? 0.2 : 1);
+							const knockbackX = knockbackDir.x * knockbackStrength;
+							const knockbackY = knockbackDir.y * knockbackStrength;
+							
+							const damageToDeal = projectile.damage * this.player.aoeDamageMultiplier;
+							
+							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, damageToDeal, false, projectile.isCrit);
+							this.engine.audio.play('hit', 0.2, 0.2);
+							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
+							
+							this.applyLifeSteal(damageToDeal);
+							
+							if (died) {
+								this.handleEnemyDeath(enemy);
+							}
+							
+							projectile.hitEnemies.add(enemy);
+						}
+					});
+				}
+				
+				if (projectile.hasPiercing) {
+					projectile.hitEnemies.add(directHitEnemy);
+					const maxPierced = projectile.piercingCount + 1;
+					if (projectile.hitEnemies.size > maxPierced) {
+						projectile.isActive = false;
+					}
+				} else if (projectile.hasBounce) {
+					if (projectile.currentBounces < projectile.bounceCount) {
+						const allEnemies = this.getAllEnemies();
+						let nearestEnemy = null;
+						let nearestDistance = Infinity;
+						
+						allEnemies.forEach(otherEnemy => {
+							if (otherEnemy === directHitEnemy || !otherEnemy.isAlive || projectile.hitEnemies.has(otherEnemy)) return;
+							
+							const dx = otherEnemy.getCenterX() - projectile.x;
+							const dy = otherEnemy.getCenterY() - projectile.y;
+							const distance = Math.sqrt(dx * dx + dy * dy);
+							
+							if (distance < nearestDistance && distance <= projectile.bounceRange) {
+								nearestDistance = distance;
+								nearestEnemy = otherEnemy;
+							}
+						});
+						
+						if (nearestEnemy) {
+							const dx = nearestEnemy.getCenterX() - projectile.x;
+							const dy = nearestEnemy.getCenterY() - projectile.y;
+							const distance = Math.sqrt(dx * dx + dy * dy);
+							
+							if (distance > 0) {
+								const currentSpeed = Math.sqrt(projectile.velocityX * projectile.velocityX + projectile.velocityY * projectile.velocityY);
+								const newDirX = dx / distance;
+								const newDirY = dy / distance;
+								projectile.velocityX = newDirX * currentSpeed;
+								projectile.velocityY = newDirY * currentSpeed;
+								projectile.directionX = newDirX;
+								projectile.directionY = newDirY;
+								projectile.currentBounces++;
+							} else {
+								projectile.isActive = false;
+							}
+						} else {
+							projectile.currentBounces++;
+							const currentSpeed = Math.sqrt(projectile.velocityX * projectile.velocityX + projectile.velocityY * projectile.velocityY);
+							if (currentSpeed <= 0) {
+								projectile.velocityX = projectile.directionX * 0.6;
+								projectile.velocityY = projectile.directionY * 0.6;
+							}
+						}
+					} else {
+						projectile.isActive = false;
+					}
+				} else {
+					projectile.isActive = false;
+				}
+			}
 		});
 	}
 
@@ -709,18 +824,31 @@ export default class BattleScene {
 			this.selectedUpgradeIndex = Math.max(0, this.selectedUpgradeIndex - 1);
 		} else if (key === 'ArrowRight' || key === 'KeyD') {
 			this.selectedUpgradeIndex = Math.min(this.upgradeChoices.length - 1, this.selectedUpgradeIndex + 1);
-		} else if (key === 'Enter' || key === 'Space') {
-			if (this.upgradeAnimationProgress >= this.upgradeAnimationDuration) {
-				const selectedUpgrade = this.upgradeChoices[this.selectedUpgradeIndex];
-				this.player.applyUpgrade(selectedUpgrade);
-				this.upgradeChoices = null;
-				this.selectedUpgradeIndex = 0;
-				this.upgradeAnimationProgress = 0;
-				if (this.originalMusicVolume !== null) {
-					this.engine.audio.setMusicVolume(this.originalMusicVolume);
-					this.originalMusicVolume = null;
+		}
+		
+		const isEnterPressed = this.engine.input.isKeyDown('Enter') || this.engine.input.isKeyDown('Space');
+		if (isEnterPressed) {
+			this.wasEnterPressed = true;
+			this.isEnterHeld = true;
+		} else {
+			if (this.wasEnterPressed && !isEnterPressed) {
+				if (this.upgradeAnimationProgress >= this.upgradeAnimationDuration) {
+					this.engine.audio.play('ok', 0.3, 0.2);
+					this.upgradePressAnimation = 100;
+					const selectedUpgrade = this.upgradeChoices[this.selectedUpgradeIndex];
+					this.player.applyUpgrade(selectedUpgrade);
+					this.upgradeChoices = null;
+					this.selectedUpgradeIndex = 0;
+					this.upgradeAnimationProgress = 0;
+					this.wasEnterPressed = false;
+					this.isEnterHeld = false;
+					if (this.originalMusicVolume !== null) {
+						this.engine.audio.setMusicVolume(this.originalMusicVolume);
+						this.originalMusicVolume = null;
+					}
 				}
 			}
+			this.isEnterHeld = false;
 		}
 	}
 
@@ -793,6 +921,11 @@ export default class BattleScene {
 		const playerVelX = attackData.autoShoot ? 0 : (attackData.playerVelocityX || 0);
 		const playerVelY = attackData.autoShoot ? 0 : (attackData.playerVelocityY || 0);
 		
+		let aoeRadius = 0;
+		if (this.player.hasAoE) {
+			aoeRadius = (attackData.projectileSize || 8) * 6 * this.player.aoeRadiusMultiplier;
+		}
+		
 		const projectile = new Projectile(
 			this.player.getCenterX(),
 			this.player.getCenterY(),
@@ -806,7 +939,14 @@ export default class BattleScene {
 			playerVelX,
 			playerVelY,
 			attackData.isCrit || false,
-			attackData.aoeRadius || 0
+			aoeRadius,
+			false,
+			attackData.hasPiercing || false,
+			attackData.hasBounce || false,
+			attackData.bounceCount || 0,
+			this.player.piercingCount || 0,
+			this.player.bounceRange || 600,
+			attackData.projectileType || 'normal'
 		);
 		this.projectiles.push(projectile);
 	}
@@ -1085,6 +1225,15 @@ export default class BattleScene {
 			
 			const x = startX + index * (cardWidth + spacing);
 			const isSelected = index === this.selectedUpgradeIndex;
+			const isPressed = isSelected && this.upgradePressAnimation > 0;
+			const isHeld = isSelected && this.isEnterHeld && this.upgradeAnimationProgress >= this.upgradeAnimationDuration;
+			const pressProgress = isPressed ? Math.max(0, Math.min(1, this.upgradePressAnimation / 100)) : 0;
+			const heldProgress = isHeld ? 0.5 : 0;
+			const pressScale = 1 - (pressProgress * 0.15 + heldProgress * 0.1);
+			const glowIntensity = pressProgress > 0 ? (1 - pressProgress) * 0.8 : (isHeld ? 0.5 : 0);
+
+			const borderColor = RarityColors[upgrade.rarity];
+			const glowColor = RarityGlowColors[upgrade.rarity];
 
 			renderer.ctx.save();
 			renderer.ctx.translate(x + cardWidth / 2, cardY + cardHeight / 2);
@@ -1092,7 +1241,8 @@ export default class BattleScene {
 			const slideY = (1 - cardProgress) * 200;
 			renderer.ctx.translate(0, slideY);
 			
-			const scale = 0.3 + cardEased * 0.7;
+			let scale = 0.3 + cardEased * 0.7;
+			scale *= pressScale;
 			renderer.ctx.scale(scale, scale);
 			
 			const rotation = (1 - cardProgress) * 0.2;
@@ -1100,11 +1250,13 @@ export default class BattleScene {
 			
 			renderer.ctx.globalAlpha = cardProgress;
 			
+			if (glowIntensity > 0) {
+				renderer.ctx.shadowColor = glowColor;
+				renderer.ctx.shadowBlur = 30 * glowIntensity;
+			}
+			
 			const cardCenterX = -cardWidth / 2;
 			const cardCenterY = -cardHeight / 2;
-			
-			const borderColor = RarityColors[upgrade.rarity];
-			const glowColor = RarityGlowColors[upgrade.rarity];
 			
 			if (isSelected && cardProgress >= 1) {
 				const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
@@ -1145,7 +1297,15 @@ export default class BattleScene {
 				renderer.ctx.shadowBlur = 0;
 			}
 
-			const icon = UpgradeIcons[upgrade.type];
+			let icon = UpgradeIcons[upgrade.type];
+			if (upgrade.type === UpgradeType.SPELL && upgrade.value) {
+				const spellEmojis = {
+					'earthquake': '🟤',
+					'rock_trap': '🪨',
+					'hydrocanon': '💧'
+				};
+				icon = spellEmojis[upgrade.value] || icon;
+			}
 			renderer.ctx.font = '48px Pokemon';
 			renderer.ctx.fillStyle = borderColor;
 			renderer.ctx.textAlign = 'center';
@@ -1181,7 +1341,17 @@ export default class BattleScene {
 			renderer.ctx.fillStyle = '#cccccc';
 			renderer.ctx.font = '16px Pokemon';
 			renderer.ctx.textAlign = 'center';
-			const words = upgrade.description.split(' ');
+			let description = upgrade.description;
+			if (upgrade.type === 'projectileEnhancement' && this.player) {
+				if (this.player.hasAoE) {
+					description = 'Dégâts de zone +20% Rayon +15%';
+				} else if (this.player.hasPiercing) {
+					description = 'Unités transperçables +1';
+				} else if (this.player.hasBounce) {
+					description = 'Rebonds +1 Portée +50';
+				}
+			}
+			const words = description.split(' ');
 			let line = '';
 			let lineY = cardCenterY + 180;
 			words.forEach(word => {
@@ -1202,6 +1372,7 @@ export default class BattleScene {
 			renderer.ctx.fillStyle = '#ffd700';
 			renderer.ctx.fillText(stackText, 0, cardCenterY + cardHeight - 30);
 
+			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
 
 			if (isSelected && cardProgress >= 1) {
@@ -1232,8 +1403,13 @@ export default class BattleScene {
 	castPlayerSpell(spellIndex) {
 		if (!this.player || !this.player.isAlive) return;
 
-		const spell = this.player.castSpell(spellIndex);
-		if (!spell) return;
+		const unlockedSpells = this.player.getUnlockedSpells();
+		if (spellIndex < 0 || spellIndex >= unlockedSpells.length) return;
+		const spell = unlockedSpells[spellIndex];
+		if (!spell || spell.cooldown > 0) return;
+
+		const castSpell = this.player.castSpell(spellIndex);
+		if (!castSpell) return;
 
 		const enemies = this.getAllEnemies();
 		const spellEffect = this.spellSystem.castSpell(spell, this.player, enemies);

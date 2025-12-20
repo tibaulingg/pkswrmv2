@@ -77,6 +77,7 @@ export default class SettingsScene {
 			this.selectedIndex = Math.min(2, this.selectedIndex + 1);
 		} else if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter' || key === 'Space') {
 			this.engine.input.consumeLastKey();
+			this.engine.audio.play('ok', 0.3, 0.2);
 			this.toggleSetting();
 		} else {
 			this.engine.menuManager.update();

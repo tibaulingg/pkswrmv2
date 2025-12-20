@@ -21,12 +21,10 @@ export default class EventSystem {
 
 		if (foundEvent && foundEvent !== this.activeEvent) {
 			this.activeEvent = foundEvent;
-			console.log(`Entered zone: ${foundEvent.label}`);
 			if (eventHandler) {
 				eventHandler.handleEvent(foundEvent.id);
 			}
 		} else if (!foundEvent && this.activeEvent) {
-			console.log(`Left zone: ${this.activeEvent.label}`);
 			this.activeEvent = null;
 		}
 

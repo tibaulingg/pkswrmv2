@@ -128,6 +128,9 @@ export default class GameEngine {
 			const hitSoundPath = process.env.PUBLIC_URL + '/hit.wav';
 			this.audio.load('hit', hitSoundPath);
 
+			const okSoundPath = process.env.PUBLIC_URL + '/ok.wav';
+			this.audio.load('ok', okSoundPath);
+
 			const victorySoundPath = process.env.PUBLIC_URL + '/victory.mp3';
 			this.audio.load('victory', victorySoundPath);
 

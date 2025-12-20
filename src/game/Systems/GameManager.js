@@ -14,7 +14,6 @@ export default class GameManager {
 	}
 
 	endGame(result, battleScene = null) {
-		console.log('Game ended with result:', result);
 		if (battleScene && battleScene.player) {
 			this.engine.money = battleScene.player.money;
 			this.engine.displayedMoney = battleScene.player.displayedMoney;
@@ -76,15 +75,16 @@ export default class GameManager {
 
 		const killerPokemon = battleScene.killerEnemy && battleScene.killerEnemy.pokemonConfig ? battleScene.killerEnemy.pokemonConfig.name : null;
 
+		const defeatedPokemonCounts = battleScene.engine.defeatedPokemonCounts || {};
+		
 		const victoryData = {
 			time: timeString,
 			level: player ? player.level : 1,
 			money: player ? player.money : 0,
 			enemiesKilled: totalEnemiesKilled,
-			killerPokemon: killerPokemon
+			killerPokemon: killerPokemon,
+			defeatedPokemonCounts: defeatedPokemonCounts
 		};
-
-		console.log('[GameManager] victoryData object:', victoryData);
 
 		const endMenuConfig = {
 			title: isVictory ? 'VICTOIRE !' : 'DÉFAITE',
@@ -93,13 +93,6 @@ export default class GameManager {
 			victoryData: victoryData,
 			options: options
 		};
-
-		console.log('[GameManager] endMenuConfig:', {
-			title: endMenuConfig.title,
-			hasVictoryData: !!endMenuConfig.victoryData,
-			victoryData: endMenuConfig.victoryData,
-			optionsCount: endMenuConfig.options.length
-		});
 
 		this.engine.menuManager.openMenu(endMenuConfig);
 	}

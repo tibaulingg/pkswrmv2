@@ -41,7 +41,6 @@ export default class AudioManager {
 		const randomPitch = Math.pow(2, (Math.random() * 2 - 1) * pitchVariation);
 		clone.playbackRate = randomPitch;
 
-		console.log('playing sound', name, 'with pitch', randomPitch, 'and volume', volume);
 		clone.play();
 	}
 

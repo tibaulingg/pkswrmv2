@@ -30,50 +30,14 @@ export const PokemonSprites = {
 		},
 		attackType: 'range',
 		type: 'water',
-		hp: 1,
-		speed: 2.0,
-		damage: 150,
-		attackSpeed: 2.0,
-		range: 180,
-		knockback: 10,
-		particleColor: 'blue',
-		projectileColor: 'blue',
+		hp: 30,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
 		projectileSize: 12,
-		projectileSpeed: 0.5,
-		spells: [
-			{
-				id: 'earthquake',
-				name: 'Séisme',
-				cooldownMax: 5000,
-				cooldown: 0,
-				damageMultiplier: 2.0,
-				radius: 50,
-				animation: 'charge',
-				animationDuration: 500,
-				particleColor: '#8B4513'
-			},
-			{
-				id: 'rock_trap',
-				name: 'Piège de Rock',
-				cooldownMax: 8000,
-				cooldown: 0,
-				damageMultiplier: 1.5,
-				radius: 10,
-				animationDuration: 1000,
-				particleColor: '#666666'
-			},
-			{
-				id: 'hydrocanon',
-				name: 'Hydrocanon',
-				cooldownMax: 10000,
-				cooldown: 0,
-				damageMultiplier: 0.8,
-				radius: 200,
-				animation: 'charge',
-				animationDuration: 3000,
-				particleColor: '#4dd0e1'
-			}
-		]
+		projectileSpeed: 0.5
 	},
 	rattata: {
 		name: 'rattata',
@@ -120,7 +84,7 @@ export const PokemonSprites = {
 		speed: 0.8,
 		damage: 4,
 		attackSpeed: 1.5,
-		range: 200,
+		range: 150,
 		knockback: 5,
 		particleColor: '#4CAF50',
 		projectileColor: '#ffffff',
@@ -210,7 +174,6 @@ export function getPokemonConfig(pokemonName) {
 		projectileColor: pokemon.projectileColor,
 		projectileSize: pokemon.projectileSize,
 		projectileSpeed: pokemon.projectileSpeed,
-		spells: pokemon.spells || []
 	};
 }
 

@@ -178,26 +178,32 @@ export default class HUDRenderer {
 		const currencyX = this.padding + 50 + 15 + this.barWidth + 15;
 		const currencyY = (this.hudHeight - this.statHeight) / 2;
 		const currencyWidth = this.statWidth;
-		const halfHeight = (this.statHeight - 2);
+		const currencyHeight = this.statHeight;
 		
 		renderer.ctx.save();
 		
 		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
-		renderer.ctx.fillRect(currencyX, currencyY, currencyWidth, halfHeight);
+		renderer.ctx.fillRect(currencyX, currencyY, currencyWidth, currencyHeight);
 		renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
 		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(currencyX + 0.5, currencyY + 0.5, currencyWidth - 1, halfHeight - 1);
+		renderer.ctx.strokeRect(currencyX + 0.5, currencyY + 0.5, currencyWidth - 1, currencyHeight - 1);
+		
+		const moneyText = Math.floor(player.displayedMoney).toString();
+		const symbolWidth = 20;
+		const textWidth = renderer.ctx.measureText(moneyText).width;
+		const totalWidth = symbolWidth + textWidth + 5;
+		const startX = currencyX + (currencyWidth - totalWidth) / 2;
 		
 		renderer.ctx.fillStyle = '#ffd700';
 		renderer.ctx.font = '16px Pokemon';
-		renderer.ctx.textAlign = 'center';
-		renderer.ctx.fillText('₽', currencyX + currencyWidth / 2, currencyY + 22);
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.fillText('₽', startX, currencyY + currencyHeight / 2 + 5);
 		
 		renderer.ctx.fillStyle = '#fff';
 		renderer.ctx.font = 'bold 12px Pokemon';
-		renderer.ctx.fillText(Math.floor(player.displayedMoney), currencyX + currencyWidth / 2, currencyY  + 42);
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.fillText(moneyText, startX + symbolWidth + 5, currencyY + currencyHeight / 2 + 5);
 		
-	
 		renderer.ctx.restore();
 	}
 
@@ -247,10 +253,17 @@ export default class HUDRenderer {
 	renderBossProgressBar(renderer, canvasWidth, bossTimer, maxBossTimer) {
 		const progress = Math.max(0, Math.min(1, 1 - (bossTimer / maxBossTimer)));
 		
-		const barWidth = 300;
+		const compactStatWidth = 50;
+		const statSpacing = 5;
+		const statsCount = 6;
+		const totalStatsWidth = statsCount * compactStatWidth + (statsCount - 1) * statSpacing;
+		const statsStartX = canvasWidth - this.padding - totalStatsWidth;
+		
 		const barHeight = this.elementHeight;
-		const barX = (canvasWidth - barWidth) / 2;
 		const barY = (this.hudHeight - barHeight) / 2;
+		const barStartX = this.padding + 50 + 15 + this.barWidth + 15 + this.statWidth + 15;
+		const barWidth = statsStartX - barStartX - 5;
+		const barX = barStartX;
 		
 		renderer.ctx.save();
 		
@@ -315,13 +328,16 @@ export default class HUDRenderer {
 		const hpBarWidth = statsStartX - hpBarX - 10;
 		const hpBarHeight = 12;
 		
+		const barStartX = iconX - 5;
+		const barTotalWidth = statsStartX - barStartX - 5;
+		
 		renderer.ctx.save();
 		
 		renderer.ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
-		renderer.ctx.fillRect(iconX - 5, barY, hpBarX + hpBarWidth + 5 - (iconX - 5), barHeight);
+		renderer.ctx.fillRect(barStartX, barY, barTotalWidth, barHeight);
 		renderer.ctx.strokeStyle = 'rgba(255, 102, 102, 0.3)';
 		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeRect(iconX - 5 + 0.5, barY + 0.5, hpBarX + hpBarWidth + 5 - (iconX - 5) - 1, barHeight - 1);
+		renderer.ctx.strokeRect(barStartX + 0.5, barY + 0.5, barTotalWidth - 1, barHeight - 1);
 		
 		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
 		renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
@@ -454,6 +470,15 @@ export default class HUDRenderer {
 		renderer.ctx.restore();
 	}
 
+	getSpellEmoji(spellId) {
+		const spellEmojis = {
+			'earthquake': '🟤',
+			'rock_trap': '🪨',
+			'hydrocanon': '💧'
+		};
+		return spellEmojis[spellId] || '✨';
+	}
+
 	renderSpells(renderer, player, canvasWidth, canvasHeight) {
 		const maxSpells = player.maxSpells || 3;
 		const unlockedSpells = player.getUnlockedSpells();
@@ -468,10 +493,27 @@ export default class HUDRenderer {
 			const spellX = startX + index * (spellSize + spellSpacing);
 			const spell = unlockedSpells[index];
 			const isEmpty = !spell;
+			const pressAnimation = player.spellPressAnimations && player.spellPressAnimations[index] || 0;
+			const pressProgress = Math.max(0, Math.min(1, pressAnimation / 200));
+			const scale = 1 - pressProgress * 0.15;
+			const glowIntensity = pressProgress > 0 ? (1 - pressProgress) * 0.8 : 0;
 
 			renderer.ctx.save();
 
-			renderer.ctx.fillStyle = isEmpty ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.7)';
+			const centerX = spellX + spellSize / 2;
+			const centerY = spellY + spellSize / 2;
+			renderer.ctx.translate(centerX, centerY);
+			renderer.ctx.scale(scale, scale);
+			renderer.ctx.translate(-centerX, -centerY);
+
+			if (glowIntensity > 0) {
+				renderer.ctx.shadowColor = 'rgba(171, 71, 188, ' + glowIntensity + ')';
+				renderer.ctx.shadowBlur = 20 * glowIntensity;
+			}
+
+			const isOnCooldownCheck = !isEmpty && spell.cooldown > 0;
+			const baseFillStyle = isEmpty ? 'rgba(0, 0, 0, 0.5)' : (isOnCooldownCheck ? 'rgba(60, 60, 60, 0.9)' : 'rgba(0, 0, 0, 0.7)');
+			renderer.ctx.fillStyle = baseFillStyle;
 			renderer.ctx.fillRect(spellX, spellY, spellSize, spellSize);
 			
 			if (isEmpty) {
@@ -494,42 +536,83 @@ export default class HUDRenderer {
 				renderer.ctx.strokeRect(spellX + 0.5, spellY + 0.5, spellSize - 1, spellSize - 1);
 
 				if (isOnCooldown) {
-					renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-					renderer.ctx.fillRect(spellX, spellY, spellSize, spellSize);
 
-					renderer.ctx.fillStyle = '#ab47bc';
-					renderer.ctx.font = 'bold 20px Pokemon';
+					renderer.ctx.fillStyle = 'rgba(180, 180, 180, 0.9)';
+					renderer.ctx.font = 'bold 16px Pokemon';
 					renderer.ctx.textAlign = 'center';
-					const cooldownSeconds = Math.ceil(spell.cooldown / 1000);
-					renderer.ctx.fillText(cooldownSeconds.toString(), spellX + spellSize / 2, spellY + spellSize / 2 + 7);
+					const cooldownSeconds = spell.cooldown / 1000;
+					const cooldownText = cooldownSeconds >= 1 ? cooldownSeconds.toFixed(0) : cooldownSeconds.toFixed(1);
+					renderer.ctx.fillText(cooldownText, spellX + spellSize / 2, spellY + spellSize / 2 + 6);
+					
+					renderer.ctx.font = 'bold 8px Pokemon';
+					renderer.ctx.fillText('s', spellX + spellSize / 2 + renderer.ctx.measureText(cooldownText).width / 2 + (cooldownSeconds >= 1 ? 8 : 12), spellY + spellSize / 2 + 6);
 
-					const arcStart = -Math.PI / 2;
-					const arcEnd = arcStart + (2 * Math.PI * (1 - cooldownPercent));
-					renderer.ctx.strokeStyle = '#ab47bc';
-					renderer.ctx.lineWidth = 4
+					const borderWidth = 4;
+					const sideLength = spellSize - borderWidth;
+					const totalPerimeter = sideLength * 4;
+					const remainingLength = totalPerimeter * cooldownPercent;
+
+					renderer.ctx.strokeStyle = 'rgba(150, 150, 150, 0.6)';
+					renderer.ctx.lineWidth = borderWidth;
+					renderer.ctx.lineCap = 'square';
+					renderer.ctx.lineJoin = 'miter';
+
 					renderer.ctx.beginPath();
-					renderer.ctx.arc(
-						spellX + spellSize / 2,
-						spellY + spellSize / 2,
-						spellSize / 2 - 2,
-						arcStart,
-						arcEnd
-					);
+
+					const halfBorder = borderWidth / 2;
+					let drawnLength = 0;
+
+					if (remainingLength > drawnLength) {
+						const topLength = Math.min(remainingLength - drawnLength, sideLength);
+						renderer.ctx.moveTo(spellX + halfBorder, spellY + halfBorder);
+						renderer.ctx.lineTo(spellX + halfBorder + topLength, spellY + halfBorder);
+						drawnLength += sideLength;
+					} else {
+						renderer.ctx.moveTo(spellX + halfBorder, spellY + halfBorder);
+						renderer.ctx.lineTo(spellX + spellSize - halfBorder, spellY + halfBorder);
+						drawnLength += sideLength;
+					}
+
+					if (remainingLength > drawnLength) {
+						const rightLength = Math.min(remainingLength - drawnLength, sideLength);
+						renderer.ctx.moveTo(spellX + spellSize - halfBorder, spellY + halfBorder);
+						renderer.ctx.lineTo(spellX + spellSize - halfBorder, spellY + halfBorder + rightLength);
+						drawnLength += sideLength;
+					} else {
+						renderer.ctx.moveTo(spellX + spellSize - halfBorder, spellY + halfBorder);
+						renderer.ctx.lineTo(spellX + spellSize - halfBorder, spellY + spellSize - halfBorder);
+						drawnLength += sideLength;
+					}
+
+					if (remainingLength > drawnLength) {
+						const bottomLength = Math.min(remainingLength - drawnLength, sideLength);
+						renderer.ctx.moveTo(spellX + spellSize - halfBorder, spellY + spellSize - halfBorder);
+						renderer.ctx.lineTo(spellX + spellSize - halfBorder - bottomLength, spellY + spellSize - halfBorder);
+						drawnLength += sideLength;
+					} else {
+						renderer.ctx.moveTo(spellX + spellSize - halfBorder, spellY + spellSize - halfBorder);
+						renderer.ctx.lineTo(spellX + halfBorder, spellY + spellSize - halfBorder);
+						drawnLength += sideLength;
+					}
+
+					if (remainingLength > drawnLength) {
+						const leftLength = Math.min(remainingLength - drawnLength, sideLength);
+						renderer.ctx.moveTo(spellX + halfBorder, spellY + spellSize - halfBorder);
+						renderer.ctx.lineTo(spellX + halfBorder, spellY + spellSize - halfBorder - leftLength);
+					} else {
+						renderer.ctx.moveTo(spellX + halfBorder, spellY + spellSize - halfBorder);
+						renderer.ctx.lineTo(spellX + halfBorder, spellY + halfBorder);
+					}
+
 					renderer.ctx.stroke();
 				} else {
+					const spellEmoji = this.getSpellEmoji(spell.id);
 					renderer.ctx.fillStyle = '#ab47bc';
 					renderer.ctx.font = '32px Pokemon';
 					renderer.ctx.textAlign = 'center';
-					renderer.ctx.fillText('✨', spellX + spellSize / 2, spellY + spellSize / 2 + 10);
+					renderer.ctx.fillText(spellEmoji, spellX + spellSize / 2, spellY + spellSize / 2 + 10);
 				}
 
-				renderer.ctx.fillStyle = '#fff';
-				renderer.ctx.font = '12px Pokemon';
-				renderer.ctx.textAlign = 'center';
-				const nameLines = this.wrapText(renderer.ctx, spell.name, spellSize - 10);
-				nameLines.forEach((line, i) => {
-					renderer.ctx.fillText(line, spellX + spellSize / 2, spellY + spellSize + 15 + i * 14);
-				});
 			}
 
 			const keyText = `${index + 1}`;
@@ -537,6 +620,7 @@ export default class HUDRenderer {
 			renderer.ctx.font = '10px Pokemon';
 			renderer.ctx.fillText(keyText, spellX + spellSize - 8, spellY + 12);
 
+			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
 		}
 	}
