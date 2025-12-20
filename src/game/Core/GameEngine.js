@@ -1,0 +1,144 @@
+import Renderer from './Renderer.js';
+import SceneManager from './SceneManager.js';
+import InputManager from './InputManager.js';
+import SpriteManager from '../Systems/SpriteManager.js';
+import MenuManager from '../UI/MenuManager.js';
+import GameManager from '../Systems/GameManager.js';
+import AudioManager from '../Systems/AudioManager.js';
+
+export default class GameEngine {
+	constructor(canvas) {
+		this.canvas = canvas;
+		this.ctx = canvas.getContext('2d');
+		this.canvas.style.cursor = 'crosshair';
+		
+		this.renderer = new Renderer(this.ctx);
+		this.input = new InputManager();
+		this.input.setCanvas(canvas);
+		this.sprites = new SpriteManager();
+		this.audio = new AudioManager();
+		this.input.onFirstInteraction = () => {
+			this.audio.unlockAudio();
+		};
+		this.menuManager = new MenuManager(this);
+		this.gameManager = new GameManager(this);
+		this.sceneManager = new SceneManager(this);
+		
+		this.lastTime = 0;
+		this.assetsLoaded = false;
+		this.money = 0;
+		this.displayedMoney = 0;
+		this.encounteredPokemons = new Set();
+		this.playedPokemons = new Set();
+		this.playedMaps = new Set();
+	}
+
+	async start() {
+		await this.loadAssets();
+		this.assetsLoaded = true;
+		this.sceneManager.pushScene('menu');
+		requestAnimationFrame(this.loop.bind(this));
+	}
+
+	async loadAssets() {
+		try {
+			const backgroundPath = process.env.PUBLIC_URL + '/background.png';
+			const hubPath = process.env.PUBLIC_URL + '/hub.png';
+			const quaksireWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Walk-Anim.png';
+			const rattataWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Walk-Anim.png';
+			const quaksireHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Hurt-Anim.png';
+			const rattataHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Hurt-Anim.png';
+			const quaksireChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Charge-Anim.png';
+			const caterpieWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Walk-Anim.png';
+			const caterpieHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Hurt-Anim.png';
+			const caterpieShootPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Shoot-Anim.png';
+			const pidgeyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Walk-Anim.png';
+			const pidgeyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Hurt-Anim.png';
+
+			await this.sprites.load('background', backgroundPath);
+			await this.sprites.load('hub', hubPath);
+			await this.sprites.load('quaksire_walk', quaksireWalkPath);
+			await this.sprites.load('rattata_walk', rattataWalkPath);
+			await this.sprites.load('quaksire_hurt', quaksireHurtPath);
+			await this.sprites.load('rattata_hurt', rattataHurtPath);
+			await this.sprites.load('quaksire_charge', quaksireChargePath);
+			await this.sprites.load('caterpie_walk', caterpieWalkPath);
+			await this.sprites.load('caterpie_hurt', caterpieHurtPath);
+			await this.sprites.load('caterpie_shoot', caterpieShootPath);
+			
+			await this.sprites.load('pidgey_walk', pidgeyWalkPath);
+			await this.sprites.load('pidgey_hurt', pidgeyHurtPath);
+			const coinsSpritePath = process.env.PUBLIC_URL + '/coins.png';
+			await this.sprites.load('coins', coinsSpritePath);
+
+			const stoneSpritePath = process.env.PUBLIC_URL + '/stone.png';
+			await this.sprites.load('stone', stoneSpritePath);
+
+			const mapBackgrounds = ['forest', 'mountain', 'cave', 'desert', 'volcano'];
+			for (const mapName of mapBackgrounds) {
+				try {
+					const mapPath = process.env.PUBLIC_URL + `/maps/${mapName}.png`;
+					await this.sprites.load(`map_${mapName}`, mapPath);
+				} catch (error) {
+					console.warn(`Map background ${mapName} not found, skipping`);
+				}
+			}
+
+			const orbSoundPath = process.env.PUBLIC_URL + '/orb.wav';
+			this.audio.load('orb', orbSoundPath);
+
+			const coinsSoundPath = process.env.PUBLIC_URL + '/coins.wav';
+			this.audio.load('coins', coinsSoundPath);
+
+			const hitSoundPath = process.env.PUBLIC_URL + '/hit.wav';
+			this.audio.load('hit', hitSoundPath);
+
+			const victorySoundPath = process.env.PUBLIC_URL + '/victory.mp3';
+			this.audio.load('victory', victorySoundPath);
+
+			const defeatSoundPath = process.env.PUBLIC_URL + '/defeat.mp3';
+			this.audio.load('defeat', defeatSoundPath);
+
+			const mainMenuMusicPath = process.env.PUBLIC_URL + '/main_menu.mp3';
+			this.audio.loadMusic('main_menu', mainMenuMusicPath);
+
+			const hubMusicPath = process.env.PUBLIC_URL + '/hub.mp3';
+			this.audio.loadMusic('hub', hubMusicPath);
+
+			const victoryMusicPath = process.env.PUBLIC_URL + '/victory.mp3';
+			this.audio.loadMusic('victory', victoryMusicPath);
+
+			const mapMusics = ['forest', 'mountain', 'cave', 'desert', 'volcano'];
+			for (const mapName of mapMusics) {
+				try {
+					const mapMusicPath = process.env.PUBLIC_URL + `/${mapName}.mp3`;
+					this.audio.loadMusic(`map_${mapName}`, mapMusicPath);
+				} catch (error) {
+					console.warn(`Map music ${mapName} not found, skipping`);
+				}
+			}
+		} catch (error) {
+			console.error('Error loading assets:', error);
+		}
+	}
+
+	loop(timestamp) {
+		const deltaTime = timestamp - this.lastTime;
+		this.lastTime = timestamp;
+
+		this.update(deltaTime);
+		this.render();
+
+		requestAnimationFrame(this.loop.bind(this));
+	}
+
+	update(deltaTime) {
+		this.sceneManager.update(deltaTime);
+	}
+
+	render() {
+		this.renderer.clear();
+		this.sceneManager.render(this.renderer);
+	}
+}
+

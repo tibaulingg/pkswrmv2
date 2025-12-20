@@ -1,0 +1,390 @@
+export const UpgradeRarity = {
+	COMMON: 'common',
+	RARE: 'rare',
+	EPIC: 'epic',
+	LEGENDARY: 'legendary'
+};
+
+export const UpgradeType = {
+	DAMAGE: 'damage',
+	ATTACK_SPEED: 'attackSpeed',
+	RANGE: 'range',
+	SPEED: 'speed',
+	MAX_HP: 'maxHp',
+	HP_REGEN: 'hpRegen',
+	PROJECTILE_SPEED: 'projectileSpeed',
+	PROJECTILE_SIZE: 'projectileSize',
+	KNOCKBACK: 'knockback',
+	FETCH_RANGE: 'fetchRange',
+	CRIT_CHANCE: 'critChance',
+	CRIT_DAMAGE: 'critDamage',
+	LIFE_STEAL: 'lifeSteal',
+	XP_GAIN: 'xpGain',
+	MONEY_GAIN: 'moneyGain',
+	DURATION: 'duration',
+	SPELL: 'spell'
+};
+
+export const Upgrades = {
+	damage_1: {
+		id: 'damage_1',
+		name: 'Force',
+		description: 'Augmente les dégâts de 10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.DAMAGE,
+		value: 1.1,
+		maxStacks: 5
+	},
+	damage_2: {
+		id: 'damage_2',
+		name: 'Force',
+		description: 'Augmente les dégâts de 25%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.DAMAGE,
+		value: 1.25,
+		maxStacks: 3
+	},
+	attackSpeed_1: {
+		id: 'attackSpeed_1',
+		name: 'Vitesse',
+		description: 'Augmente la vitesse d\'attaque de 15%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.ATTACK_SPEED,
+		value: 1.15,
+		maxStacks: 5
+	},
+	attackSpeed_2: {
+		id: 'attackSpeed_2',
+		name: 'Vitesse',
+		description: 'Augmente la vitesse d\'attaque de 30%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.ATTACK_SPEED,
+		value: 1.3,
+		maxStacks: 3
+	},
+	range_1: {
+		id: 'range_1',
+		name: 'Portée',
+		description: 'Augmente la portée de 20%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.RANGE,
+		value: 1.2,
+		maxStacks: 4
+	},
+	range_2: {
+		id: 'range_2',
+		name: 'Portée',
+		description: 'Augmente la portée de 50%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.RANGE,
+		value: 1.5,
+		maxStacks: 2
+	},
+	speed_1: {
+		id: 'speed_1',
+		name: 'Mobilité',
+		description: 'Augmente la vitesse de déplacement de 15%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPEED,
+		value: 1.15,
+		maxStacks: 5
+	},
+	speed_2: {
+		id: 'speed_2',
+		name: 'Mobilité',
+		description: 'Augmente la vitesse de déplacement de 35%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.SPEED,
+		value: 1.35,
+		maxStacks: 3
+	},
+	maxHp_1: {
+		id: 'maxHp_1',
+		name: 'Vitalité',
+		description: 'Augmente les HP max de 20',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.MAX_HP,
+		value: 20,
+		maxStacks: 10
+	},
+	maxHp_2: {
+		id: 'maxHp_2',
+		name: 'Vitalité',
+		description: 'Augmente les HP max de 50',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.MAX_HP,
+		value: 50,
+		maxStacks: 5
+	},
+	hpRegen_1: {
+		id: 'hpRegen_1',
+		name: 'Régénération',
+		description: 'Régénère 1 HP par seconde',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.HP_REGEN,
+		value: 1,
+		maxStacks: 5
+	},
+	knockback_1: {
+		id: 'knockback_1',
+		name: 'Recul',
+		description: 'Augmente le recul de 30%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.KNOCKBACK,
+		value: 1.3,
+		maxStacks: 4
+	},
+	projectileSpeed_1: {
+		id: 'projectileSpeed_1',
+		name: 'Vélocité',
+		description: 'Augmente la vitesse des projectiles de 25%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_SPEED,
+		value: 1.25,
+		maxStacks: 4
+	},
+	fetchRange_1: {
+		id: 'fetchRange_1',
+		name: 'Aimant',
+		description: 'Augmente la portée de collecte d\'XP de 30%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.FETCH_RANGE,
+		value: 1.3,
+		maxStacks: 5
+	},
+	fetchRange_2: {
+		id: 'fetchRange_2',
+		name: 'Aimant',
+		description: 'Augmente la portée de collecte d\'XP de 60%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.FETCH_RANGE,
+		value: 1.6,
+		maxStacks: 3
+	},
+	projectileSize_1: {
+		id: 'projectileSize_1',
+		name: 'Taille',
+		description: 'Augmente la taille des projectiles de 30%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PROJECTILE_SIZE,
+		value: 1.3,
+		maxStacks: 5
+	},
+	projectileSize_2: {
+		id: 'projectileSize_2',
+		name: 'Taille',
+		description: 'Augmente la taille des projectiles de 60%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.PROJECTILE_SIZE,
+		value: 1.6,
+		maxStacks: 3
+	},
+	critChance_1: {
+		id: 'critChance_1',
+		name: 'Chance Crit',
+		description: 'Augmente la chance de coup critique de 5%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.CRIT_CHANCE,
+		value: 0.05,
+		maxStacks: 10
+	},
+	critChance_2: {
+		id: 'critChance_2',
+		name: 'Chance Crit',
+		description: 'Augmente la chance de coup critique de 10%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.CRIT_CHANCE,
+		value: 0.10,
+		maxStacks: 5
+	},
+	critDamage_1: {
+		id: 'critDamage_1',
+		name: 'Dégâts Crit',
+		description: 'Augmente les dégâts critiques de 0.3x',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.CRIT_DAMAGE,
+		value: 0.3,
+		maxStacks: 8
+	},
+	critDamage_2: {
+		id: 'critDamage_2',
+		name: 'Dégâts Crit',
+		description: 'Augmente les dégâts critiques de 0.5x',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.CRIT_DAMAGE,
+		value: 0.5,
+		maxStacks: 5
+	},
+	lifeSteal_1: {
+		id: 'lifeSteal_1',
+		name: 'Vol de Vie',
+		description: 'Récupère 5% des dégâts infligés en HP',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.LIFE_STEAL,
+		value: 0.05,
+		maxStacks: 8
+	},
+	lifeSteal_2: {
+		id: 'lifeSteal_2',
+		name: 'Vol de Vie',
+		description: 'Récupère 10% des dégâts infligés en HP',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.LIFE_STEAL,
+		value: 0.10,
+		maxStacks: 5
+	},
+	xpGain_1: {
+		id: 'xpGain_1',
+		name: 'XP',
+		description: 'Augmente l\'XP gagnée de 20%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.XP_GAIN,
+		value: 1.2,
+		maxStacks: 5
+	},
+	xpGain_2: {
+		id: 'xpGain_2',
+		name: 'XP',
+		description: 'Augmente l\'XP gagnée de 50%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.XP_GAIN,
+		value: 1.5,
+		maxStacks: 3
+	},
+	moneyGain_1: {
+		id: 'moneyGain_1',
+		name: 'Pokedollars',
+		description: 'Augmente les Pokedollars gagnés de 25%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.MONEY_GAIN,
+		value: 1.25,
+		maxStacks: 5
+	},
+	moneyGain_2: {
+		id: 'moneyGain_2',
+		name: 'Pokedollars',
+		description: 'Augmente les Pokedollars gagnés de 60%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.MONEY_GAIN,
+		value: 1.6,
+		maxStacks: 3
+	},
+	spell_earthquake: {
+		id: 'spell_earthquake',
+		name: 'Séisme',
+		description: 'Débloque le sort Séisme',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL,
+		value: 'earthquake',
+		maxStacks: 1
+	},
+	spell_rock_trap: {
+		id: 'spell_rock_trap',
+		name: 'Piège de Rock',
+		description: 'Débloque le sort Piège de Rock',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL,
+		value: 'rock_trap',
+		maxStacks: 1
+	},
+	spell_hydrocanon: {
+		id: 'spell_hydrocanon',
+		name: 'Hydrocanon',
+		description: 'Débloque le sort Hydrocanon',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL,
+		value: 'hydrocanon',
+		maxStacks: 1
+	}
+};
+
+export const RarityWeights = {
+	[UpgradeRarity.COMMON]: 40,
+	[UpgradeRarity.RARE]: 35,
+	[UpgradeRarity.EPIC]: 15,
+	[UpgradeRarity.LEGENDARY]: 10
+};
+
+export const RarityColors = {
+	[UpgradeRarity.COMMON]: '#b8b8b8',
+	[UpgradeRarity.RARE]: '#4fc3f7',
+	[UpgradeRarity.EPIC]: '#ab47bc',
+	[UpgradeRarity.LEGENDARY]: '#ff9100'
+};
+
+export const RarityGlowColors = {
+	[UpgradeRarity.COMMON]: '#e0e0e0',
+	[UpgradeRarity.RARE]: '#81d4fa',
+	[UpgradeRarity.EPIC]: '#ce93d8',
+	[UpgradeRarity.LEGENDARY]: '#ffab40'
+};
+
+export const RarityBackgrounds = {
+	[UpgradeRarity.COMMON]: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)',
+	[UpgradeRarity.RARE]: 'linear-gradient(135deg, #1a2332 0%, #0d1419 100%)',
+	[UpgradeRarity.EPIC]: 'linear-gradient(135deg, #2d1b3d 0%, #1a0f26 100%)',
+	[UpgradeRarity.LEGENDARY]: 'linear-gradient(135deg, #3d2a1a 0%, #261a0d 100%)'
+};
+
+export const UpgradeIcons = {
+	[UpgradeType.DAMAGE]: '⚔',
+	[UpgradeType.ATTACK_SPEED]: '⚡',
+	[UpgradeType.RANGE]: '◎',
+	[UpgradeType.SPEED]: '➤',
+	[UpgradeType.MAX_HP]: '❤',
+	[UpgradeType.HP_REGEN]: '♥',
+	[UpgradeType.KNOCKBACK]: '↯',
+	[UpgradeType.PROJECTILE_SPEED]: '➢',
+	[UpgradeType.PROJECTILE_SIZE]: '●',
+	[UpgradeType.FETCH_RANGE]: '✦',
+	[UpgradeType.CRIT_CHANCE]: '★',
+	[UpgradeType.CRIT_DAMAGE]: '✦',
+	[UpgradeType.LIFE_STEAL]: '🩸',
+	[UpgradeType.XP_GAIN]: '⭐',
+	[UpgradeType.MONEY_GAIN]: '💰',
+	[UpgradeType.DURATION]: '⏱',
+	[UpgradeType.SPELL]: '✨'
+};
+
+export function getRandomUpgrades(count, playerUpgrades, player = null) {
+	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
+		const currentStacks = playerUpgrades[upgrade.id] || 0;
+		if (currentStacks >= upgrade.maxStacks) return false;
+		
+		if (upgrade.type === UpgradeType.SPELL && player) {
+			const unlockedSpells = player.getUnlockedSpells();
+			const spellId = upgrade.value;
+			const isAlreadyUnlocked = unlockedSpells.some(spell => spell.id === spellId);
+			if (isAlreadyUnlocked) return false;
+		}
+		
+		return true;
+	});
+
+	if (availableUpgrades.length === 0) return [];
+
+	const selected = [];
+	const used = new Set();
+
+	for (let i = 0; i < count && selected.length < availableUpgrades.length; i++) {
+		const totalWeight = availableUpgrades
+			.filter(u => !used.has(u.id))
+			.reduce((sum, u) => sum + RarityWeights[u.rarity], 0);
+		
+		let random = Math.random() * totalWeight;
+
+		for (const upgrade of availableUpgrades) {
+			if (used.has(upgrade.id)) continue;
+			
+			random -= RarityWeights[upgrade.rarity];
+			if (random <= 0) {
+				selected.push(upgrade);
+				used.add(upgrade.id);
+				break;
+			}
+		}
+	}
+
+	return selected;
+}
+
