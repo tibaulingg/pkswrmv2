@@ -80,6 +80,48 @@ export default class MenuManager {
 		}
 	}
 
+	drawTextWithOutline(renderer, text, x, y, fontSize, fillColor, align = 'left', outlineColor = '#000', outlineOffset = 1) {
+		renderer.ctx.font = fontSize + ' Pokemon';
+		renderer.ctx.textAlign = align;
+		
+		renderer.ctx.fillStyle = outlineColor;
+		renderer.ctx.fillText(text, x, y);
+		
+		renderer.ctx.fillStyle = fillColor;
+		renderer.ctx.fillText(text, x - outlineOffset, y - outlineOffset);
+	}
+
+	drawTriangle(renderer, x, y, size, color, direction = 'right') {
+		renderer.ctx.save();
+		renderer.ctx.fillStyle = color;
+		renderer.ctx.beginPath();
+		
+		if (direction === 'right') {
+			renderer.ctx.moveTo(x, y);
+			renderer.ctx.lineTo(x - size, y - size / 2);
+			renderer.ctx.lineTo(x - size, y + size / 2);
+		} else if (direction === 'left') {
+			renderer.ctx.moveTo(x, y);
+			renderer.ctx.lineTo(x + size, y - size / 2);
+			renderer.ctx.lineTo(x + size, y + size / 2);
+		}
+		
+		renderer.ctx.closePath();
+		renderer.ctx.fill();
+		renderer.ctx.restore();
+	}
+
+	drawMenuBox(renderer, x, y, width, height) {
+		const backgroundColor = 'rgba(32, 72, 104, 0.90)';
+		
+		renderer.ctx.save();
+		
+		renderer.ctx.fillStyle = backgroundColor;
+		renderer.ctx.fillRect(x, y, width, height);
+		
+		renderer.ctx.restore();
+	}
+
 	render(renderer) {
 		if (!this.activeMenu) return;
 
@@ -134,11 +176,10 @@ export default class MenuManager {
 
 		renderer.drawRect(0, 0, renderer.width, renderer.height, 'rgba(0, 0, 0, 0.6)');
 		
-		renderer.drawRect(x, y, width, height, 'rgba(0, 0, 50, 0.7)');
-		renderer.drawStrokeRect(x, y, width, height, '#fff', 3);
+		this.drawMenuBox(renderer, x, y, width, height);
 
 		const titleY = y + padding + 30;
-		renderer.drawText(this.activeMenu.title, x + padding, titleY, '24px', '#aaa', 'left');
+		this.drawTextWithOutline(renderer, this.activeMenu.title, x + padding, titleY, '28px', '#fff', 'left');
 		
 		if (hasVictoryData) {
 			const statsY = y + titleHeight + padding * 2;
@@ -146,53 +187,26 @@ export default class MenuManager {
 			
 			let currentY = statsY;
 			
-			renderer.ctx.fillStyle = '#aaa';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.fillText('Temps:', x + padding, currentY);
-			renderer.ctx.fillStyle = '#fff';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'right';
-			renderer.ctx.fillText(stats.time, x + width - padding, currentY);
+			this.drawTextWithOutline(renderer, 'Temps:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, stats.time, x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			currentY += statSpacing;
-			renderer.ctx.fillStyle = '#aaa';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.fillText('Niveau:', x + padding, currentY);
-			renderer.ctx.fillStyle = '#fff';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'right';
-			renderer.ctx.fillText(stats.level.toString(), x + width - padding, currentY);
+			this.drawTextWithOutline(renderer, 'Niveau:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, stats.level.toString(), x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			currentY += statSpacing;
-			renderer.ctx.fillStyle = '#aaa';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.fillText('Argent gagné:', x + padding, currentY);
-			renderer.ctx.fillStyle = '#fff';
-			renderer.ctx.font = '18px Pokemon';
-			renderer.ctx.textAlign = 'right';
-			renderer.ctx.fillText(`₽${Math.floor(stats.money)}`, x + width - padding, currentY);
+			this.drawTextWithOutline(renderer, 'Argent gagné:', x + padding, currentY, '18px', '#aaa', 'left');
+			this.drawTextWithOutline(renderer, `₽${Math.floor(stats.money)}`, x + width - padding, currentY, '18px', '#fff', 'right');
 			
 			if (stats.enemiesKilled !== undefined) {
 				currentY += statSpacing;
-				renderer.ctx.fillStyle = '#aaa';
-				renderer.ctx.font = '18px Pokemon';
-				renderer.ctx.textAlign = 'left';
-				renderer.ctx.fillText('Ennemis tués:', x + padding, currentY);
-				renderer.ctx.fillStyle = '#fff';
-				renderer.ctx.font = '18px Pokemon';
-				renderer.ctx.textAlign = 'right';
-				renderer.ctx.fillText(stats.enemiesKilled.toString(), x + width - padding, currentY);
+				this.drawTextWithOutline(renderer, 'Ennemis tués:', x + padding, currentY, '18px', '#aaa', 'left');
+				this.drawTextWithOutline(renderer, stats.enemiesKilled.toString(), x + width - padding, currentY, '18px', '#fff', 'right');
 			}
 
 			if (stats.killerPokemon && !this.activeMenu.title.includes('VICTOIRE')) {
 				currentY += statSpacing;
-				renderer.ctx.fillStyle = '#aaa';
-				renderer.ctx.font = '18px Pokemon';
-				renderer.ctx.textAlign = 'left';
-				renderer.ctx.fillText('Tué par:', x + padding, currentY);
+				this.drawTextWithOutline(renderer, 'Tué par:', x + padding, currentY, '18px', '#aaa', 'left');
 				
 				const iconSize = 32;
 				const iconX = x + width - padding - iconSize;
@@ -270,7 +284,7 @@ export default class MenuManager {
 						renderer.ctx.textAlign = 'center';
 						renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
 						renderer.ctx.shadowBlur = 2;
-						renderer.ctx.fillText(count.toString(), iconX + iconSize / 2, iconY + iconSize + 14);
+						this.drawTextWithOutline(renderer, count.toString(), iconX + iconSize / 2, iconY + iconSize + 14, '12px', '#fff', 'center');
 						renderer.ctx.shadowBlur = 0;
 						
 						renderer.ctx.restore();
@@ -299,6 +313,7 @@ export default class MenuManager {
 			
 			if (index === this.selectedIndex && !option.disabled) {
 				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
+				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
 			}
 			
 			let color;
@@ -307,15 +322,16 @@ export default class MenuManager {
 			} else {
 				color = index === this.selectedIndex ? '#fff' : '#888';
 			}
-			renderer.drawText(option.label, x + padding + 10, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
 		});
 
 		if (lastIndex === this.selectedIndex) {
 			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
+			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
 		}
 		
 		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		renderer.drawText(lastOption.label, x + padding + 10, lastItemY, '22px', lastColor, 'left');
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
 	}
 
 	renderRightMenu(renderer) {
@@ -325,11 +341,10 @@ export default class MenuManager {
 		const y = 0;
 		const padding = 20;
 
-		renderer.drawRect(x, y, width, height, 'rgba(0, 0, 50, 0.7)');
-		renderer.drawStrokeRect(x, y, width, height, '#fff', 3);
+		this.drawMenuBox(renderer, x, y, width, height);
 
 		const titleY = 60;
-		renderer.drawText(this.activeMenu.title, x + padding, titleY, '24px', '#aaa', 'left');
+		this.drawTextWithOutline(renderer, this.activeMenu.title, x + padding, titleY, '28px', '#fff', 'left');
 
 		const startY = 150;
 		const itemHeight = 50;
@@ -344,6 +359,7 @@ export default class MenuManager {
 			
 			if (index === this.selectedIndex && !option.disabled) {
 				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
+				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
 			}
 			
 			let color;
@@ -352,16 +368,17 @@ export default class MenuManager {
 			} else {
 				color = index === this.selectedIndex ? '#fff' : '#888';
 			}
-			renderer.drawText(option.label, x + padding + 10, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
 		});
 
 		const lastItemY = height - padding - 20;
 		if (lastIndex === this.selectedIndex) {
 			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
+			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
 		}
 		
 		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		renderer.drawText(lastOption.label, x + padding + 10, lastItemY, '22px', lastColor, 'left');
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
 	}
 
 	renderLeftMenu(renderer) {
@@ -371,11 +388,10 @@ export default class MenuManager {
 		const y = 0;
 		const padding = 20;
 
-		renderer.drawRect(x, y, width, height, 'rgba(0, 0, 50, 0.7)');
-		renderer.drawStrokeRect(x, y, width, height, '#fff', 3);
+		this.drawMenuBox(renderer, x, y, width, height);
 
 		const titleY = 60;
-		renderer.drawText(this.activeMenu.title, x + padding, titleY, '24px', '#aaa', 'left');
+		this.drawTextWithOutline(renderer, this.activeMenu.title, x + padding, titleY, '28px', '#fff', 'left');
 
 		const startY = 150;
 		const itemHeight = 50;
@@ -390,6 +406,7 @@ export default class MenuManager {
 			
 			if (index === this.selectedIndex && !option.disabled) {
 				renderer.drawRect(x + padding, itemY - 35, width - padding * 2, itemHeight, 'rgba(255, 255, 255, 0.15)');
+				this.drawTextWithOutline(renderer, '▶', x + padding, itemY, '16px', '#fff', 'left');
 			}
 			
 			let color;
@@ -398,16 +415,17 @@ export default class MenuManager {
 			} else {
 				color = index === this.selectedIndex ? '#fff' : '#888';
 			}
-			renderer.drawText(option.label, x + padding + 10, itemY, '22px', color, 'left');
+			this.drawTextWithOutline(renderer, option.label, x + padding + 20, itemY, '22px', color, 'left');
 		});
 
 		const lastItemY = height - padding - 20;
 		if (lastIndex === this.selectedIndex) {
 			renderer.drawRect(x + padding, lastItemY - 35, width - padding * 2, itemHeight, 'rgba(255, 100, 100, 0.2)');
+			this.drawTextWithOutline(renderer, '▶', x + padding, lastItemY, '16px', '#ff6666', 'left');
 		}
 		
 		const lastColor = lastIndex === this.selectedIndex ? '#ff6666' : '#aa5555';
-		renderer.drawText(lastOption.label, x + padding + 10, lastItemY, '22px', lastColor, 'left');
+		this.drawTextWithOutline(renderer, lastOption.label, x + padding + 20, lastItemY, '22px', lastColor, 'left');
 	}
 }
 
