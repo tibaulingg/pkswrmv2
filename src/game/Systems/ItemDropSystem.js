@@ -1,21 +1,25 @@
 class ItemDrop {
-	constructor(x, y, itemId, itemImage, scale = 1.0) {
+	constructor(x, y, itemId, itemImage) {
 		this.x = x;
 		this.y = y;
 		this.itemId = itemId;
 		this.itemImage = itemImage;
-		this.baseSize = 32;
-		this.scale = scale;
-		this.size = this.baseSize * this.scale;
+		this.size = 32;
 		this.isActive = true;
+		this.lifetime = 0;
+		this.bobOffset = Math.random() * Math.PI * 2;
 		this.velocityX = 0;
 		this.velocityY = 0;
 		this.isBeingPulled = false;
 		this.justCollected = false;
+		this.rotation = Math.random() * Math.PI * 2;
+		this.rotationSpeed = (Math.random() - 0.5) * 0.05;
 	}
 
 	update(deltaTime, playerX, playerY, fetchRange) {
 		if (!this.isActive) return;
+		this.lifetime += deltaTime;
+		this.rotation += this.rotationSpeed * deltaTime / 16;
 
 		const dx = playerX - this.x;
 		const dy = playerY - this.y;
@@ -59,8 +63,12 @@ class ItemDrop {
 	render(renderer) {
 		if (!this.isActive) return;
 
+		const bobAmount = Math.sin(this.lifetime / 16 + this.bobOffset) * 3;
+		const renderY = this.y + bobAmount;
+
 		renderer.ctx.save();
-		renderer.ctx.translate(this.x, this.y);
+		renderer.ctx.translate(this.x, renderY);
+		renderer.ctx.rotate(this.rotation);
 
 		if (this.itemImage && this.itemImage.complete && this.itemImage.naturalWidth > 0) {
 			renderer.ctx.drawImage(
@@ -89,8 +97,8 @@ export default class ItemDropSystem {
 		this.items = [];
 	}
 
-	spawnItem(x, y, itemId, itemImage, scale = 1.0) {
-		const item = new ItemDrop(x, y, itemId, itemImage, scale);
+	spawnItem(x, y, itemId, itemImage) {
+		const item = new ItemDrop(x, y, itemId, itemImage);
 		this.items.push(item);
 	}
 

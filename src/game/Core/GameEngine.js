@@ -145,12 +145,6 @@ export default class GameEngine {
 			const okSoundPath = process.env.PUBLIC_URL + '/ok.wav';
 			this.audio.load('ok', okSoundPath);
 
-			const earthquakeSoundPath = process.env.PUBLIC_URL + '/earthquake.wav';
-			this.audio.load('earthquake', earthquakeSoundPath);
-
-			const hydrocanonSoundPath = process.env.PUBLIC_URL + '/hydrocanon.wav';
-			this.audio.load('hydrocanon', hydrocanonSoundPath);
-
 			const victorySoundPath = process.env.PUBLIC_URL + '/victory.mp3';
 			this.audio.load('victory', victorySoundPath);
 

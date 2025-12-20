@@ -331,7 +331,7 @@ export const Upgrades = {
 	},
 	projectileEnhancement_1: {
 		id: 'projectileEnhancement_1',
-		name: 'Amélioration des Projectiles',
+		name: 'Projectiles',
 		description: 'Améliore les projectiles spéciaux',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_ENHANCEMENT,
