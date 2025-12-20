@@ -41,7 +41,6 @@ export default class BattleScene {
 		this.spellSystem = new SpellSystem();
 		this.activeSpellEffects = [];
 		this.debug = 0;
-		this.debugMode = false;
 		this.upgradeChoices = null;
 		this.selectedUpgradeIndex = 0;
 		this.upgradeAnimationProgress = 0;
@@ -90,12 +89,7 @@ export default class BattleScene {
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
 			this.player.money = this.engine.money;
 			this.player.displayedMoney = this.engine.displayedMoney;
-			
-			if (this.debugMode) {
-				this.player.unlockSpell('earthquake');
-				this.player.unlockSpell('rock_trap');
-				this.player.unlockSpell('hydrocanon');
-			}
+	
 			
 			if (this.selectedPokemon) {
 				this.engine.playedPokemons.add(this.selectedPokemon);
@@ -186,14 +180,7 @@ export default class BattleScene {
 		if (key === 'KeyC' && !this.upgradeChoices) {
 			this.debugCollisions = !this.debugCollisions;
 		}
-		if (key === 'KeyD' && !this.upgradeChoices) {
-			this.debugMode = !this.debugMode;
-			if (this.debugMode && this.player) {
-				this.player.unlockSpell('earthquake');
-				this.player.unlockSpell('rock_trap');
-				this.player.unlockSpell('hydrocanon');
-			}
-		}
+	
 		if ((key === 'Digit1' || key === 'Numpad1') && !this.upgradeChoices) {
 			this.castPlayerSpell(0);
 		}
