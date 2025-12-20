@@ -10,9 +10,11 @@ import CoinSystem, { COIN_DROP_CHANCE } from '../Systems/CoinSystem.js';
 import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
-import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType, Upgrades } from '../Config/UpgradeConfig.js';
-import { EnemyTypes } from '../Config/EnemyConfig.js';
-import Enemy from '../Entities/Enemy.js';
+import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType,  } from '../Config/UpgradeConfig.js';
+import CollisionSystem from '../Systems/CollisionSystem.js';
+import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
+
+const TILE_SIZE = 32;
 
 export default class BattleScene {
 	constructor(engine) {
@@ -50,6 +52,8 @@ export default class BattleScene {
 		this.deathZoomEnd = 3.0;
 		this.deathZoomProgress = 0;
 		this.killerEnemy = null;
+		this.collisionSystem = null;
+		this.debugCollisions = false;
 	}
 
 		init(mapData) {
@@ -57,9 +61,9 @@ export default class BattleScene {
 			this.mapData = mapData;
 			this.state = 'playing';
 			this.survivalTime = 0;
-		this.playerDying = false;
-		this.deathAnimationComplete = false;
-		this.deathZoomProgress = 0;
+			this.playerDying = false;
+			this.deathAnimationComplete = false;
+			this.deathZoomProgress = 0;
 		this.killerEnemy = null;
 			
 			const pokemonConfig = getPokemonConfig(this.selectedPokemon);
@@ -76,6 +80,8 @@ export default class BattleScene {
 			const animationSystem = pokemonConfig && hasSprites ? 
 				new AnimationSystem(pokemonConfig, spriteImages) : null;
 			
+			this.loadMapBackground(mapData.image);
+			
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
 			this.player.money = this.engine.money;
 			this.player.displayedMoney = this.engine.displayedMoney;
@@ -83,7 +89,13 @@ export default class BattleScene {
 			if (this.selectedPokemon) {
 				this.engine.playedPokemons.add(this.selectedPokemon);
 			}
-			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine);
+			
+			const mapTileCollisions = MapTileCollisions[mapData.image] || [];
+			const tileRects = tilesToCollisionRects(mapTileCollisions, TILE_SIZE);
+			this.collisionSystem = new CollisionSystem(tileRects);
+			this.debugCollisions = false;
+			
+			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine, this.collisionSystem);
 			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1);
 			this.projectiles = [];
 			this.enemyProjectiles = [];
@@ -93,8 +105,6 @@ export default class BattleScene {
 			
 			const coinImage = this.engine.sprites.get('coins');
 			this.coinSystem = new CoinSystem(coinImage);
-			
-			this.loadMapBackground(mapData.image);
 			
 			const musicName = `map_${mapData.image}`;
 			this.engine.audio.playMusic(musicName);
@@ -108,6 +118,8 @@ export default class BattleScene {
 			const bgImage = this.engine.sprites.get(`map_${imageName}`);
 			if (bgImage) {
 				this.mapBackground = bgImage;
+				this.mapWidth = bgImage.width;
+				this.mapHeight = bgImage.height;
 			}
 		}
 	}
@@ -135,7 +147,7 @@ export default class BattleScene {
 	updateBattle(deltaTime) {
 		if (this.state === 'dying') {
 			if (this.player && this.player.isDying) {
-				this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera);
+				this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
 				
 				// Zoom progressif pendant l'animation de mort
 				const animationProgress = 1 - (this.player.faintAnimationTime / this.player.faintAnimationDuration);
@@ -160,6 +172,9 @@ export default class BattleScene {
 			this.openPauseMenu();
 			return;
 		}
+		if (key === 'KeyC' && !this.upgradeChoices) {
+			this.debugCollisions = !this.debugCollisions;
+		}
 		if ((key === 'Digit1' || key === 'Numpad1') && !this.upgradeChoices) {
 			this.castPlayerSpell(0);
 		}
@@ -171,7 +186,7 @@ export default class BattleScene {
 		}
 
 		if (this.player && this.player.isAlive) {
-			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera);
+			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
 			
 			if (this.player.attackType === 'range' && this.player.autoShoot) {
 				this.updatePlayerAutoAim();
@@ -314,14 +329,14 @@ export default class BattleScene {
 
 	updateProjectiles(deltaTime) {
 		this.projectiles.forEach(projectile => {
-			projectile.update(deltaTime);
+			projectile.update(deltaTime, this.collisionSystem);
 		});
 		this.projectiles = this.projectiles.filter(p => p.isActive);
 	}
 
 	updateEnemyProjectiles(deltaTime) {
 		this.enemyProjectiles.forEach(projectile => {
-			projectile.update(deltaTime);
+			projectile.update(deltaTime, this.collisionSystem);
 			
 			if (projectile.collidesWith(this.player.getHitboxX(), this.player.getHitboxY(), this.player.width, this.player.height)) {
 				this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, projectile.damage, true);
@@ -425,13 +440,13 @@ export default class BattleScene {
 			if (!projectile.isActive) return;
 			
 			let directHitEnemy = null;
-			
-			enemies.forEach(enemy => {
+		
+		enemies.forEach(enemy => {
 				if (!enemy.isAlive) return;
 				
-				const hitboxOffsetX = (enemy.spriteWidth - enemy.width) / 2;
-				const hitboxOffsetY = (enemy.spriteHeight - enemy.height) / 2;
-				
+			const hitboxOffsetX = (enemy.spriteWidth - enemy.width) / 2;
+			const hitboxOffsetY = (enemy.spriteHeight - enemy.height) / 2;
+			
 				const directHit = projectile.collidesWith(enemy.x + hitboxOffsetX, enemy.y + hitboxOffsetY, enemy.width, enemy.height);
 				
 				if (directHit && !directHitEnemy) {
@@ -482,25 +497,25 @@ export default class BattleScene {
 						const distance = Math.sqrt(dx * dx + dy * dy);
 						
 						if (distance <= projectile.aoeRadius) {
-							const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, enemy.getCenterX(), enemy.getCenterY());
-							const knockbackStrength = this.player.knockback * 0.5 * (enemy.isBoss ? 0.2 : 1);
-							const knockbackX = knockbackDir.x * knockbackStrength;
-							const knockbackY = knockbackDir.y * knockbackStrength;
-							
+					const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, enemy.getCenterX(), enemy.getCenterY());
+					const knockbackStrength = this.player.knockback * 0.5 * (enemy.isBoss ? 0.2 : 1);
+					const knockbackX = knockbackDir.x * knockbackStrength;
+					const knockbackY = knockbackDir.y * knockbackStrength;
+					
 							const damageToDeal = projectile.damage * this.player.aoeDamageMultiplier;
 							
 							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, damageToDeal, false, projectile.isCrit);
-							this.engine.audio.play('hit', 0.2, 0.2);
+					this.engine.audio.play('hit', 0.2, 0.2);
 							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
-							
+					
 							this.applyLifeSteal(damageToDeal);
-							
-							if (died) {
-								this.handleEnemyDeath(enemy);
-							}
-							
-							projectile.hitEnemies.add(enemy);
-						}
+					
+					if (died) {
+						this.handleEnemyDeath(enemy);
+					}
+					
+						projectile.hitEnemies.add(enemy);
+					}
 					});
 				}
 				
@@ -832,21 +847,21 @@ export default class BattleScene {
 			this.isEnterHeld = true;
 		} else {
 			if (this.wasEnterPressed && !isEnterPressed) {
-				if (this.upgradeAnimationProgress >= this.upgradeAnimationDuration) {
+			if (this.upgradeAnimationProgress >= this.upgradeAnimationDuration) {
 					this.engine.audio.play('ok', 0.3, 0.2);
 					this.upgradePressAnimation = 100;
-					const selectedUpgrade = this.upgradeChoices[this.selectedUpgradeIndex];
-					this.player.applyUpgrade(selectedUpgrade);
-					this.upgradeChoices = null;
-					this.selectedUpgradeIndex = 0;
-					this.upgradeAnimationProgress = 0;
+				const selectedUpgrade = this.upgradeChoices[this.selectedUpgradeIndex];
+				this.player.applyUpgrade(selectedUpgrade);
+				this.upgradeChoices = null;
+				this.selectedUpgradeIndex = 0;
+				this.upgradeAnimationProgress = 0;
 					this.wasEnterPressed = false;
 					this.isEnterHeld = false;
-					if (this.originalMusicVolume !== null) {
-						this.engine.audio.setMusicVolume(this.originalMusicVolume);
-						this.originalMusicVolume = null;
-					}
+				if (this.originalMusicVolume !== null) {
+					this.engine.audio.setMusicVolume(this.originalMusicVolume);
+					this.originalMusicVolume = null;
 				}
+			}
 			}
 			this.isEnterHeld = false;
 		}
@@ -1012,27 +1027,30 @@ export default class BattleScene {
 		}
 
 		if (this.mapBackground) {
-			renderer.ctx.drawImage(this.mapBackground, 0, 0, this.mapWidth, this.mapHeight);
+			renderer.ctx.drawImage(this.mapBackground, 0, 0);
 		} else {
 			renderer.drawRect(0, 0, this.mapWidth, this.mapHeight, '#2a2a3e');
 		}
-		
-		if (this.debug === 1) {
-			const gridSize = 100;
-			renderer.ctx.strokeStyle = '#3a3a4e';
+
+		if (this.collisionSystem && this.debugCollisions) {
+			renderer.ctx.save();
+			renderer.ctx.strokeStyle = 'rgba(100, 100, 255, 0.3)';
 			renderer.ctx.lineWidth = 1;
-			for (let x = 0; x < this.mapWidth; x += gridSize) {
+			for (let x = 0; x <= this.mapWidth; x += TILE_SIZE) {
 				renderer.ctx.beginPath();
 				renderer.ctx.moveTo(x, 0);
 				renderer.ctx.lineTo(x, this.mapHeight);
 				renderer.ctx.stroke();
 			}
-			for (let y = 0; y < this.mapHeight; y += gridSize) {
+			for (let y = 0; y <= this.mapHeight; y += TILE_SIZE) {
 				renderer.ctx.beginPath();
 				renderer.ctx.moveTo(0, y);
 				renderer.ctx.lineTo(this.mapWidth, y);
 				renderer.ctx.stroke();
 			}
+			renderer.ctx.restore();
+			
+			this.collisionSystem.render(renderer, true);
 		}
 
 		const renderableEntities = [];
@@ -1099,7 +1117,7 @@ export default class BattleScene {
 			const bossTimerRemaining = this.enemySpawner ? this.enemySpawner.getBossTimerRemaining() : null;
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
-			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, this.selectedPokemon, this.engine, currentBoss);
+			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, this.selectedPokemon, this.engine, currentBoss, this.mapData);
 		}
 
 		this.renderMinimap(renderer);
@@ -1107,22 +1125,73 @@ export default class BattleScene {
 
 	renderMinimap(renderer) {
 		const minimapSize = 180;
-		const minimapX = renderer.width - minimapSize - 20;
-		const minimapY = 100;
+		const minimapX = renderer.width - minimapSize - 10;
+		const minimapY = 10;
 		const minimapPadding = 5;
+		const titleHeight = 25;
 
 		renderer.ctx.save();
+
+		if (this.mapData && this.mapData.name) {
+			const fontSize = 16;
+			const strokeOffset = 1;
+			const strokeColor = '#333333';
+			
+			renderer.ctx.font = `${fontSize}px Pokemon`;
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.strokeStyle = strokeColor;
+			renderer.ctx.lineWidth = 1;
+			renderer.ctx.textAlign = 'right';
+			renderer.ctx.textBaseline = 'top';
+			
+			const mapName = this.mapData.name;
+			const titleX = minimapX + minimapSize;
+			const titleY = minimapY;
+			
+			renderer.ctx.strokeText(mapName, titleX + strokeOffset, titleY + strokeOffset);
+			renderer.ctx.fillText(mapName, titleX, titleY);
+		}
+
+		const minimapYWithTitle = minimapY + (this.mapData && this.mapData.name ? titleHeight : 0);
 		renderer.ctx.fillStyle = 'rgba(20, 20, 30, 0.85)';
-		renderer.ctx.fillRect(minimapX, minimapY, minimapSize, minimapSize);
+		renderer.ctx.fillRect(minimapX, minimapYWithTitle, minimapSize, minimapSize);
 		renderer.ctx.strokeStyle = 'rgba(100, 100, 120, 0.8)';
 		renderer.ctx.lineWidth = 2;
-		renderer.ctx.strokeRect(minimapX, minimapY, minimapSize, minimapSize);
+		renderer.ctx.strokeRect(minimapX, minimapYWithTitle, minimapSize, minimapSize);
 
 		const mapScale = (minimapSize - minimapPadding * 2) / Math.max(this.mapWidth, this.mapHeight);
 
+		if (this.collisionSystem && this.collisionSystem.collisionRects) {
+			const mapImage = this.mapData?.image || 'forest';
+			const collisionColor = MapCollisionColors[mapImage] || 'rgba(100, 255, 100, 0.5)';
+			renderer.ctx.fillStyle = collisionColor;
+			
+			const minimapTileSize = TILE_SIZE * mapScale;
+			const coveredTiles = new Set();
+			
+			this.collisionSystem.collisionRects.forEach(rect => {
+				const startTileX = Math.floor(rect.x / TILE_SIZE);
+				const startTileY = Math.floor(rect.y / TILE_SIZE);
+				const endTileX = Math.floor((rect.x + rect.width - 1) / TILE_SIZE);
+				const endTileY = Math.floor((rect.y + rect.height - 1) / TILE_SIZE);
+				
+				for (let tileY = startTileY; tileY <= endTileY; tileY++) {
+					for (let tileX = startTileX; tileX <= endTileX; tileX++) {
+						const tileKey = `${tileX},${tileY}`;
+						if (!coveredTiles.has(tileKey)) {
+							coveredTiles.add(tileKey);
+							const tileMinimapX = minimapX + minimapPadding + (tileX * TILE_SIZE * mapScale);
+							const tileMinimapY = minimapYWithTitle + minimapPadding + (tileY * TILE_SIZE * mapScale);
+							renderer.ctx.fillRect(tileMinimapX, tileMinimapY, minimapTileSize, minimapTileSize);
+						}
+					}
+				}
+			});
+		}
+
 		if (this.player) {
 			const playerMinimapX = minimapX + minimapPadding + (this.player.getCenterX() * mapScale);
-			const playerMinimapY = minimapY + minimapPadding + (this.player.getCenterY() * mapScale);
+			const playerMinimapY = minimapYWithTitle + minimapPadding + (this.player.getCenterY() * mapScale);
 
 			renderer.ctx.fillStyle = '#4af626';
 			renderer.ctx.beginPath();
@@ -1134,7 +1203,7 @@ export default class BattleScene {
 			const enemies = this.getAllEnemies();
 			enemies.forEach(enemy => {
 				const enemyMinimapX = minimapX + minimapPadding + (enemy.getCenterX() * mapScale);
-				const enemyMinimapY = minimapY + minimapPadding + (enemy.getCenterY() * mapScale);
+				const enemyMinimapY = minimapYWithTitle + minimapPadding + (enemy.getCenterY() * mapScale);
 				
 				if (enemy.isBoss) {
 					renderer.ctx.fillStyle = '#ff0000';
@@ -1153,7 +1222,7 @@ export default class BattleScene {
 			renderer.ctx.fillStyle = '#87CEEB';
 			this.xpOrbSystem.orbs.forEach(orb => {
 				const orbMinimapX = minimapX + minimapPadding + (orb.x * mapScale);
-				const orbMinimapY = minimapY + minimapPadding + (orb.y * mapScale);
+				const orbMinimapY = minimapYWithTitle + minimapPadding + (orb.y * mapScale);
 				renderer.ctx.fillRect(orbMinimapX - 1, orbMinimapY - 1, 2, 2);
 			});
 		}

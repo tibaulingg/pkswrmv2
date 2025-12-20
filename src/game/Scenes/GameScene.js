@@ -6,7 +6,7 @@ import EventSystem from '../Systems/EventSystem.js';
 import EventHandler from '../Systems/EventHandler.js';
 import AnimationSystem from '../Systems/AnimationSystem.js';
 import { HubMenuConfig } from '../Config/MenuConfig.js';
-import { HubCollisions, HubEvents } from '../Config/CollisionConfig.js';
+import { HubCollisions, HubEvents, MapTileCollisions, tilesToCollisionRects } from '../Config/CollisionConfig.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
 
 export default class GameScene {
@@ -25,7 +25,11 @@ export default class GameScene {
 	init() {
 		const hubImage = this.engine.sprites.get('hub');
 		this.map = new MapSystem(1280, 720, hubImage);
-		this.collisionSystem = new CollisionSystem(HubCollisions);
+		
+		const hubTileCollisions = MapTileCollisions.hub || [];
+		const tileRects = tilesToCollisionRects(hubTileCollisions);
+		const allCollisions = [...HubCollisions, ...tileRects];
+		this.collisionSystem = new CollisionSystem(allCollisions);
 		this.eventSystem = new EventSystem(HubEvents);
 		this.eventHandler = new EventHandler(this.engine);
 		

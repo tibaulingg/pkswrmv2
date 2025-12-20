@@ -4,21 +4,22 @@ import { EnemyTypes, MapEnemies } from '../Config/EnemyConfig.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
 
 export default class EnemySpawner {
-	constructor(mapId, mapWidth, mapHeight, spriteManager, bossTimer = null, bossType = null, engine = null) {
+	constructor(mapId, mapWidth, mapHeight, spriteManager, bossTimer = null, bossType = null, engine = null, collisionSystem = null) {
 		this.mapId = mapId;
 		this.mapWidth = mapWidth;
 		this.mapHeight = mapHeight;
 		this.spriteManager = spriteManager;
 		this.engine = engine;
+		this.collisionSystem = collisionSystem;
 		this.enemies = [];
 		this.spawnTimer = 0;
 		this.baseSpawnInterval = 2000;
 		this.spawnInterval = this.baseSpawnInterval;
-		this.baseMaxEnemies = 30;
+		this.baseMaxEnemies = 530;
 		this.maxEnemies = this.baseMaxEnemies;
 		this.enemyPool = MapEnemies[mapId] || [];
 		this.gameTime = 0;
-		this.spawnCount = 1;
+		this.spawnCount = 2;
 		this.difficultyUpdateTimer = 0;
 		this.difficultyUpdateInterval = 10000;
 		this.bossTimer = bossTimer;
@@ -54,7 +55,7 @@ export default class EnemySpawner {
 		}
 
 		this.enemies.forEach(enemy => {
-			enemy.update(deltaTime, playerX, playerY);
+			enemy.update(deltaTime, playerX, playerY, this.collisionSystem);
 		});
 
 		const beforeCount = this.enemies.length;
@@ -93,15 +94,39 @@ export default class EnemySpawner {
 		}
 		
 		const spawnDistance = 400;
+		const maxAttempts = 20;
+		let validPosition = null;
 		
-		if (angle === null) {
-			angle = Math.random() * Math.PI * 2;
-		}
-		const x = playerX + Math.cos(angle) * spawnDistance;
-		const y = playerY + Math.sin(angle) * spawnDistance;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			if (angle === null) {
+				angle = Math.random() * Math.PI * 2;
+			} else if (attempt > 0) {
+				angle = Math.random() * Math.PI * 2;
+			}
+			
+			const x = playerX + Math.cos(angle) * spawnDistance;
+			const y = playerY + Math.sin(angle) * spawnDistance;
 
-		const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
-		const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
+			const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
+			const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
+			
+			const enemyWidth = 32;
+			const enemyHeight = 32;
+			
+			if (this.collisionSystem && this.collisionSystem.checkCollision(clampedX, clampedY, enemyWidth, enemyHeight)) {
+				continue;
+			}
+			
+			validPosition = { x: clampedX, y: clampedY, angle };
+			break;
+		}
+		
+		if (!validPosition) {
+			return;
+		}
+		
+		const clampedX = validPosition.x;
+		const clampedY = validPosition.y;
 
 		let animationSystem = null;
 		let particleColor = '#ff0000';
@@ -176,12 +201,34 @@ export default class EnemySpawner {
 		}
 
 		const spawnDistance = 400;
-		const angle = Math.random() * Math.PI * 2;
-		const x = playerX + Math.cos(angle) * spawnDistance;
-		const y = playerY + Math.sin(angle) * spawnDistance;
+		const maxAttempts = 20;
+		let validPosition = null;
+		
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			const angle = Math.random() * Math.PI * 2;
+			const x = playerX + Math.cos(angle) * spawnDistance;
+			const y = playerY + Math.sin(angle) * spawnDistance;
 
-		const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
-		const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
+			const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
+			const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
+			
+			const bossWidth = 96;
+			const bossHeight = 96;
+			
+			if (this.collisionSystem && this.collisionSystem.checkCollision(clampedX, clampedY, bossWidth, bossHeight)) {
+				continue;
+			}
+			
+			validPosition = { x: clampedX, y: clampedY };
+			break;
+		}
+		
+		if (!validPosition) {
+			return;
+		}
+		
+		const clampedX = validPosition.x;
+		const clampedY = validPosition.y;
 
 		let animationSystem = null;
 		let particleColor = '#ff0000';

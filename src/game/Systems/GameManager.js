@@ -76,7 +76,7 @@ export default class GameManager {
 		const killerPokemon = battleScene.killerEnemy && battleScene.killerEnemy.pokemonConfig ? battleScene.killerEnemy.pokemonConfig.name : null;
 
 		const defeatedPokemonCounts = battleScene.engine.defeatedPokemonCounts || {};
-		
+
 		const victoryData = {
 			time: timeString,
 			level: player ? player.level : 1,

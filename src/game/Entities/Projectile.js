@@ -39,14 +39,25 @@ export default class Projectile {
 		this.velocityY = this.directionY * speed + playerVelocityY;
 	}
 
-	update(deltaTime) {
+	update(deltaTime, collisionSystem = null) {
 		if (!this.isActive) return;
 
 		const moveX = this.velocityX * deltaTime;
 		const moveY = this.velocityY * deltaTime;
 		
-		this.x += moveX;
-		this.y += moveY;
+		const newX = this.x + moveX;
+		const newY = this.y + moveY;
+		
+		if (collisionSystem) {
+			const projectileSize = this.size;
+			if (collisionSystem.checkCollision(newX - projectileSize / 2, newY - projectileSize / 2, projectileSize, projectileSize)) {
+				this.isActive = false;
+				return;
+			}
+		}
+		
+		this.x = newX;
+		this.y = newY;
 		
 		const moveDistance = Math.sqrt(moveX * moveX + moveY * moveY);
 		this.traveledDistance += moveDistance;
@@ -58,8 +69,8 @@ export default class Projectile {
 				this.isActive = false;
 			}
 		} else {
-			if (this.traveledDistance >= this.maxDistance) {
-				this.isActive = false;
+		if (this.traveledDistance >= this.maxDistance) {
+			this.isActive = false;
 			}
 		}
 	}

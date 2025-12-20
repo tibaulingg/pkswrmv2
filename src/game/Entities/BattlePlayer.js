@@ -98,7 +98,7 @@ export default class BattlePlayer {
 		this.forcedDirection = null;
 	}
 
-	update(deltaTime, input, mapWidth, mapHeight, camera = null) {
+	update(deltaTime, input, mapWidth, mapHeight, camera = null, collisionSystem = null) {
 		if (!this.isAlive && !this.isDying) return;
 		
 		if (this.isDying) {
@@ -108,7 +108,6 @@ export default class BattlePlayer {
 				this.isDying = false;
 			}
 			
-			// Mettre à jour l'animation pendant la mort
 			if (this.animationSystem) {
 				this.animationSystem.update(deltaTime, false, 0, 0);
 			}
@@ -134,8 +133,27 @@ export default class BattlePlayer {
 			this.velocityX = this.directionX * this.speed / 16;
 			this.velocityY = this.directionY * this.speed / 16;
 			
-			this.x += this.velocityX * deltaTime;
-			this.y += this.velocityY * deltaTime;
+			const deltaX = this.velocityX * deltaTime;
+			const deltaY = this.velocityY * deltaTime;
+
+			const newX = this.x + deltaX;
+			const newY = this.y + deltaY;
+
+			if (collisionSystem) {
+				const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
+				const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+				
+				if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+					this.x = newX;
+				}
+
+				if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+					this.y = newY;
+				}
+			} else {
+				this.x = newX;
+				this.y = newY;
+			}
 		} else {
 			this.velocityX = 0;
 			this.velocityY = 0;
@@ -370,6 +388,8 @@ export default class BattlePlayer {
 			case 'spell':
 				this.unlockSpell(upgrade.value);
 				break;
+			default:
+				break;
 		}
 	}
 
@@ -567,21 +587,21 @@ export default class BattlePlayer {
 				const arcStart = angle - arcAngle / 2;
 				const arcEnd = angle + arcAngle / 2;
 				
-				renderer.ctx.save();
-				renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.setLineDash([5, 5]);
-				renderer.ctx.beginPath();
-				renderer.ctx.arc(
+			renderer.ctx.save();
+			renderer.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.setLineDash([5, 5]);
+			renderer.ctx.beginPath();
+			renderer.ctx.arc(
 					centerX,
 					centerY,
-					this.range,
+				this.range,
 					arcStart,
 					arcEnd
-				);
-				renderer.ctx.stroke();
-				renderer.ctx.setLineDash([]);
-				renderer.ctx.restore();
+			);
+			renderer.ctx.stroke();
+			renderer.ctx.setLineDash([]);
+			renderer.ctx.restore();
 			}
 		}
 

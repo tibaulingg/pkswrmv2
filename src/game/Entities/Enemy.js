@@ -71,11 +71,34 @@ export default class Enemy {
 		this.auraPulseTime = 0;
 	}
 
-	update(deltaTime, playerX, playerY) {
+	update(deltaTime, playerX, playerY, collisionSystem = null) {
 		if (!this.isAlive) return;
 
-		this.x += this.knockbackVelocityX * deltaTime / 16;
-		this.y += this.knockbackVelocityY * deltaTime / 16;
+		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
+		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+		
+		const knockbackX = this.knockbackVelocityX * deltaTime / 16;
+		const knockbackY = this.knockbackVelocityY * deltaTime / 16;
+		
+		if (collisionSystem) {
+			const newKnockbackX = this.x + knockbackX;
+			const newKnockbackY = this.y + knockbackY;
+			
+			if (collisionSystem.canMoveTo(newKnockbackX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				this.x = newKnockbackX;
+			} else {
+				this.knockbackVelocityX = 0;
+			}
+			
+			if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newKnockbackY + hitboxOffsetY, this.width, this.height)) {
+				this.y = newKnockbackY;
+			} else {
+				this.knockbackVelocityY = 0;
+			}
+		} else {
+			this.x += knockbackX;
+			this.y += knockbackY;
+		}
 		
 		this.knockbackVelocityX *= this.knockbackDecay;
 		this.knockbackVelocityY *= this.knockbackDecay;
@@ -91,8 +114,24 @@ export default class Enemy {
 			if (distance > this.attackRange) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
-				this.x += this.directionX * this.speed * deltaTime / 16;
-				this.y += this.directionY * this.speed * deltaTime / 16;
+				const moveX = this.directionX * this.speed * deltaTime / 16;
+				const moveY = this.directionY * this.speed * deltaTime / 16;
+				
+				const newX = this.x + moveX;
+				const newY = this.y + moveY;
+				
+				if (collisionSystem) {
+					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+						this.x = newX;
+					}
+					
+					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+						this.y = newY;
+					}
+				} else {
+					this.x = newX;
+					this.y = newY;
+				}
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
@@ -101,8 +140,24 @@ export default class Enemy {
 			if (distance > this.attackRange) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
-				this.x += this.directionX * this.speed * deltaTime / 16;
-				this.y += this.directionY * this.speed * deltaTime / 16;
+				const moveX = this.directionX * this.speed * deltaTime / 16;
+				const moveY = this.directionY * this.speed * deltaTime / 16;
+				
+				const newX = this.x + moveX;
+				const newY = this.y + moveY;
+				
+				if (collisionSystem) {
+					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+						this.x = newX;
+					}
+					
+					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+						this.y = newY;
+					}
+				} else {
+					this.x = newX;
+					this.y = newY;
+				}
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
