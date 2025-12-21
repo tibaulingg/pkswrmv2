@@ -36,8 +36,35 @@ export const PokemonSprites = {
 		attackSpeed: 2.5,
 		range: 200,
 		knockback: 5,
+		projectileColor: '#4FC3F7',
 		projectileSize: 12,
 		projectileSpeed: 0.5
+	},
+	garchomp: {
+		name: 'garchomp',
+		walk: {
+			frames: 4
+		},
+		hurt: {
+			frames: 2
+		},
+		charge: {
+			frames: 10
+		},
+		attackType: 'melee',
+		type: 'dragon',
+		hp: 100,
+		speed: 4,
+		damage: 30,
+		attackSpeed: 2,
+		range: 150,
+		knockback: 5,
+		particleColor: '#8B4513',
+		projectileColor: '#8B4513',
+		projectileSize: 6,
+		projectileSpeed: 0.6,
+		spells: [],
+		meleeAttackColor: '#8B4513'
 	},
 	kecleon: {
 		name: 'kecleon',
@@ -216,6 +243,7 @@ export function getPokemonConfig(pokemonName) {
 		projectileColor: pokemon.projectileColor,
 		projectileSize: pokemon.projectileSize,
 		projectileSpeed: pokemon.projectileSpeed,
+		meleeAttackColor: pokemon.meleeAttackColor || null,
 	};
 }
 

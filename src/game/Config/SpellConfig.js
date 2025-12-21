@@ -39,6 +39,22 @@ export const Spells = {
 		animationDuration: 3000,
 		particleColor: '#4dd0e1',
 		knockback: 10
+	},
+	circular_sweep: {
+		id: 'circular_sweep',
+		name: 'Griffes',
+		type: SpellTypes.DRAGON,
+		cooldownMax: 0,
+		damageMultiplier: 1.1,
+		baseRadius: 100,
+		animation: null,
+		animationDuration: 0,
+		particleColor: 'rgb(190, 194, 190)',
+		knockback: 5,
+		attackType: 'circular_sweep',
+		strikes: 2,
+		strikeDelay: 150,
+		forwardOffset: 80
 	}
 };
 

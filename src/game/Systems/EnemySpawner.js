@@ -28,7 +28,7 @@ export default class EnemySpawner {
 		this.totalEnemiesKilled = 0;
 	}
 
-	update(deltaTime, playerX, playerY) {
+	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32) {
 		this.gameTime += deltaTime;
 		this.spawnTimer += deltaTime;
 		this.difficultyUpdateTimer += deltaTime;
@@ -55,7 +55,7 @@ export default class EnemySpawner {
 		}
 
 		this.enemies.forEach(enemy => {
-			enemy.update(deltaTime, playerX, playerY, this.collisionSystem);
+			enemy.update(deltaTime, playerX, playerY, this.collisionSystem, playerWidth, playerHeight);
 		});
 
 		const beforeCount = this.enemies.length;

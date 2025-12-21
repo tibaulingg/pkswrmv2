@@ -9,6 +9,7 @@ export default class Camera {
 		this.y = 0;
 		this.shakeIntensity = 0;
 		this.shakeTime = 0;
+		this.shakeDuration = 0;
 		this.shakeOffsetX = 0;
 		this.shakeOffsetY = 0;
 	}
@@ -24,19 +25,27 @@ export default class Camera {
 	update(deltaTime) {
 		if (this.shakeTime > 0) {
 			this.shakeTime -= deltaTime;
-			const intensity = this.shakeIntensity * (this.shakeTime / 200);
-			this.shakeOffsetX = (Math.random() - 0.5) * intensity;
-			this.shakeOffsetY = (Math.random() - 0.5) * intensity;
+			if (this.shakeTime < 0) {
+				this.shakeTime = 0;
+			}
+			const progress = this.shakeDuration > 0 ? this.shakeTime / this.shakeDuration : 0;
+			const intensity = this.shakeIntensity * Math.max(0, progress);
+			this.shakeOffsetX = (Math.random() - 0.5) * 2 * intensity;
+			this.shakeOffsetY = (Math.random() - 0.5) * 2 * intensity;
 		} else {
 			this.shakeOffsetX = 0;
 			this.shakeOffsetY = 0;
+			this.shakeDuration = 0;
 		}
 	}
 
 	shake(intensity = 10, duration = 200, enabled = true) {
+		console.log('shake', intensity, duration, enabled);
 		if (!enabled) return;
+		console.log('shake', intensity, duration);
 		this.shakeIntensity = intensity;
 		this.shakeTime = duration;
+		this.shakeDuration = duration;
 	}
 
 	apply(ctx) {

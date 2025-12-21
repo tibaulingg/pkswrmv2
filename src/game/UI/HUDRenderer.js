@@ -1,16 +1,33 @@
+import { EnemyTypes } from '../Config/EnemyConfig.js';
+
 export default class HUDRenderer {
 	constructor() {
 		this.lineHeight = 25;
 	}
 
-	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null, mapData = null) {
+	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null, mapData = null, bossDefeated = false) {
 		if (!player) return;
 
-		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine);
-		this.renderSpells(renderer, player, canvasWidth, canvasHeight);
+		if (currentBoss && currentBoss.isAlive) {
+			this.renderBossBar(renderer, currentBoss, canvasWidth);
+		} else if (bossTimer !== null && maxBossTimer !== null) {
+			if (bossDefeated) {
+				this.renderEndlessTimer(renderer, survivalTime, canvasWidth);
+			} else {
+				const bossType = mapData ? mapData.bossType : null;
+				this.renderBossProgressBar(renderer, bossTimer, maxBossTimer, canvasWidth, engine, bossType);
+			}
+		}
+
+		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
+		this.renderSpells(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine);
+		this.renderHPXP(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
 	}
 
-	renderStatLine(renderer, x, y, label, value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth) {
+	renderStatLine(renderer, x, y, label, value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth, spacing = 2) {
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textBaseline = 'top';
+		
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = labelColor;
 		renderer.ctx.strokeStyle = strokeColor;
@@ -18,7 +35,7 @@ export default class HUDRenderer {
 		renderer.ctx.strokeText(label, x + strokeOffset, y + strokeOffset);
 		renderer.ctx.fillText(label, x, y);
 		
-		const valueX = x + labelWidth + 2;
+		const valueX = x + labelWidth + spacing;
 
 		renderer.ctx.font = `${fontSize}px Pokemon`;
 		renderer.ctx.fillStyle = '#ffffff';
@@ -28,11 +45,17 @@ export default class HUDRenderer {
 		renderer.ctx.fillText(value, valueX, y);
 	}
 
-	renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon = null, engine = null) {
+	renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon = null, engine = null, bossTimer = null, maxBossTimer = null, currentBoss = null) {
+		const minimapSize = 120;
+		const minimapX = canvasWidth - minimapSize - 10;
+		const minimapY = 10;
+		
 		const padding = 10;
-		const y = padding;
+		const statsStartY = minimapY + minimapSize + 15;
 		const fontSize = 16;
+		const statsFontSize = 14;
 		const lineHeight = fontSize + 4;
+		const statsLineHeight = statsFontSize + 4;
 		const strokeOffset = 1;
 		const strokeColor = '#000000';
 		const labelColor = '#E58E72';
@@ -50,14 +73,20 @@ export default class HUDRenderer {
 		renderer.ctx.textBaseline = 'top';
 
 		const stats = [
-			{ label: 'Lv', value: player.level.toString() },
 			{ label: 'ATK', value: Math.floor(player.damage).toString() },
 			{ label: 'SPD', value: player.speed.toFixed(1) },
 			{ label: 'ASP', value: player.attackSpeed.toFixed(1) },
 			{ label: 'RNG', value: Math.floor(player.range).toString() },
+			{ label: 'CRIT', value: (player.critChance * 100).toFixed(1) + '%' },
+			{ label: 'CDMG', value: (player.critDamage * 100).toFixed(0) + '%' },
+			{ label: 'LIFE', value: (player.lifeSteal * 100).toFixed(1) + '%' },
+			{ label: 'REG', value: player.hpRegen.toFixed(1) + '/s' },
+			{ label: 'KNOC', value: player.knockback.toFixed(1) },
+			{ label: 'HP', value: `${Math.floor(player.hp)}/${Math.floor(player.maxHp)}` },
+			{ label: 'XP', value: `${Math.floor(player.displayedXp)}/${Math.floor(player.xpToNextLevel)}` },
 		];
 
-		// Calculate max label width for stats alignment
+		// Calculate max label width for stats alignment (max 4 chars)
 		let maxLabelWidth = 0;
 		stats.forEach((stat) => {
 			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
@@ -68,237 +97,12 @@ export default class HUDRenderer {
 		});
 		const labelWidth = maxLabelWidth;
 
-		const barWidth = 200;
-		const barHeight = fontSize;
-		let currentX = padding;
-		let currentY = y;
-
-		// Line 1: Pokemon name + Level (e.g., "quaksire Lv. 5")
-		if (selectedPokemon) {
-			const pokemonName = selectedPokemon.charAt(0).toUpperCase() + selectedPokemon.slice(1);
-			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-			renderer.ctx.fillStyle = labelColor;
-			renderer.ctx.strokeStyle = strokeColor;
-			renderer.ctx.lineWidth = 1;
-			renderer.ctx.strokeText(pokemonName, currentX + strokeOffset, currentY + strokeOffset);
-			renderer.ctx.fillText(pokemonName, currentX, currentY);
-			
-			const pokemonNameWidth = renderer.ctx.measureText(pokemonName).width;
-			currentX += pokemonNameWidth + 5;
-			
-			// Render "Lv."
-			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-			renderer.ctx.fillStyle = labelColor;
-			const lvLabel = 'Lv.';
-			renderer.ctx.strokeText(lvLabel, currentX + strokeOffset, currentY + strokeOffset);
-			renderer.ctx.fillText(lvLabel, currentX, currentY);
-			
-			const lvLabelWidth = renderer.ctx.measureText(lvLabel).width;
-			currentX += lvLabelWidth + 2;
-			
-			// Render level value
-			renderer.ctx.font = `${fontSize}px Pokemon`;
-			renderer.ctx.fillStyle = '#ffffff';
-			const levelValue = player.level.toString();
-			renderer.ctx.strokeText(levelValue, currentX + strokeOffset, currentY + strokeOffset);
-			renderer.ctx.fillText(levelValue, currentX, currentY);
-		}
-
-		// Line 2: HP + HP values + HP bar
-		currentY += lineHeight;
-		currentX = padding;
-
-		// Render pokemon icon to the left of HP
-		if (selectedPokemon && engine) {
-			const iconSize = lineHeight * 2; // Height of 2 lines
-			const iconX = currentX;
-			const iconY = currentY;
-			const pokemonSprite = engine.sprites.get(`pokemon_${selectedPokemon}_normal`);
-			
-			if (pokemonSprite) {
-				renderer.ctx.drawImage(pokemonSprite, iconX, iconY, iconSize, iconSize);
-				
-				// Draw white border around icon
-				renderer.ctx.strokeStyle = '#ffffff';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
-			}
-			
-			currentX += iconSize + 10; // Add spacing after icon
-			
-			// Reset stroke style after icon border
-			renderer.ctx.strokeStyle = strokeColor;
-			renderer.ctx.lineWidth = 1;
-		}
-
-		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = labelColor;
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const hpLabel = 'HP';
-		renderer.ctx.strokeText(hpLabel, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(hpLabel, currentX, currentY);
+		// Render stats line by line under minimap
+		const statsX = minimapX;
+		const statsY = statsStartY;
 		
-		const hpLabelWidth = renderer.ctx.measureText(hpLabel).width;
-		currentX += hpLabelWidth + 2;
-
-		// Calculate max width for HP values (use "999" as reference for 3-digit numbers)
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		const maxHpValueWidth = renderer.ctx.measureText('999').width;
-		const currentHpText = Math.floor(player.hp).toString();
-		const currentHpWidth = renderer.ctx.measureText(currentHpText).width;
-		const currentHpX = currentX + maxHpValueWidth - currentHpWidth; // Right-align
-		renderer.ctx.fillStyle = '#ffffff';
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeText(currentHpText, currentHpX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(currentHpText, currentHpX, currentY);
-		
-		currentX += maxHpValueWidth + 2;
-
-		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = labelColor;
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const slashText = '/';
-		renderer.ctx.strokeText(slashText, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(slashText, currentX, currentY);
-		
-		const slashWidth = renderer.ctx.measureText(slashText).width;
-		currentX += slashWidth + 2;
-
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = '#ffffff';
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const maxHpText = Math.floor(player.maxHp).toString();
-		const maxHpX = currentX; // Left-align, collé au "/"
-		renderer.ctx.strokeText(maxHpText, maxHpX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(maxHpText, maxHpX, currentY);
-		
-		currentX += maxHpValueWidth + 15;
-
-		const barX = currentX;
-		const barY = currentY;
-
-		const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
-		const filledWidth = barWidth * hpPercent;
-
-		renderer.ctx.fillStyle = barRed;
-		renderer.ctx.fillRect(barX, barY, barWidth, barHeight);
-
-		renderer.ctx.fillStyle = barGreen;
-		renderer.ctx.fillRect(barX, barY, filledWidth, barHeight);
-
-		renderer.ctx.strokeStyle = '#ffffff';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.beginPath();
-		renderer.ctx.moveTo(barX, barY);
-		renderer.ctx.lineTo(barX + barWidth, barY);
-		renderer.ctx.stroke();
-
-		renderer.ctx.beginPath();
-		renderer.ctx.moveTo(barX, barY + barHeight);
-		renderer.ctx.lineTo(barX + barWidth, barY + barHeight);
-		renderer.ctx.stroke();
-		
-		// Reset stroke style to black for text rendering
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-
-		// Line 3: XP + XP values + XP bar (exact same style as HP)
-		currentY += lineHeight;
-		currentX = padding;
-
-		// Apply same offset as HP line (for icon alignment)
-		if (selectedPokemon && engine) {
-			const iconSize = lineHeight * 2;
-			currentX += iconSize + 10; // Same spacing as HP line
-		}
-
-		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = labelColor;
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const xpLabel = 'XP';
-		renderer.ctx.strokeText(xpLabel, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(xpLabel, currentX, currentY);
-		
-		const xpLabelWidth = renderer.ctx.measureText(xpLabel).width;
-		currentX += xpLabelWidth + 2;
-
-		// Calculate max width for XP values (use "999" as reference for 3-digit numbers)
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		const maxXpValueWidth = renderer.ctx.measureText('999').width;
-		const currentXpText = Math.floor(player.displayedXp).toString();
-		const currentXpWidth = renderer.ctx.measureText(currentXpText).width;
-		const currentXpX = currentX + maxXpValueWidth - currentXpWidth; // Right-align
-		renderer.ctx.fillStyle = '#ffffff';
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeText(currentXpText, currentXpX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(currentXpText, currentXpX, currentY);
-		
-		currentX += maxXpValueWidth + 2;
-
-		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = labelColor;
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const xpSlashText = '/';
-		renderer.ctx.strokeText(xpSlashText, currentX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(xpSlashText, currentX, currentY);
-		
-		const xpSlashWidth = renderer.ctx.measureText(xpSlashText).width;
-		currentX += xpSlashWidth + 2;
-
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = '#ffffff';
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		const maxXpText = Math.floor(player.xpToNextLevel).toString();
-		const maxXpX = currentX; // Left-align, collé au "/"
-		renderer.ctx.strokeText(maxXpText, maxXpX + strokeOffset, currentY + strokeOffset);
-		renderer.ctx.fillText(maxXpText, maxXpX, currentY);
-		
-		currentX += maxXpValueWidth + 15;
-
-		const xpBarX = currentX;
-		const xpBarY = currentY;
-
-		const xpPercent = Math.max(0, Math.min(1, player.displayedXp / player.xpToNextLevel));
-		const xpFilledWidth = barWidth * xpPercent;
-
-		renderer.ctx.fillStyle = barXpEmpty;
-		renderer.ctx.fillRect(xpBarX, xpBarY, barWidth, barHeight);
-
-		renderer.ctx.fillStyle = barXpBlue;
-		renderer.ctx.fillRect(xpBarX, xpBarY, xpFilledWidth, barHeight);
-
-		renderer.ctx.strokeStyle = '#ffffff';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.beginPath();
-		renderer.ctx.moveTo(xpBarX, xpBarY);
-		renderer.ctx.lineTo(xpBarX + barWidth, xpBarY);
-		renderer.ctx.stroke();
-
-		renderer.ctx.beginPath();
-		renderer.ctx.moveTo(xpBarX, xpBarY + barHeight);
-		renderer.ctx.lineTo(xpBarX + barWidth, xpBarY + barHeight);
-		renderer.ctx.stroke();
-		
-		// Reset stroke style to black for text rendering
-		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-
-
-		// Render other stats (ATK, SPD, ASP, RNG) below
-		currentY += lineHeight;
-		currentX = padding;
-
-		stats.slice(1).forEach((stat) => {
-			this.renderStatLine(renderer, currentX, currentY, stat.label, stat.value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth);
-			currentY += lineHeight;
+		stats.forEach((stat, index) => {
+			this.renderStatLine(renderer, statsX, statsY + index * statsLineHeight, stat.label, stat.value, statsFontSize, strokeOffset, strokeColor, labelColor, labelWidth);
 		});
 
 		renderer.ctx.restore();
@@ -313,18 +117,118 @@ export default class HUDRenderer {
 		return spellEmojis[spellId] || '✨';
 	}
 
-	renderSpells(renderer, player, canvasWidth, canvasHeight) {
+	getProjectileTypeIcon(player) {
+		if (player.hasAoE) {
+			return '💥';
+		} else if (player.hasPiercing) {
+			return '➡';
+		} else if (player.hasBounce) {
+			return '↻';
+		}
+		return '●';
+	}
+
+	renderSpells(renderer, player, canvasWidth, canvasHeight, selectedPokemon = null, engine = null) {
 		const maxSpells = player.maxSpells || 3;
 		const unlockedSpells = player.getUnlockedSpells();
 
 		const spellSize = 60;
-		const spellSpacing = 15;
-		const totalWidth = maxSpells * spellSize + (maxSpells - 1) * spellSpacing;
+		const spellSpacing = 8;
+		const iconSize = 60;
+		const iconSpacing = 10;
+		
+		const totalSpellWidth = maxSpells * spellSize + (maxSpells - 1) * spellSpacing;
+		let totalWidth = totalSpellWidth;
+		if (selectedPokemon && engine) {
+			totalWidth += iconSpacing + iconSize;
+		}
+		if (selectedPokemon && engine) {
+			totalWidth += iconSpacing + iconSize;
+		}
 		const startX = (canvasWidth - totalWidth) / 2;
 		const spellY = canvasHeight - 100;
+		
+		let currentX = startX;
+
+		if (selectedPokemon && engine) {
+			const pokemonIconX = currentX;
+			const pokemonIconY = spellY;
+			const pokemonSprite = engine.sprites.get(`pokemon_${selectedPokemon}_normal`);
+			
+			if (pokemonSprite) {
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+				renderer.ctx.fillRect(pokemonIconX, pokemonIconY, iconSize, iconSize);
+				renderer.ctx.strokeStyle = '#ffffff';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeRect(pokemonIconX, pokemonIconY, iconSize, iconSize);
+				renderer.ctx.drawImage(pokemonSprite, pokemonIconX, pokemonIconY, iconSize, iconSize);
+				
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.font = 'bold 12px Pokemon';
+				renderer.ctx.textAlign = 'right';
+				renderer.ctx.textBaseline = 'bottom';
+				renderer.ctx.strokeStyle = '#000000';
+				renderer.ctx.lineWidth = 3;
+				const levelText = `Lv.${player.level}`;
+				renderer.ctx.strokeText(levelText, pokemonIconX + iconSize - 2, pokemonIconY + iconSize - 2);
+				renderer.ctx.fillText(levelText, pokemonIconX + iconSize - 2, pokemonIconY + iconSize - 2);
+				renderer.ctx.restore();
+			}
+			
+			currentX += iconSize + iconSpacing;
+		}
+
+		if (selectedPokemon && engine) {
+			const attackIconX = currentX;
+			const attackIconY = spellY;
+			let attackTypeIcon = '';
+			let attackTypeLabel = '';
+			
+			if (player.attackType === 'range') {
+				attackTypeIcon = this.getProjectileTypeIcon(player);
+				if (player.hasAoE) {
+					attackTypeLabel = 'AOE';
+				} else if (player.hasPiercing) {
+					attackTypeLabel = 'PIER';
+				} else if (player.hasBounce) {
+					attackTypeLabel = 'BOUN';
+				} else {
+					attackTypeLabel = 'BASE';
+				}
+			} else {
+				attackTypeIcon = '⚔';
+				attackTypeLabel = 'MELE';
+			}
+			
+			renderer.ctx.save();
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+			renderer.ctx.fillRect(attackIconX, attackIconY, iconSize, iconSize);
+			renderer.ctx.strokeStyle = 'rgba(171, 71, 188, 0.5)';
+			renderer.ctx.lineWidth = 1;
+			renderer.ctx.strokeRect(attackIconX + 0.5, attackIconY + 0.5, iconSize - 1, iconSize - 1);
+			
+			const projectileColor = player.attackType === 'range' ? player.projectileColor : '#ab47bc';
+			renderer.ctx.fillStyle = projectileColor;
+			renderer.ctx.font = '32px Pokemon';
+			renderer.ctx.textAlign = 'center';
+			renderer.ctx.fillText(attackTypeIcon, attackIconX + iconSize / 2, attackIconY + iconSize / 2 + 10);
+			
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.font = '8px Pokemon';
+			renderer.ctx.textAlign = 'center';
+			renderer.ctx.textBaseline = 'top';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.strokeText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
+			renderer.ctx.fillText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
+			renderer.ctx.restore();
+			
+			currentX += iconSize + iconSpacing;
+		}
 
 		for (let index = 0; index < maxSpells; index++) {
-			const spellX = startX + index * (spellSize + spellSpacing);
+			const spellX = currentX + index * (spellSize + spellSpacing);
 			const spell = unlockedSpells[index];
 			const isEmpty = !spell;
 			const pressAnimation = player.spellPressAnimations && player.spellPressAnimations[index] || 0;
@@ -465,5 +369,234 @@ export default class HUDRenderer {
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
 		}
+	}
+
+	renderHPXP(renderer, player, canvasWidth, canvasHeight, selectedPokemon = null, engine = null, bossTimer = null, maxBossTimer = null, currentBoss = null) {
+		const spellSize = 60;
+		const spellSpacing = 8;
+		const iconSize = 60;
+		const iconSpacing = 10;
+		const maxSpells = player.maxSpells || 3;
+		const spellY = canvasHeight - 100;
+		const spacing = 5;
+		const hpY = spellY + spellSize + spacing;
+		
+		const fontSize = 16;
+		const lineHeight = fontSize + 4;
+		const barHeight = fontSize;
+		const xpBarHeight = 10;
+		const strokeOffset = 1;
+		const strokeColor = '#000000';
+		const barGreen = '#61F959';
+		const barRed = '#FE8D65';
+		const barXpBlue = '#87CEEB';
+		const barXpEmpty = '#4a5568';
+
+		// Calculate spell area width (same calculation as in renderSpells)
+		const totalSpellWidth = maxSpells * spellSize + (maxSpells - 1) * spellSpacing;
+		let totalWidth = totalSpellWidth;
+		if (selectedPokemon && engine) {
+			totalWidth += iconSpacing + iconSize;
+		}
+		if (selectedPokemon && engine) {
+			totalWidth += iconSpacing + iconSize;
+		}
+		const spellStartX = (canvasWidth - totalWidth) / 2;
+		const spellEndX = spellStartX + totalWidth;
+
+		// XP bar - full width, thinner (above HP)
+		const xpBarY = hpY;
+		const xpPercent = Math.max(0, Math.min(1, player.displayedXp / player.xpToNextLevel));
+		const xpFilledWidth = (spellEndX - spellStartX) * xpPercent;
+
+		renderer.ctx.save();
+		renderer.ctx.fillStyle = barXpEmpty;
+		renderer.ctx.fillRect(spellStartX, xpBarY, spellEndX - spellStartX, xpBarHeight);
+
+		renderer.ctx.fillStyle = barXpBlue;
+		renderer.ctx.fillRect(spellStartX, xpBarY, xpFilledWidth, xpBarHeight);
+
+		renderer.ctx.strokeStyle = '#ffffff';
+		renderer.ctx.lineWidth = 1;
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(spellStartX, xpBarY);
+		renderer.ctx.lineTo(spellEndX, xpBarY);
+		renderer.ctx.stroke();
+
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(spellStartX, xpBarY + xpBarHeight);
+		renderer.ctx.lineTo(spellEndX, xpBarY + xpBarHeight);
+		renderer.ctx.stroke();
+		
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+
+		// HP bar - full width from sprite start to spell end (below XP)
+		const hpBarX = spellStartX;
+		const hpBarY = xpBarY + xpBarHeight + 5;
+		const hpBarWidth = spellEndX - spellStartX;
+		const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
+		const hpFilledWidth = hpBarWidth * hpPercent;
+
+		renderer.ctx.fillStyle = barRed;
+		renderer.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, barHeight);
+
+		renderer.ctx.fillStyle = barGreen;
+		renderer.ctx.fillRect(hpBarX, hpBarY, hpFilledWidth, barHeight);
+
+		renderer.ctx.strokeStyle = '#ffffff';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(hpBarX, hpBarY);
+		renderer.ctx.lineTo(hpBarX + hpBarWidth, hpBarY);
+		renderer.ctx.stroke();
+
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(hpBarX, hpBarY + barHeight);
+		renderer.ctx.lineTo(hpBarX + hpBarWidth, hpBarY + barHeight);
+		renderer.ctx.stroke();
+		
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+
+		renderer.ctx.restore();
+	}
+
+	renderBossBar(renderer, boss, canvasWidth) {
+		if (!boss || !boss.isAlive) return;
+
+		const barWidth = 400;
+		const barHeight = 20;
+		const barX = (canvasWidth - barWidth) / 2;
+		const barY = 20;
+		const padding = 2;
+
+		renderer.ctx.save();
+
+		if (boss.pokemonConfig) {
+			const pokemonName = boss.pokemonConfig.name || 'Boss';
+			renderer.ctx.fillStyle = '#ff0000';
+			renderer.ctx.font = 'bold 14px Pokemon';
+			renderer.ctx.textAlign = 'center';
+			renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+			renderer.ctx.shadowBlur = 2;
+			renderer.ctx.fillText(pokemonName.toUpperCase(), canvasWidth / 2, barY - 5);
+			renderer.ctx.shadowBlur = 0;
+		}
+
+		renderer.ctx.fillStyle = '#333';
+		renderer.ctx.fillRect(barX, barY, barWidth, barHeight);
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+		const displayedHpPercent = boss.displayedHp / boss.maxHp;
+		if (boss.lostHp > 0) {
+			renderer.ctx.fillStyle = '#ff6b6b';
+			renderer.ctx.fillRect(barX + padding, barY + padding, (barWidth - padding * 2) * displayedHpPercent, barHeight - padding * 2);
+		}
+
+		const hpPercent = boss.hp / boss.maxHp;
+		const hpGradient = renderer.ctx.createLinearGradient(barX, 0, barX + barWidth * hpPercent, 0);
+		if (hpPercent > 0.6) {
+			hpGradient.addColorStop(0, '#4af626');
+			hpGradient.addColorStop(1, '#2ed616');
+		} else if (hpPercent > 0.3) {
+			hpGradient.addColorStop(0, '#ffcc00');
+			hpGradient.addColorStop(1, '#ff8800');
+		} else {
+			hpGradient.addColorStop(0, '#ff4444');
+			hpGradient.addColorStop(1, '#cc0000');
+		}
+		renderer.ctx.fillStyle = hpGradient;
+		renderer.ctx.fillRect(barX + padding, barY + padding, (barWidth - padding * 2) * hpPercent, barHeight - padding * 2);
+
+		renderer.ctx.restore();
+	}
+
+	renderBossProgressBar(renderer, bossTimer, maxBossTimer, canvasWidth, engine = null, bossType = null) {
+		const barWidth = 400;
+		const barHeight = 20;
+		const iconSize = 30;
+		const barX = (canvasWidth - barWidth) / 2;
+		const barY = 20;
+		const padding = 2;
+
+		renderer.ctx.save();
+
+		const timerSeconds = Math.ceil(bossTimer / 1000);
+		const minutes = Math.floor(timerSeconds / 60);
+		const seconds = timerSeconds % 60;
+		const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+		renderer.ctx.fillStyle = '#ff0000';
+		renderer.ctx.font = 'bold 14px Pokemon';
+		renderer.ctx.textAlign = 'center';
+		renderer.ctx.strokeStyle = '#000000';
+		renderer.ctx.lineWidth = 3;
+		renderer.ctx.strokeText(`Boss dans ${timerText}`, canvasWidth / 2, barY - 5);
+		renderer.ctx.fillText(`Boss dans ${timerText}`, canvasWidth / 2, barY - 5);
+
+		const progress = Math.max(0, Math.min(1, (maxBossTimer - bossTimer) / maxBossTimer));
+		const filledWidth = (barWidth - padding * 2) * progress;
+
+		renderer.ctx.fillStyle = '#333';
+		renderer.ctx.fillRect(barX, barY, barWidth, barHeight);
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+		const progressGradient = renderer.ctx.createLinearGradient(barX, 0, barX + filledWidth, 0);
+		progressGradient.addColorStop(0, '#ff6b6b');
+		progressGradient.addColorStop(1, '#ff4444');
+		renderer.ctx.fillStyle = progressGradient;
+		renderer.ctx.fillRect(barX + padding, barY + padding, filledWidth, barHeight - padding * 2);
+
+		if (bossType && engine) {
+			const bossConfig = EnemyTypes[bossType];
+			if (bossConfig && bossConfig.pokemon) {
+				const bossSprite = engine.sprites.get(`pokemon_${bossConfig.pokemon}_normal`);
+				if (bossSprite) {
+					const iconX = barX + barWidth - iconSize + 2;
+					const iconY = barY + (barHeight - iconSize) / 2;
+					renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+					renderer.ctx.fillRect(iconX, iconY, iconSize, iconSize);
+					renderer.ctx.strokeStyle = '#ff0000';
+					renderer.ctx.lineWidth = 4;
+					renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+					renderer.ctx.drawImage(bossSprite, iconX, iconY, iconSize, iconSize);
+				}
+			}
+		}
+
+		renderer.ctx.restore();
+	}
+
+	renderEndlessTimer(renderer, survivalTime, canvasWidth) {
+		const barWidth = 400;
+		const barHeight = 20;
+		const barX = (canvasWidth - barWidth) / 2;
+		const barY = 20;
+
+		renderer.ctx.save();
+
+		const totalSeconds = Math.floor(survivalTime / 1000);
+		const minutes = Math.floor(totalSeconds / 60);
+		const seconds = totalSeconds % 60;
+		const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+		renderer.ctx.fillStyle = '#333';
+		renderer.ctx.fillRect(barX, barY, barWidth, barHeight);
+		renderer.ctx.strokeStyle = '#000';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.font = 'bold 14px Pokemon';
+		renderer.ctx.textAlign = 'center';
+		renderer.ctx.textBaseline = 'middle';
+		renderer.ctx.fillText(`Endless: ${timerText}`, canvasWidth / 2, barY + barHeight / 2);
+
+		renderer.ctx.restore();
 	}
 }

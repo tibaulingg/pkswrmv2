@@ -6,21 +6,47 @@ export default class PauseScene {
 	constructor(engine) {
 		this.engine = engine;
 		this.selectedIndex = 0;
-		this.options = [
-			{
-				label: 'Objets'
-			},
-			{
-				label: 'Equipe'
-			},
-			{
-				label: 'Quitter'
-			}
-		];
+		this.options = [];
 	}
 
 	init() {
 		this.selectedIndex = 0;
+		this.updateOptions();
+	}
+
+	updateOptions() {
+		const isInBattle = this.engine.sceneManager.stack.some(
+			scene => scene.constructor.name === 'BattleScene'
+		);
+
+		if (isInBattle) {
+			this.options = [
+				{
+					label: 'Reprendre'
+				},
+				{
+					label: 'Objets'
+				},
+				{
+					label: 'Equipe'
+				},
+				{
+					label: 'Quitter'
+				}
+			];
+		} else {
+			this.options = [
+				{
+					label: 'Objets'
+				},
+				{
+					label: 'Equipe'
+				},
+				{
+					label: 'Quitter'
+				}
+			];
+		}
 	}
 
 	update(deltaTime) {
@@ -43,7 +69,10 @@ export default class PauseScene {
 	selectOption() {
 		const option = this.options[this.selectedIndex];
 		
-		if (option.label === 'Objets') {
+		if (option.label === 'Reprendre') {
+			this.engine.sceneManager.popScene();
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (option.label === 'Objets') {
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (option.label === 'Equipe') {
 			this.engine.audio.play('ok', 0.3, 0.1);
@@ -53,19 +82,43 @@ export default class PauseScene {
 			);
 			
 			if (isInBattle) {
-				const battleScene = this.engine.sceneManager.stack.find(
-					scene => scene.constructor.name === 'BattleScene'
-				);
-				if (battleScene && battleScene.survivalTime) {
-					this.engine.totalPlayTime = (this.engine.totalPlayTime || 0) + battleScene.survivalTime;
-					SaveManager.saveGame(this.engine, false);
-				}
-				this.engine.sceneManager.changeScene('game');
+				this.openConfirmQuitMenu();
 			} else {
 				this.engine.sceneManager.changeScene('menu');
+				this.engine.audio.play('ok', 0.3, 0.1);
 			}
-			this.engine.audio.play('ok', 0.3, 0.1);
 		}
+	}
+
+	openConfirmQuitMenu() {
+		this.engine.sceneManager.popScene();
+		
+		const battleScene = this.engine.sceneManager.stack.find(
+			scene => scene.constructor.name === 'BattleScene'
+		);
+		
+		const message = 'Quitter la partie ?';
+		
+		const onYes = (engine) => {
+			if (battleScene && battleScene.survivalTime) {
+				engine.totalPlayTime = (engine.totalPlayTime || 0) + battleScene.survivalTime;
+				SaveManager.saveGame(engine, false);
+			}
+			engine.sceneManager.changeScene('game');
+		};
+		
+		const onNo = (engine) => {
+			engine.sceneManager.popScene();
+			engine.sceneManager.pushScene('pause');
+		};
+		
+		this.engine.sceneManager.pushScene('confirmMenu', {
+			message: message,
+			onYes: onYes,
+			onNo: onNo
+		});
+		
+		this.engine.audio.play('ok', 0.3, 0.1);
 	}
 
 	render(renderer) {
@@ -75,7 +128,7 @@ export default class PauseScene {
 		}
 
 		const locationX = renderer.width - 200;
-		const locationY = 80;
+		const locationY = 60;
 		const locationFontSize = '22px';
 
 		const battleScene = this.engine.sceneManager.stack.find(
@@ -97,15 +150,15 @@ export default class PauseScene {
 		renderer.ctx.fillText(locationName, locationX, locationY);
 		renderer.ctx.restore();
 
-		const optionStartX = 80;
-		const optionStartY = 70;
+		const optionStartX = 60;
+		const optionStartY = 60;
 		const optionSpacing = 40;
-		const fontSize = '20px';
+		const fontSize = '18px';
 
 		this.options.forEach((option, index) => {
 			let y = optionStartY + index * optionSpacing;
 			if (option.label === 'Quitter') {
-				y += 190;
+				y += this.options.length === 3 ? 190 : 150;
 			}
 			let color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
 			if (option.label === 'Quitter') {
@@ -124,7 +177,7 @@ export default class PauseScene {
 		const rankColor = RankManager.getRankColor(rank);
 		const stars = RankManager.getRankStars(rank);
 		const centerX = renderer.width / 2;
-		const centerY = renderer.height - 110;
+		const centerY = renderer.height - 190;
 		const rankFontSize = '24px';
 		const starFontSize = '20px';
 		const progressFontSize = '16px';
@@ -158,21 +211,20 @@ export default class PauseScene {
 		const money = this.engine.money || 0;
 		const moneyFontSize = '18px';
 		const coinSize = 24;
-		const moneyX = centerX + 550;
-		const moneyY = centerY - 10;
+		const moneyY = centerY - 15;
 
 		renderer.ctx.save();
 		renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
 		renderer.ctx.font = `${moneyFontSize} Pokemon`;
-		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textAlign = 'right';
 		const moneyText = SaveManager.formatLargeNumber(money);
-		const moneyTextWidth = renderer.ctx.measureText(moneyText).width;
+		const moneyX = renderer.width - 40 - coinSize - 5;
 		renderer.ctx.fillText(moneyText, moneyX, moneyY);
 		renderer.ctx.restore();
 
         const coinsImage = this.engine.sprites.get('coins');
         if (coinsImage) {
-            renderer.drawImage(coinsImage, moneyX + moneyTextWidth , (moneyY - coinSize / 2)-5, coinSize, coinSize);
+            renderer.drawImage(coinsImage, moneyX + 5, (moneyY - coinSize / 2)-5, coinSize, coinSize);
         }
 	}
 }

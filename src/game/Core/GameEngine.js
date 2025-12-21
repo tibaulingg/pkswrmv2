@@ -88,6 +88,11 @@ export default class GameEngine {
 			const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
 			const kecleonHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Hurt-Anim.png';
 			const kecleonWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Walk-Anim.png';
+			const garchompNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Normal.png';
+			const garchompHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Hurt-Anim.png';
+			const garchompWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Walk-Anim.png';
+			const garchompChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Charge-Anim.png';
+			const garchompSleepPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Sleep-Anim.png';
 
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
@@ -102,6 +107,11 @@ export default class GameEngine {
 			await this.sprites.load('kecleon_idle', kecleonIdlePath);
 			await this.sprites.load('kecleon_hurt', kecleonHurtPath);
 			await this.sprites.load('kecleon_walk', kecleonWalkPath);
+			await this.sprites.load('garchomp_normal', garchompNormalPath);
+			await this.sprites.load('garchomp_hurt', garchompHurtPath);
+			await this.sprites.load('garchomp_walk', garchompWalkPath);
+			await this.sprites.load('garchomp_charge', garchompChargePath);
+			await this.sprites.load('garchomp_sleep', garchompSleepPath);
 
 			try {
 				await this.sprites.load('quaksire_faint', quaksireFaintPath);

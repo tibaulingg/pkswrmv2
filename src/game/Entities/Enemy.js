@@ -71,7 +71,7 @@ export default class Enemy {
 		this.auraPulseTime = 0;
 	}
 
-	update(deltaTime, playerX, playerY, collisionSystem = null) {
+	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32) {
 		if (!this.isAlive) return;
 
 		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
@@ -109,6 +109,8 @@ export default class Enemy {
 		const dx = playerX - this.getCenterX();
 		const dy = playerY - this.getCenterY();
 		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		const minDistance = (Math.max(this.width, this.height) + Math.max(playerWidth, playerHeight)) / 2 - 5;
 
 		if (this.attackType === 'range') {
 			if (distance > this.attackRange) {
@@ -137,7 +139,8 @@ export default class Enemy {
 				this.directionY = dy / distance;
 			}
 		} else {
-			if (distance > this.attackRange) {
+			const stopDistance = Math.max(this.attackRange, minDistance);
+			if (distance > stopDistance) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
 				const moveX = this.directionX * this.speed * deltaTime / 16;
@@ -146,17 +149,23 @@ export default class Enemy {
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
 				
-				if (collisionSystem) {
-					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				const newDx = playerX - (newX + hitboxOffsetX + this.width / 2);
+				const newDy = playerY - (newY + hitboxOffsetY + this.height / 2);
+				const newDistance = Math.sqrt(newDx * newDx + newDy * newDy);
+				
+				if (newDistance >= minDistance) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+							this.x = newX;
+						}
+						
+						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+							this.y = newY;
+						}
+					} else {
 						this.x = newX;
-					}
-					
-					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
 						this.y = newY;
 					}
-				} else {
-					this.x = newX;
-					this.y = newY;
 				}
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
@@ -334,23 +343,10 @@ export default class Enemy {
 			}
 		}
 
-		if (this.isBoss || this.maxHp >= 40) {
+		if ((this.isBoss || this.maxHp >= 40) && !this.isBoss) {
 			const hpBarWidth = this.spriteWidth;
-			const hpBarHeight = this.isBoss ? 7 : 5;
-			const hpBarY = this.y - (this.isBoss ? 12 : 10);
-			
-			if (this.isBoss && this.pokemonConfig) {
-				const pokemonName = this.pokemonConfig.name || 'Boss';
-				renderer.ctx.save();
-				renderer.ctx.fillStyle = '#ff0000';
-				renderer.ctx.font = 'bold 10px Pokemon';
-				renderer.ctx.textAlign = 'left';
-				renderer.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-				renderer.ctx.shadowBlur = 2;
-				renderer.ctx.fillText(pokemonName.toUpperCase(), this.x, hpBarY - 2);
-				renderer.ctx.shadowBlur = 0;
-				renderer.ctx.restore();
-			}
+			const hpBarHeight = 5;
+			const hpBarY = this.y - 10;
 			
 			renderer.drawRect(this.x, hpBarY, hpBarWidth, hpBarHeight, '#333');
 			renderer.drawStrokeRect(this.x, hpBarY, hpBarWidth, hpBarHeight, '#000', 1);
@@ -376,7 +372,7 @@ export default class Enemy {
 			renderer.ctx.fillStyle = hpGradient;
 			renderer.ctx.fillRect(this.x + 1, hpBarY + 1, (hpBarWidth - 2) * hpPercent, hpBarHeight - 2);
 			
-			if (!this.isBoss && this.level > 1) {
+			if (this.level > 1) {
 				renderer.drawText(`Lv.${this.level}`, this.x + hpBarWidth + 5, hpBarY + 4, '10px', '#ffd700', 'left');
 			}
 		}

@@ -31,6 +31,7 @@ export default class BattleScene {
 		this.mapHeight = 2000;
 		this.projectiles = [];
 		this.enemyProjectiles = [];
+		this.activeCircularStrikes = [];
 		this.particleSystem = new ParticleSystem();
 		this.damageNumberSystem = new DamageNumberSystem();
 		this.xpOrbSystem = new XPOrbSystem();
@@ -101,7 +102,7 @@ export default class BattleScene {
 			this.debugCollisions = false;
 			
 			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine, this.collisionSystem);
-			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1);
+			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1.25);
 			this.projectiles = [];
 			this.enemyProjectiles = [];
 			this.particleSystem.clear();
@@ -148,8 +149,9 @@ export default class BattleScene {
 	updateBattle(deltaTime) {
 		const currentScene = this.engine.sceneManager.getCurrentScene();
 		const isPauseOpen = currentScene && currentScene.constructor.name === 'PauseScene';
+		const isConfirmMenuOpen = currentScene && currentScene.constructor.name === 'ConfirmMenuScene';
 		
-		if (isPauseOpen) {
+		if (isPauseOpen || isConfirmMenuOpen) {
 			return;
 		}
 		
@@ -197,7 +199,7 @@ export default class BattleScene {
 		if (this.player && this.player.isAlive) {
 			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
 			
-			if (this.player.attackType === 'range' && this.player.autoShoot) {
+			if ((this.player.attackType === 'range' && this.player.autoShoot) || this.player.attackType === 'circular_sweep') {
 				this.updatePlayerAutoAim();
 			}
 			
@@ -210,17 +212,20 @@ export default class BattleScene {
 					this.handleMeleeAttack(attackData);
 				} else if (attackData.type === 'range') {
 					this.handleRangeAttack(attackData);
+				} else if (attackData.type === 'circular_sweep') {
+					this.handleCircularSweepAttack(attackData);
 				}
 			}
 
 			this.updateProjectiles(deltaTime);
 			this.updateEnemyProjectiles(deltaTime);
+			this.updateCircularStrikes(deltaTime);
 			this.updateSystems(deltaTime);
 			this.updateRockTraps(deltaTime);
 			this.updateHydrocanon(deltaTime);
 
 			if (this.enemySpawner) {
-				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY());
+				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.width, this.player.height);
 				this.updateEnemyAttacks();
 				this.updateProjectileCollisions();
 			}
@@ -371,7 +376,9 @@ export default class BattleScene {
 			
 			if (projectile.collidesWith(this.player.getHitboxX(), this.player.getHitboxY(), this.player.width, this.player.height)) {
 				this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, projectile.damage, true);
-				this.camera.shake(8, 150, this.engine.settings.screenshakeEnabled);
+				if (this.camera) {
+					this.camera.shake(20, 30);
+				}
 				this.engine.audio.play('hit', 0.3, 0.3);
 				const killerEnemy = this.findEnemyByProjectile(projectile);
 				if (killerEnemy) {
@@ -462,7 +469,9 @@ export default class BattleScene {
 						if (attackData && attackData.type === 'melee') {
 							this.killerEnemy = enemy;
 							this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, attackData.damage, true);
-							this.camera.shake(8, 150, this.engine.settings.screenshakeEnabled);
+							if (this.camera) {
+								this.camera.shake(20, 30);
+							}
 							this.engine.audio.play('hit', 0.3, 0.3);
 							const died = this.player.takeDamage(attackData.damage);
 							if (died) {
@@ -1014,6 +1023,171 @@ export default class BattleScene {
 		this.projectiles.push(projectile);
 	}
 
+	handleCircularSweepAttack(attackData) {
+		if (!this.enemySpawner || !attackData.spellConfig) return;
+
+		const config = attackData.spellConfig;
+		const strikes = config.strikes || 2;
+		const strikeDelay = config.strikeDelay || 150;
+		const forwardOffset = config.forwardOffset || 80;
+		const radius = config.baseRadius || 100;
+
+		const angle = Math.atan2(attackData.directionY, attackData.directionX);
+
+		for (let i = 0; i < strikes; i++) {
+			const strikeX = attackData.playerX + attackData.directionX * forwardOffset;
+			const strikeY = attackData.playerY + attackData.directionY * forwardOffset;
+
+			this.activeCircularStrikes.push({
+				x: strikeX,
+				y: strikeY,
+				radius: radius,
+				angle: angle,
+				damage: attackData.damage,
+				isCrit: attackData.isCrit,
+				knockback: attackData.knockback,
+				startTime: Date.now() + (i * strikeDelay),
+				duration: 300,
+				hasHit: new Set(),
+				playerX: attackData.playerX,
+				playerY: attackData.playerY
+			});
+		}
+	}
+
+	updateCircularStrikes(deltaTime) {
+		if (!this.enemySpawner) return;
+
+		const currentTime = Date.now();
+		const enemies = this.getAllEnemies();
+
+		for (let i = this.activeCircularStrikes.length - 1; i >= 0; i--) {
+			const strike = this.activeCircularStrikes[i];
+			const elapsed = currentTime - strike.startTime;
+
+			if (elapsed < 0) {
+				continue;
+			}
+
+			if (elapsed >= strike.duration) {
+				this.activeCircularStrikes.splice(i, 1);
+				continue;
+			}
+
+			const progress = elapsed / strike.duration;
+			const currentRadius = strike.radius * progress;
+			const halfAngle = Math.PI / 2;
+			const startAngle = strike.angle - halfAngle;
+			const endAngle = strike.angle + halfAngle;
+
+			enemies.forEach(enemy => {
+				if (strike.hasHit.has(enemy)) return;
+
+				const enemyCenterX = enemy.getCenterX();
+				const enemyCenterY = enemy.getCenterY();
+				const dx = enemyCenterX - strike.x;
+				const dy = enemyCenterY - strike.y;
+				const distance = Math.sqrt(dx * dx + dy * dy);
+
+				if (distance <= currentRadius) {
+					const enemyAngle = Math.atan2(dy, dx);
+					let normalizedEnemyAngle = enemyAngle;
+					let normalizedStartAngle = startAngle;
+					let normalizedEndAngle = endAngle;
+
+					while (normalizedEnemyAngle < 0) normalizedEnemyAngle += Math.PI * 2;
+					while (normalizedStartAngle < 0) normalizedStartAngle += Math.PI * 2;
+					while (normalizedEndAngle < 0) normalizedEndAngle += Math.PI * 2;
+
+					let isInSector = false;
+					if (normalizedStartAngle <= normalizedEndAngle) {
+						isInSector = normalizedEnemyAngle >= normalizedStartAngle && normalizedEnemyAngle <= normalizedEndAngle;
+					} else {
+						isInSector = normalizedEnemyAngle >= normalizedStartAngle || normalizedEnemyAngle <= normalizedEndAngle;
+					}
+
+					if (isInSector) {
+						strike.hasHit.add(enemy);
+						const knockbackDir = this.calculateKnockbackDirection(strike.x, strike.y, enemyCenterX, enemyCenterY);
+						const knockbackMultiplier = enemy.isBoss ? 0.2 : 1;
+						const knockbackX = knockbackDir.x * strike.knockback * knockbackMultiplier;
+						const knockbackY = knockbackDir.y * strike.knockback * knockbackMultiplier;
+						
+						this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, strike.damage, false, strike.isCrit);
+						this.engine.audio.play('hit', 0.2, 0.2);
+						const died = enemy.takeDamage(strike.damage, knockbackX, knockbackY, strike.isCrit);
+						
+						this.applyLifeSteal(strike.damage);
+						
+						if (died) {
+							this.handleEnemyDeath(enemy);
+						}
+					}
+				}
+			});
+		}
+	}
+
+	renderCircularStrikes(renderer) {
+		const currentTime = Date.now();
+
+		this.activeCircularStrikes.forEach(strike => {
+			const elapsed = currentTime - strike.startTime;
+			if (elapsed < 0 || elapsed >= strike.duration) return;
+
+			const progress = elapsed / strike.duration;
+			const sweepAngle = Math.PI;
+			const startAngle = strike.angle - sweepAngle / 2;
+			const currentAngle = startAngle + sweepAngle * progress;
+			const bladeLength = strike.radius;
+			const opacity = 1 - progress * 0.5;
+
+			const bladeStartX = strike.playerX;
+			const bladeStartY = strike.playerY;
+			const bladeEndX = bladeStartX + Math.cos(currentAngle) * bladeLength;
+			const bladeEndY = bladeStartY + Math.sin(currentAngle) * bladeLength;
+
+			renderer.ctx.save();
+			
+			const gradient = renderer.ctx.createLinearGradient(bladeStartX, bladeStartY, bladeEndX, bladeEndY);
+			gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity * 0.95})`);
+			gradient.addColorStop(0.3, `rgba(220, 220, 220, ${opacity * 0.85})`);
+			gradient.addColorStop(0.7, `rgba(180, 180, 180, ${opacity * 0.6})`);
+			gradient.addColorStop(1, `rgba(150, 150, 150, ${opacity * 0.3})`);
+			
+			renderer.ctx.strokeStyle = gradient;
+			renderer.ctx.lineWidth = 8;
+			renderer.ctx.lineCap = 'round';
+			renderer.ctx.shadowBlur = 10;
+			renderer.ctx.shadowColor = `rgba(255, 255, 255, ${opacity * 0.5})`;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(bladeStartX, bladeStartY);
+			renderer.ctx.lineTo(bladeEndX, bladeEndY);
+			renderer.ctx.stroke();
+			
+			renderer.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.7})`;
+			renderer.ctx.lineWidth = 3;
+			renderer.ctx.shadowBlur = 0;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(bladeStartX, bladeStartY);
+			renderer.ctx.lineTo(bladeEndX, bladeEndY);
+			renderer.ctx.stroke();
+			
+			const trailLength = bladeLength * 0.3;
+			const trailStartX = bladeEndX - Math.cos(currentAngle) * trailLength;
+			const trailStartY = bladeEndY - Math.sin(currentAngle) * trailLength;
+			
+			renderer.ctx.strokeStyle = `rgba(200, 200, 200, ${opacity * 0.4})`;
+			renderer.ctx.lineWidth = 5;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(trailStartX, trailStartY);
+			renderer.ctx.lineTo(bladeEndX, bladeEndY);
+			renderer.ctx.stroke();
+			
+			renderer.ctx.restore();
+		});
+	}
+
 	openPauseMenu() {
 		const pauseMenuConfig = {
 			title: 'PAUSE',
@@ -1136,6 +1310,8 @@ export default class BattleScene {
 			projectile.render(renderer);
 		});
 
+		this.renderCircularStrikes(renderer);
+
 		this.particleSystem.render(renderer);
 		this.xpOrbSystem.render(renderer);
 		if (this.coinSystem) {
@@ -1162,43 +1338,23 @@ export default class BattleScene {
 			const bossTimerRemaining = this.enemySpawner ? this.enemySpawner.getBossTimerRemaining() : null;
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
+			const bossDefeated = this.enemySpawner ? (this.enemySpawner.bossSpawned && (!currentBoss || !currentBoss.isAlive)) : false;
 			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
-			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData);
+			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData, bossDefeated);
 		}
 
 		this.renderMinimap(renderer);
 	}
 
 	renderMinimap(renderer) {
-		const minimapSize = 180;
+		const minimapSize = 120;
 		const minimapX = renderer.width - minimapSize - 10;
 		const minimapY = 10;
 		const minimapPadding = 5;
-		const titleHeight = 25;
 
 		renderer.ctx.save();
 
-		if (this.mapData && this.mapData.name) {
-			const fontSize = 16;
-			const strokeOffset = 1;
-			const strokeColor = '#333333';
-			
-			renderer.ctx.font = `${fontSize}px Pokemon`;
-			renderer.ctx.fillStyle = '#ffffff';
-			renderer.ctx.strokeStyle = strokeColor;
-			renderer.ctx.lineWidth = 1;
-			renderer.ctx.textAlign = 'right';
-			renderer.ctx.textBaseline = 'top';
-			
-			const mapName = this.mapData.name;
-			const titleX = minimapX + minimapSize;
-			const titleY = minimapY;
-			
-			renderer.ctx.strokeText(mapName, titleX + strokeOffset, titleY + strokeOffset);
-			renderer.ctx.fillText(mapName, titleX, titleY);
-		}
-
-		const minimapYWithTitle = minimapY + (this.mapData && this.mapData.name ? titleHeight : 0);
+		const minimapYWithTitle = minimapY;
 		renderer.ctx.fillStyle = 'rgba(20, 20, 30, 0.85)';
 		renderer.ctx.fillRect(minimapX, minimapYWithTitle, minimapSize, minimapSize);
 		renderer.ctx.strokeStyle = 'rgba(100, 100, 120, 0.8)';
@@ -1325,7 +1481,7 @@ export default class BattleScene {
 		const cardHeight = 350;
 		const spacing = 30;
 		const startX = (renderer.width - (this.upgradeChoices.length * cardWidth + (this.upgradeChoices.length - 1) * spacing)) / 2;
-		const cardY = 220;
+		const cardY = 240;
 
 		this.upgradeChoices.forEach((upgrade, index) => {
 			const delayPerCard = 0.1;
@@ -1419,7 +1575,7 @@ export default class BattleScene {
 			renderer.ctx.textAlign = 'center';
 			renderer.ctx.strokeStyle = '#000';
 			renderer.ctx.lineWidth = 1;
-			const rarityY = cardCenterY + 25;
+			const rarityY = cardCenterY + 30;
 			renderer.ctx.strokeText(rarityName, 0, rarityY);
 			renderer.ctx.fillText(rarityName, 0, rarityY);
 
@@ -1437,20 +1593,26 @@ export default class BattleScene {
 			renderer.ctx.textAlign = 'center';
 			renderer.ctx.strokeStyle = '#000';
 			renderer.ctx.lineWidth = 2;
-			const iconY = cardCenterY + 70;
+			const iconY = cardCenterY + 80;
 			renderer.ctx.strokeText(icon, 0, iconY);
 			renderer.ctx.fillText(icon, 0, iconY);
 			renderer.ctx.lineWidth = 1;
 
-			const currentStacks = this.player.upgrades[upgrade.id] || 0;
 			renderer.ctx.font = 'bold 24px Pokemon';
 			renderer.ctx.fillStyle = '#fff';
 			renderer.ctx.textAlign = 'center';
 			renderer.ctx.strokeStyle = '#000';
 			renderer.ctx.lineWidth = 1;
-			const nameY = cardCenterY + 120;
-			renderer.ctx.strokeText(upgrade.name, 0, nameY);
-			renderer.ctx.fillText(upgrade.name, 0, nameY);
+			const nameY = cardCenterY + 135;
+			const nameLines = upgrade.name.split('\n');
+			let currentNameY = nameY;
+			nameLines.forEach((line, lineIndex) => {
+				renderer.ctx.strokeText(line, 0, currentNameY);
+				renderer.ctx.fillText(line, 0, currentNameY);
+				if (lineIndex < nameLines.length - 1) {
+					currentNameY += 28;
+				}
+			});
 
 			let valueText = '';
 			if (typeof upgrade.value === 'number') {
@@ -1461,7 +1623,6 @@ export default class BattleScene {
 					const percent = Math.round(upgrade.value * 100);
 					valueText = `+${percent}%`;
 				} else {
-					// Don't display value if it's not a percentage (e.g., regen, maxHp)
 					valueText = '';
 				}
 			}
@@ -1470,7 +1631,7 @@ export default class BattleScene {
 				renderer.ctx.fillStyle = borderColor;
 				renderer.ctx.strokeStyle = '#000';
 				renderer.ctx.lineWidth = 1;
-				const valueY = cardCenterY + 150;
+				const valueY = currentNameY + 30;
 				renderer.ctx.strokeText(valueText, 0, valueY);
 				renderer.ctx.fillText(valueText, 0, valueY);
 			}
@@ -1492,7 +1653,7 @@ export default class BattleScene {
 			}
 			const words = description.split(' ');
 			let line = '';
-			let lineY = cardCenterY + 180;
+			let lineY = valueText ? currentNameY + 60 : currentNameY + 30;
 			words.forEach(word => {
 				const testLine = line + word + ' ';
 				const metrics = renderer.ctx.measureText(testLine);
@@ -1507,18 +1668,6 @@ export default class BattleScene {
 			});
 			renderer.ctx.strokeText(line, 0, lineY);
 			renderer.ctx.fillText(line, 0, lineY);
-
-			// Only display stack text if maxStacks > 1 (not single use)
-			if (upgrade.maxStacks > 1) {
-				const stackText = `Niv. ${currentStacks + 1}/${upgrade.maxStacks}`;
-				renderer.ctx.font = 'bold 18px Pokemon';
-				renderer.ctx.fillStyle = '#E58E72';
-				renderer.ctx.strokeStyle = '#000';
-				renderer.ctx.lineWidth = 1;
-				const stackY = cardCenterY + cardHeight - 30;
-				renderer.ctx.strokeText(stackText, 0, stackY);
-				renderer.ctx.fillText(stackText, 0, stackY);
-			}
 
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
@@ -1569,7 +1718,7 @@ export default class BattleScene {
 		if (spellEffect) {
 			if (spellEffect.type === 'earthquake') {
 				if (this.camera) {
-					this.camera.shake(15, 400, this.engine.settings.screenshakeEnabled);
+					this.camera.shake(15, 100);
 				}
 				this.engine.audio.play('earthquake', 0.5, 0.2);
 			}

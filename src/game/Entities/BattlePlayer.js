@@ -53,6 +53,7 @@ export default class BattlePlayer {
 		this.projectileSize = pokemonConfig?.projectileSize || 8;
 		this.attackCooldown = 0;
 		this.attackCooldownMax = 1000 / this.attackSpeed;
+		this.meleeAttackColor = pokemonConfig?.meleeAttackColor || null;
 		
 		this.attackAnimationTime = 0;
 		this.attackAnimationDuration = 200;
@@ -175,8 +176,8 @@ export default class BattlePlayer {
 			}
 		}
 
-		if (this.attackType === 'range' && camera) {
-			if (!this.autoShoot) {
+		if ((this.attackType === 'range' || this.attackType === 'circular_sweep') && camera) {
+			if (!this.autoShoot || this.attackType === 'circular_sweep') {
 				const mousePos = input.getMousePosition();
 				const worldPos = camera.screenToWorld(mousePos.x, mousePos.y);
 				
@@ -584,6 +585,42 @@ export default class BattlePlayer {
 				bounceRange: this.bounceRange,
 				projectileType: this.type
 			};
+		} else if (this.attackType === 'circular_sweep' && this.baseAttackSpell) {
+			const spellConfig = getSpellConfig(this.baseAttackSpell);
+			if (!spellConfig) return null;
+			
+			let directionX, directionY;
+			
+			if (this.directionX !== 0 || this.directionY !== 0) {
+				directionX = this.directionX;
+				directionY = this.directionY;
+			} else if (this.aimX !== 0 || this.aimY !== 0) {
+				const dx = this.aimX - this.getCenterX();
+				const dy = this.aimY - this.getCenterY();
+				const distance = Math.sqrt(dx * dx + dy * dy);
+				if (distance > 0.001) {
+					directionX = dx / distance;
+					directionY = dy / distance;
+				} else {
+					directionX = 1;
+					directionY = 0;
+				}
+			} else {
+				directionX = 1;
+				directionY = 0;
+			}
+			
+			return {
+				type: 'circular_sweep',
+				playerX: this.getCenterX(),
+				playerY: this.getCenterY(),
+				directionX: directionX,
+				directionY: directionY,
+				damage: damageCalc.damage,
+				isCrit: damageCalc.isCrit,
+				knockback: this.knockback,
+				spellConfig: spellConfig
+			};
 		}
 		
 		return null;
@@ -711,8 +748,22 @@ export default class BattlePlayer {
 			const currentRadius = this.range * progress;
 			const opacity = 1 - progress;
 			
+			let primaryColor = 'rgba(255, 200, 0, 0.8)';
+			let secondaryColor = 'rgba(255, 150, 0, 0.5)';
+			
+			if (this.meleeAttackColor) {
+				const r = parseInt(this.meleeAttackColor.slice(1, 3), 16);
+				const g = parseInt(this.meleeAttackColor.slice(3, 5), 16);
+				const b = parseInt(this.meleeAttackColor.slice(5, 7), 16);
+				primaryColor = `rgba(${r}, ${g}, ${b}, ${opacity * 0.8})`;
+				secondaryColor = `rgba(${r}, ${g}, ${b}, ${opacity * 0.5})`;
+			} else {
+				primaryColor = `rgba(255, 200, 0, ${opacity * 0.8})`;
+				secondaryColor = `rgba(255, 150, 0, ${opacity * 0.5})`;
+			}
+			
 			renderer.ctx.save();
-			renderer.ctx.strokeStyle = `rgba(255, 200, 0, ${opacity * 0.8})`;
+			renderer.ctx.strokeStyle = primaryColor;
 			renderer.ctx.lineWidth = 4;
 			renderer.ctx.beginPath();
 			renderer.ctx.arc(
@@ -724,7 +775,7 @@ export default class BattlePlayer {
 			);
 			renderer.ctx.stroke();
 			
-			renderer.ctx.strokeStyle = `rgba(255, 150, 0, ${opacity * 0.5})`;
+			renderer.ctx.strokeStyle = secondaryColor;
 			renderer.ctx.lineWidth = 8;
 			renderer.ctx.beginPath();
 			renderer.ctx.arc(

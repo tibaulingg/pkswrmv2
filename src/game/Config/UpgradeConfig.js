@@ -42,7 +42,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.DAMAGE,
 		value: 1.1,
-		maxStacks: 5
 	},
 	damage_2: {
 		id: 'damage_2',
@@ -51,7 +50,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.DAMAGE,
 		value: 1.25,
-		maxStacks: 3
 	},
 	attackSpeed_1: {
 		id: 'attackSpeed_1',
@@ -60,7 +58,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.ATTACK_SPEED,
 		value: 1.15,
-		maxStacks: 5
 	},
 	attackSpeed_2: {
 		id: 'attackSpeed_2',
@@ -69,7 +66,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.ATTACK_SPEED,
 		value: 1.3,
-		maxStacks: 3
 	},
 	range_1: {
 		id: 'range_1',
@@ -78,7 +74,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.RANGE,
 		value: 1.2,
-		maxStacks: 4
 	},
 	range_2: {
 		id: 'range_2',
@@ -87,7 +82,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.RANGE,
 		value: 1.5,
-		maxStacks: 2
 	},
 	speed_1: {
 		id: 'speed_1',
@@ -96,7 +90,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPEED,
 		value: 1.15,
-		maxStacks: 5
 	},
 	speed_2: {
 		id: 'speed_2',
@@ -105,7 +98,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.SPEED,
 		value: 1.35,
-		maxStacks: 3
 	},
 	maxHp_1: {
 		id: 'maxHp_1',
@@ -114,7 +106,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.MAX_HP,
 		value: 20,
-		maxStacks: 10
 	},
 	maxHp_2: {
 		id: 'maxHp_2',
@@ -123,7 +114,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.MAX_HP,
 		value: 50,
-		maxStacks: 5
 	},
 	hpRegen_1: {
 		id: 'hpRegen_1',
@@ -132,7 +122,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.HP_REGEN,
 		value: 1,
-		maxStacks: 5
 	},
 	knockback_1: {
 		id: 'knockback_1',
@@ -141,7 +130,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.KNOCKBACK,
 		value: 1.3,
-		maxStacks: 4
 	},
 	projectileSpeed_1: {
 		id: 'projectileSpeed_1',
@@ -150,7 +138,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_SPEED,
 		value: 1.25,
-		maxStacks: 4
 	},
 	fetchRange_1: {
 		id: 'fetchRange_1',
@@ -159,7 +146,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.FETCH_RANGE,
 		value: 1.3,
-		maxStacks: 5
 	},
 	fetchRange_2: {
 		id: 'fetchRange_2',
@@ -168,7 +154,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.FETCH_RANGE,
 		value: 1.6,
-		maxStacks: 3
 	},
 	projectileSize_1: {
 		id: 'projectileSize_1',
@@ -177,7 +162,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_SIZE,
 		value: 1.3,
-		maxStacks: 5
 	},
 	projectileSize_2: {
 		id: 'projectileSize_2',
@@ -186,7 +170,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.PROJECTILE_SIZE,
 		value: 1.6,
-		maxStacks: 3
 	},
 	critChance_1: {
 		id: 'critChance_1',
@@ -195,7 +178,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.CRIT_CHANCE,
 		value: 0.05,
-		maxStacks: 10
 	},
 	critChance_2: {
 		id: 'critChance_2',
@@ -204,7 +186,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.CRIT_CHANCE,
 		value: 0.10,
-		maxStacks: 5
 	},
 	critDamage_1: {
 		id: 'critDamage_1',
@@ -213,7 +194,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.CRIT_DAMAGE,
 		value: 0.3,
-		maxStacks: 8
 	},
 	critDamage_2: {
 		id: 'critDamage_2',
@@ -222,7 +202,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.CRIT_DAMAGE,
 		value: 0.5,
-		maxStacks: 5
 	},
 	lifeSteal_1: {
 		id: 'lifeSteal_1',
@@ -231,7 +210,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.LIFE_STEAL,
 		value: 0.05,
-		maxStacks: 8
 	},
 	lifeSteal_2: {
 		id: 'lifeSteal_2',
@@ -240,7 +218,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.LIFE_STEAL,
 		value: 0.10,
-		maxStacks: 5
 	},
 	xpGain_1: {
 		id: 'xpGain_1',
@@ -249,7 +226,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.XP_GAIN,
 		value: 1.2,
-		maxStacks: 5
 	},
 	xpGain_2: {
 		id: 'xpGain_2',
@@ -258,7 +234,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.XP_GAIN,
 		value: 1.5,
-		maxStacks: 3
 	},
 	moneyGain_1: {
 		id: 'moneyGain_1',
@@ -267,7 +242,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.MONEY_GAIN,
 		value: 1.25,
-		maxStacks: 5
 	},
 	moneyGain_2: {
 		id: 'moneyGain_2',
@@ -276,7 +250,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.MONEY_GAIN,
 		value: 1.6,
-		maxStacks: 3
 	},
 	spell_earthquake: {
 		id: 'spell_earthquake',
@@ -285,7 +258,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL,
 		value: 'earthquake',
-		maxStacks: 1
 	},
 	spell_rock_trap: {
 		id: 'spell_rock_trap',
@@ -294,7 +266,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL,
 		value: 'rock_trap',
-		maxStacks: 1
 	},
 	spell_hydrocanon: {
 		id: 'spell_hydrocanon',
@@ -303,7 +274,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL,
 		value: 'hydrocanon',
-		maxStacks: 1
 	},
 	projectileAoe_1: {
 		id: 'projectileAoe_1',
@@ -312,7 +282,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_AOE,
 		value: 1,
-		maxStacks: 1
 	},
 	projectilePiercing_1: {
 		id: 'projectilePiercing_1',
@@ -321,7 +290,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_PIERCING,
 		value: 1,
-		maxStacks: 1
 	},
 	projectileBounce_1: {
 		id: 'projectileBounce_1',
@@ -330,7 +298,6 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_BOUNCE,
 		value: 3,
-		maxStacks: 1
 	},
 	projectileEnhancement_1: {
 		id: 'projectileEnhancement_1',
@@ -339,88 +306,78 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_ENHANCEMENT,
 		value: 1,
-		maxStacks: 5
 	},
 	earthquake_damage_1: {
 		id: 'earthquake_damage_1',
-		name: 'Séisme - Dégâts',
+		name: 'Séisme\n- Dégâts',
 		description: 'Augmente les dégâts de Séisme de 20%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'earthquake', multiplier: 1.2 },
-		maxStacks: 5
+		value: { spellId: 'earthquake', multiplier: 1.2 }
 	},
 	earthquake_range_1: {
 		id: 'earthquake_range_1',
-		name: 'Séisme - Portée',
+		name: 'Séisme\n- Portée',
 		description: 'Augmente la portée de Séisme de 15%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'earthquake', multiplier: 1.15 },
-		maxStacks: 5
+		value: { spellId: 'earthquake', multiplier: 1.15 }
 	},
 	earthquake_cooldown_1: {
 		id: 'earthquake_cooldown_1',
-		name: 'Séisme - Cooldown',
+		name: 'Séisme\n- Cooldown',
 		description: 'Réduit le cooldown de Séisme de 10%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'earthquake', multiplier: 0.9 },
-		maxStacks: 5
+		value: { spellId: 'earthquake', multiplier: 0.9 }
 	},
 	rock_trap_damage_1: {
 		id: 'rock_trap_damage_1',
-		name: 'Piège de Rock - Dégâts',
+		name: 'Piège de Rock\n- Dégâts',
 		description: 'Augmente les dégâts de Piège de Rock de 20%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'rock_trap', multiplier: 1.2 },
-		maxStacks: 5
+		value: { spellId: 'rock_trap', multiplier: 1.2 }
 	},
 	rock_trap_range_1: {
 		id: 'rock_trap_range_1',
-		name: 'Piège de Rock - Portée',
+		name: 'Piège de Rock\n- Portée',
 		description: 'Augmente la portée de Piège de Rock de 15%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'rock_trap', multiplier: 1.15 },
-		maxStacks: 5
+		value: { spellId: 'rock_trap', multiplier: 1.15 }
 	},
 	rock_trap_cooldown_1: {
 		id: 'rock_trap_cooldown_1',
-		name: 'Piège de Rock - Cooldown',
+		name: 'Piège de Rock\n- Cooldown',
 		description: 'Réduit le cooldown de Piège de Rock de 10%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'rock_trap', multiplier: 0.9 },
-		maxStacks: 5
+		value: { spellId: 'rock_trap', multiplier: 0.9 }
 	},
 	hydrocanon_damage_1: {
 		id: 'hydrocanon_damage_1',
-		name: 'Hydrocanon - Dégâts',
+		name: 'Hydrocanon\n- Dégâts',
 		description: 'Augmente les dégâts d\'Hydrocanon de 20%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'hydrocanon', multiplier: 1.2 },
-		maxStacks: 5
+		value: { spellId: 'hydrocanon', multiplier: 1.2 }
 	},
 	hydrocanon_range_1: {
 		id: 'hydrocanon_range_1',
-		name: 'Hydrocanon - Portée',
+		name: 'Hydrocanon\n- Portée',
 		description: 'Augmente la portée d\'Hydrocanon de 15%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'hydrocanon', multiplier: 1.15 },
-		maxStacks: 5
+		value: { spellId: 'hydrocanon', multiplier: 1.15 }
 	},
 	hydrocanon_cooldown_1: {
 		id: 'hydrocanon_cooldown_1',
-		name: 'Hydrocanon - Cooldown',
+		name: 'Hydrocanon\n- Cooldown',
 		description: 'Réduit le cooldown d\'Hydrocanon de 10%',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'hydrocanon', multiplier: 0.9 },
-		maxStacks: 5
+		value: { spellId: 'hydrocanon', multiplier: 0.9 }
 	}
 };
 
@@ -508,8 +465,6 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 	];
 	
 	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
-		const currentStacks = playerUpgrades[upgrade.id] || 0;
-		if (currentStacks >= upgrade.maxStacks) return false;
 		
 		if (isMelee && allProjectileUpgrades.includes(upgrade.type)) {
 			return false;
