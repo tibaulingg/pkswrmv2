@@ -40,9 +40,7 @@ export default class Camera {
 	}
 
 	shake(intensity = 10, duration = 200, enabled = true) {
-		console.log('shake', intensity, duration, enabled);
 		if (!enabled) return;
-		console.log('shake', intensity, duration);
 		this.shakeIntensity = intensity;
 		this.shakeTime = duration;
 		this.shakeDuration = duration;

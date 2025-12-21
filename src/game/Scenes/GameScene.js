@@ -75,10 +75,10 @@ export default class GameScene {
 
 	update(deltaTime) {
 		const currentScene = this.engine.sceneManager.getCurrentScene();
-		const isPauseOpen = currentScene && currentScene.constructor.name === 'PauseScene';
-		const isMapSelectionOpen = currentScene && currentScene.constructor.name === 'MapSelectionScene';
-		const isConfirmMenuOpen = currentScene && currentScene.constructor.name === 'ConfirmMenuScene';
-		const isTransitionOpen = currentScene && currentScene.constructor.name === 'TransitionScene';
+		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
+		const isMapSelectionOpen = currentScene && (currentScene.constructor.name === 'MapSelectionScene' || currentScene === this.engine.sceneManager.scenes.mapSelection);
+		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
+		const isTransitionOpen = currentScene && (currentScene.constructor.name === 'TransitionScene' || currentScene === this.engine.sceneManager.scenes.transition);
 		
 		if (this.kecleon.animationSystem) {
 			this.kecleon.animationSystem.update(deltaTime, false, 0, 0);

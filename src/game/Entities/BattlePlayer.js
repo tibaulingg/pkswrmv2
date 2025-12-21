@@ -517,6 +517,26 @@ export default class BattlePlayer {
 		return this.spells.filter(s => s.unlocked);
 	}
 
+	getProjectileLevel() {
+		if (this.attackType !== 'range') return 0;
+		
+		let level = 0;
+		
+		if (this.hasAoE) {
+			level = 1;
+			const baseMultiplier = 1.0;
+			const currentMultiplier = this.aoeRadiusMultiplier;
+			const enhancementLevel = Math.max(0, Math.floor((currentMultiplier - baseMultiplier) / 0.15));
+			level += enhancementLevel;
+		} else if (this.hasPiercing) {
+			level = 1 + Math.max(0, this.piercingCount);
+		} else if (this.hasBounce) {
+			level = Math.max(0, this.bounceCount);
+		}
+		
+		return level;
+	}
+
 	canCastSpell(spellIndex) {
 		const unlockedSpells = this.getUnlockedSpells();
 		if (spellIndex < 0 || spellIndex >= unlockedSpells.length) return false;

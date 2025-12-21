@@ -12,7 +12,7 @@ export default class TransitionScene {
 		this.mapData = data?.mapData || null;
 
 		this.gameScene = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'GameScene'
+			scene => scene.constructor.name === 'GameScene' || scene === this.engine.sceneManager.scenes.game
 		);
 
 		if (this.gameScene && this.gameScene.player && this.gameScene.player.animationSystem) {
@@ -23,6 +23,16 @@ export default class TransitionScene {
 
 	update(deltaTime) {
 		this.animationTimer += deltaTime;
+
+		if (this.animationTimer >= this.animationDuration) {
+			if (this.mapData) {
+				const mapData = this.mapData;
+				this.mapData = null;
+				this.gameScene = null;
+				this.engine.gameManager.startGame(mapData);
+			}
+			return;
+		}
 
 		if (!this.gameScene || !this.gameScene.player) {
 			return;
@@ -40,7 +50,10 @@ export default class TransitionScene {
 
 		if (this.animationTimer >= this.animationDuration) {
 			if (this.mapData) {
-				this.engine.gameManager.startGame(this.mapData);
+				const mapData = this.mapData;
+				this.mapData = null;
+				this.gameScene = null;
+				this.engine.gameManager.startGame(mapData);
 			}
 		}
 	}

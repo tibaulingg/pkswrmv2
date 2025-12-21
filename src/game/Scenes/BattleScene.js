@@ -131,6 +131,14 @@ export default class BattleScene {
 	}
 
 	update(deltaTime) {
+		const currentScene = this.engine.sceneManager.getCurrentScene();
+		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
+		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
+		
+		if (isPauseOpen || isConfirmMenuOpen) {
+			return;
+		}
+		
 		if (this.upgradeChoices) {
 			this.upgradeAnimationProgress = Math.min(this.upgradeAnimationProgress + deltaTime, this.upgradeAnimationDuration);
 			if (this.upgradePressAnimation > 0) {
@@ -148,8 +156,8 @@ export default class BattleScene {
 
 	updateBattle(deltaTime) {
 		const currentScene = this.engine.sceneManager.getCurrentScene();
-		const isPauseOpen = currentScene && currentScene.constructor.name === 'PauseScene';
-		const isConfirmMenuOpen = currentScene && currentScene.constructor.name === 'ConfirmMenuScene';
+		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
+		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
 		
 		if (isPauseOpen || isConfirmMenuOpen) {
 			return;

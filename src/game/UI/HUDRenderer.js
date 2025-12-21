@@ -222,6 +222,21 @@ export default class HUDRenderer {
 			renderer.ctx.lineWidth = 2;
 			renderer.ctx.strokeText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
 			renderer.ctx.fillText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
+			
+			if (player.attackType === 'range') {
+				const projectileLevel = player.getProjectileLevel();
+				if (projectileLevel > 0) {
+					renderer.ctx.fillStyle = '#ffff00';
+					renderer.ctx.font = 'bold 12px Pokemon';
+					renderer.ctx.textAlign = 'center';
+					renderer.ctx.textBaseline = 'top';
+					renderer.ctx.strokeStyle = '#000000';
+					renderer.ctx.lineWidth = 2;
+					renderer.ctx.strokeText(`Lv.${projectileLevel}`, attackIconX + iconSize / 2, attackIconY + iconSize - 20);
+					renderer.ctx.fillText(`Lv.${projectileLevel}`, attackIconX + iconSize / 2, attackIconY + iconSize - 20);
+				}
+			}
+			
 			renderer.ctx.restore();
 			
 			currentX += iconSize + iconSpacing;
