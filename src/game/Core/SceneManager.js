@@ -1,22 +1,27 @@
-import MenuScene from '../Scenes/MenuScene.js';
+
 import GameScene from '../Scenes/GameScene.js';
-import CollectionScene from '../Scenes/CollectionScene.js';
-import InventoryScene from '../Scenes/InventoryScene.js';
-import MapSelectionScene from '../Scenes/MapSelectionScene.js';
 import BattleScene from '../Scenes/BattleScene.js';
-import SettingsScene from '../Scenes/SettingsScene.js';
+import MainMenuScene from '../Scenes/MainMenuScene.js';
+import ContinueGameScene from '../Scenes/ContinueGameScene.js';
+import NewGameScene from '../Scenes/NewGameScene.js';
+import PauseScene from '../Scenes/PauseScene.js';
+import MapSelectionScene from '../Scenes/MapSelectionScene.js';
+import ConfirmMenuScene from '../Scenes/ConfirmMenuScene.js';
+import TransitionScene from '../Scenes/TransitionScene.js';
 
 export default class SceneManager {
 	constructor(engine) {
 		this.engine = engine;
 		this.scenes = {
-			menu: new MenuScene(this.engine),
+			menu: new MainMenuScene(this.engine),
+			continueGame: new ContinueGameScene(this.engine),
+			newGame: new NewGameScene(this.engine),
 			game: new GameScene(this.engine),
-			collection: new CollectionScene(this.engine),
-			inventory: new InventoryScene(this.engine),
-			mapSelection: new MapSelectionScene(this.engine),
 			battle: new BattleScene(this.engine),
-			settings: new SettingsScene(this.engine)
+			pause: new PauseScene(this.engine),
+			mapSelection: new MapSelectionScene(this.engine),
+			confirmMenu: new ConfirmMenuScene(this.engine),
+			transition: new TransitionScene(this.engine)
 		};
 		this.stack = [];
 	}
@@ -47,8 +52,9 @@ export default class SceneManager {
 	}
 
 	update(deltaTime) {
-		const current = this.getCurrentScene();
-		if (current) current.update(deltaTime);
+		for (const scene of this.stack) {
+			scene.update(deltaTime);
+		}
 	}
 
 	render(renderer) {

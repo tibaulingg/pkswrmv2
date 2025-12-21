@@ -3,7 +3,7 @@ import { getShopItems } from './ShopConfig.js';
 
 export const MainMenuConfig = {
 	title: 'POKSRM',
-	style: 'left',
+	style: 'center',
 	isMainMenu: true,
 	options: [
 		{
@@ -21,13 +21,6 @@ export const MainMenuConfig = {
 			}
 		},
 		{
-			label: 'Paramètres',
-			action: (engine) => {
-				engine.menuManager.closeMenu();
-				engine.sceneManager.pushScene('settings');
-			}
-		},
-		{
 			label: 'Exit',
 			action: (engine) => {
 				window.close();
@@ -38,7 +31,7 @@ export const MainMenuConfig = {
 
 export const HubMenuConfig = {
 	title: 'Village',
-	style: 'left',
+	style: 'center',
 	closeable: true,
 	options: [
 		{
@@ -56,13 +49,6 @@ export const HubMenuConfig = {
 			}
 		},
 		{
-			label: 'Paramètres',
-			action: (engine) => {
-				engine.menuManager.closeMenu();
-				engine.sceneManager.pushScene('settings');
-			}
-		},
-		{
 			label: 'Menu Principal',
 			action: (engine) => {
 				engine.menuManager.closeMenu();
@@ -74,20 +60,13 @@ export const HubMenuConfig = {
 
 export const PauseMenuConfig = {
 	title: 'PAUSE',
-	style: 'right',
+	style: 'center',
 	closeable: true,
 	options: [
 		{
 			label: 'Reprendre',
 			action: (engine) => {
 				engine.menuManager.closeMenu();
-			}
-		},
-		{
-			label: 'Paramètres',
-			action: (engine) => {
-				engine.menuManager.closeMenu();
-				engine.sceneManager.pushScene('settings');
 			}
 		},
 		{
@@ -120,7 +99,9 @@ export const ShopMenuConfig = {
 			action: (engine) => {
 				ShopMenuConfig.mode = 'buy';
 				ShopMenuConfig.options = ShopMenuConfig.getBuyOptions();
-				engine.menuManager.selectedIndex = 0;
+				if (engine.menuManager.activeMenu) {
+					engine.menuManager.activeMenu.selectedIndex = 0;
+				}
 			}
 		},
 		{
@@ -128,7 +109,9 @@ export const ShopMenuConfig = {
 			action: (engine) => {
 				ShopMenuConfig.mode = 'sell';
 				ShopMenuConfig.options = ShopMenuConfig.getSellOptions(engine);
-				engine.menuManager.selectedIndex = 0;
+				if (engine.menuManager.activeMenu) {
+					engine.menuManager.activeMenu.selectedIndex = 0;
+				}
 			}
 		},
 		{
@@ -194,7 +177,9 @@ export const ShopMenuConfig = {
 							engine.displayedMoney = engine.money;
 							ShopMenuConfig.lastPurchaseTime = Date.now();
 							ShopMenuConfig.options = ShopMenuConfig.getSellOptions(engine);
-							engine.menuManager.selectedIndex = Math.min(engine.menuManager.selectedIndex, ShopMenuConfig.options.length - 1);
+							if (engine.menuManager.activeMenu) {
+								engine.menuManager.activeMenu.selectedIndex = Math.min(engine.menuManager.activeMenu.selectedIndex, ShopMenuConfig.options.length - 1);
+							}
 							engine.audio.play('coins', 0.5, 0.2);
 						}
 					}
@@ -220,7 +205,9 @@ export const ShopMenuConfig = {
 				action: (engine) => {
 					ShopMenuConfig.mode = 'buy';
 					ShopMenuConfig.options = ShopMenuConfig.getBuyOptions();
-					engine.menuManager.selectedIndex = 0;
+					if (engine.menuManager.activeMenu) {
+						engine.menuManager.activeMenu.selectedIndex = 0;
+					}
 				}
 			},
 			{
@@ -228,7 +215,9 @@ export const ShopMenuConfig = {
 				action: (engine) => {
 					ShopMenuConfig.mode = 'sell';
 					ShopMenuConfig.options = ShopMenuConfig.getSellOptions(engine);
-					engine.menuManager.selectedIndex = 0;
+					if (engine.menuManager.activeMenu) {
+						engine.menuManager.activeMenu.selectedIndex = 0;
+					}
 				}
 			},
 			{

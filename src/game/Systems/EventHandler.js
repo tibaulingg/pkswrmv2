@@ -40,7 +40,6 @@ export default class EventHandler {
 				}
 			]
 		};
-		this.engine.menuManager.openMenu(leaveMenuConfig);
 	}
 
 	openMapSelection() {

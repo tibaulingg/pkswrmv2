@@ -31,7 +31,7 @@ export default class GameScene {
 		this.showInteractionPrompt = false;
 	}
 
-	init() {
+	init(data) {
 		const hubImage = this.engine.sprites.get('hub');
 		this.map = new MapSystem(1280, 720, hubImage);
 		
@@ -42,13 +42,22 @@ export default class GameScene {
 		this.eventSystem = new EventSystem(HubEvents);
 		this.eventHandler = new EventHandler(this.engine);
 		
-		const quaksireWalkSprite = this.engine.sprites.get('quaksire_walk');
-		const quaksireConfig = getPokemonConfig('quaksire');
-		const animationSystem = new AnimationSystem(quaksireConfig, quaksireWalkSprite);
+		const selectedPokemon = data?.selectedPokemon || this.engine.selectedPokemon || 'quaksire';
+		const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
+		const pokemonConfig = getPokemonConfig(selectedPokemon);
+		const animationSystem = pokemonConfig && pokemonWalkSprite ? new AnimationSystem(pokemonConfig, pokemonWalkSprite) : null;
 		
-		const spawnX = 360;
-		const spawnY = 550;
-		this.player = new Player(spawnX, spawnY, animationSystem);
+		if (!animationSystem) {
+			const quaksireWalkSprite = this.engine.sprites.get('quaksire_walk');
+			const quaksireConfig = getPokemonConfig('quaksire');
+			const fallbackAnimationSystem = new AnimationSystem(quaksireConfig, quaksireWalkSprite);
+			this.player = new Player(360, 550, fallbackAnimationSystem);
+		} else {
+			const spawnX = 360;
+			const spawnY = 550;
+			this.player = new Player(spawnX, spawnY, animationSystem);
+		}
+		
 		this.camera = new Camera(1280, 720, this.map.width, this.map.height);
 		this.debugCollisions = false;
 		
@@ -65,18 +74,23 @@ export default class GameScene {
 	}
 
 	update(deltaTime) {
+		const currentScene = this.engine.sceneManager.getCurrentScene();
+		const isPauseOpen = currentScene && currentScene.constructor.name === 'PauseScene';
+		const isMapSelectionOpen = currentScene && currentScene.constructor.name === 'MapSelectionScene';
+		const isConfirmMenuOpen = currentScene && currentScene.constructor.name === 'ConfirmMenuScene';
+		const isTransitionOpen = currentScene && currentScene.constructor.name === 'TransitionScene';
+		
 		if (this.kecleon.animationSystem) {
 			this.kecleon.animationSystem.update(deltaTime, false, 0, 0);
 		}
 		
-		if (this.engine.menuManager.isMenuOpen()) {
-			this.engine.menuManager.update();
+		if (isPauseOpen || isMapSelectionOpen || isConfirmMenuOpen || isTransitionOpen) {
 			return;
 		}
 
 		const key = this.engine.input.consumeLastKey();
 		if (key === 'Escape') {
-			this.engine.menuManager.openMenu(HubMenuConfig);
+			this.engine.sceneManager.pushScene('pause');
 			return;
 		}
 		if (key === 'KeyC') {
@@ -86,7 +100,6 @@ export default class GameScene {
 			this.debugEvents = !this.debugEvents;
 		}
 		if (key === 'Enter' && this.showInteractionPrompt) {
-			this.engine.menuManager.openMenu(ShopMenuConfig);
 			return;
 		}
 		if (this.player) {
@@ -139,47 +152,14 @@ export default class GameScene {
 		}
 		
 		this.camera.restore(renderer.ctx);
-		
-		this.renderHUD(renderer);
-		
-		if (this.showInteractionPrompt && !this.engine.menuManager.isMenuOpen()) {
+	
+		if (this.showInteractionPrompt) {
 			this.renderInteractionPrompt(renderer);
 		}
 		
-		if (this.engine.menuManager.isMenuOpen()) {
-			this.engine.menuManager.render(renderer);
-		}
 	}
 
-	renderHUD(renderer) {
-		const margin = 20;
-		const padding = 20;
-		const boxWidth = 150;
-		const boxHeight = 60;
 
-		const targetMoney = this.engine.money || 0;
-		if (this.engine.displayedMoney < targetMoney) {
-			this.engine.displayedMoney = Math.min(this.engine.displayedMoney + (targetMoney - this.engine.displayedMoney) * 0.1, targetMoney);
-		} else if (this.engine.displayedMoney > targetMoney) {
-			this.engine.displayedMoney = Math.max(this.engine.displayedMoney - (this.engine.displayedMoney - targetMoney) * 0.1, targetMoney);
-		}
-
-		const x = renderer.width - boxWidth - margin;
-		const y = margin;
-
-		renderer.drawRect(x, y, boxWidth, boxHeight, 'rgba(0, 0, 50, 0.7)');
-		renderer.drawStrokeRect(x, y, boxWidth, boxHeight, '#fff', 3);
-
-		renderer.ctx.fillStyle = '#ffd700';
-		renderer.ctx.font = '24px Pokemon';
-		renderer.ctx.textAlign = 'center';
-		renderer.ctx.fillText('₽', x + boxWidth / 2, y + 30);
-
-		renderer.ctx.fillStyle = '#fff';
-		renderer.ctx.font = 'bold 18px Pokemon';
-		renderer.ctx.textAlign = 'center';
-		renderer.ctx.fillText(Math.floor(this.engine.displayedMoney).toString(), x + boxWidth / 2, y + 55);
-	}
 
 	renderInteractionPrompt(renderer) {
 		const text = 'Interact (ENTER)';

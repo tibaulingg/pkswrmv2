@@ -28,7 +28,10 @@ export const UpgradeType = {
 	XP_GAIN: 'xpGain',
 	MONEY_GAIN: 'moneyGain',
 	DURATION: 'duration',
-	SPELL: 'spell'
+	SPELL: 'spell',
+	SPELL_DAMAGE: 'spellDamage',
+	SPELL_RANGE: 'spellRange',
+	SPELL_COOLDOWN: 'spellCooldown'
 };
 
 export const Upgrades = {
@@ -337,6 +340,87 @@ export const Upgrades = {
 		type: UpgradeType.PROJECTILE_ENHANCEMENT,
 		value: 1,
 		maxStacks: 5
+	},
+	earthquake_damage_1: {
+		id: 'earthquake_damage_1',
+		name: 'Séisme - Dégâts',
+		description: 'Augmente les dégâts de Séisme de 20%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_DAMAGE,
+		value: { spellId: 'earthquake', multiplier: 1.2 },
+		maxStacks: 5
+	},
+	earthquake_range_1: {
+		id: 'earthquake_range_1',
+		name: 'Séisme - Portée',
+		description: 'Augmente la portée de Séisme de 15%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_RANGE,
+		value: { spellId: 'earthquake', multiplier: 1.15 },
+		maxStacks: 5
+	},
+	earthquake_cooldown_1: {
+		id: 'earthquake_cooldown_1',
+		name: 'Séisme - Cooldown',
+		description: 'Réduit le cooldown de Séisme de 10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_COOLDOWN,
+		value: { spellId: 'earthquake', multiplier: 0.9 },
+		maxStacks: 5
+	},
+	rock_trap_damage_1: {
+		id: 'rock_trap_damage_1',
+		name: 'Piège de Rock - Dégâts',
+		description: 'Augmente les dégâts de Piège de Rock de 20%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_DAMAGE,
+		value: { spellId: 'rock_trap', multiplier: 1.2 },
+		maxStacks: 5
+	},
+	rock_trap_range_1: {
+		id: 'rock_trap_range_1',
+		name: 'Piège de Rock - Portée',
+		description: 'Augmente la portée de Piège de Rock de 15%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_RANGE,
+		value: { spellId: 'rock_trap', multiplier: 1.15 },
+		maxStacks: 5
+	},
+	rock_trap_cooldown_1: {
+		id: 'rock_trap_cooldown_1',
+		name: 'Piège de Rock - Cooldown',
+		description: 'Réduit le cooldown de Piège de Rock de 10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_COOLDOWN,
+		value: { spellId: 'rock_trap', multiplier: 0.9 },
+		maxStacks: 5
+	},
+	hydrocanon_damage_1: {
+		id: 'hydrocanon_damage_1',
+		name: 'Hydrocanon - Dégâts',
+		description: 'Augmente les dégâts d\'Hydrocanon de 20%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_DAMAGE,
+		value: { spellId: 'hydrocanon', multiplier: 1.2 },
+		maxStacks: 5
+	},
+	hydrocanon_range_1: {
+		id: 'hydrocanon_range_1',
+		name: 'Hydrocanon - Portée',
+		description: 'Augmente la portée d\'Hydrocanon de 15%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_RANGE,
+		value: { spellId: 'hydrocanon', multiplier: 1.15 },
+		maxStacks: 5
+	},
+	hydrocanon_cooldown_1: {
+		id: 'hydrocanon_cooldown_1',
+		name: 'Hydrocanon - Cooldown',
+		description: 'Réduit le cooldown d\'Hydrocanon de 10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.SPELL_COOLDOWN,
+		value: { spellId: 'hydrocanon', multiplier: 0.9 },
+		maxStacks: 5
 	}
 };
 
@@ -389,7 +473,10 @@ export const UpgradeIcons = {
 	[UpgradeType.XP_GAIN]: '⭐',
 	[UpgradeType.MONEY_GAIN]: '💰',
 	[UpgradeType.DURATION]: '⏱',
-	[UpgradeType.SPELL]: '✨'
+	[UpgradeType.SPELL]: '✨',
+	[UpgradeType.SPELL_DAMAGE]: '⚔',
+	[UpgradeType.SPELL_RANGE]: '◎',
+	[UpgradeType.SPELL_COOLDOWN]: '⚡'
 };
 
 export function getRandomUpgrades(count, playerUpgrades, player = null) {
@@ -399,13 +486,34 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 		UpgradeType.PROJECTILE_BOUNCE
 	];
 	
+	const allProjectileUpgrades = [
+		UpgradeType.PROJECTILE_SPEED,
+		UpgradeType.PROJECTILE_SIZE,
+		UpgradeType.PROJECTILE_AOE,
+		UpgradeType.PROJECTILE_PIERCING,
+		UpgradeType.PROJECTILE_BOUNCE,
+		UpgradeType.PROJECTILE_ENHANCEMENT
+	];
+	
 	const hasProjectileType = player && (
 		player.hasAoE || player.hasPiercing || player.hasBounce
 	);
 	
+	const isMelee = player && player.pokemonConfig && player.pokemonConfig.attackType === 'melee';
+	
+	const spellUpgradeTypes = [
+		UpgradeType.SPELL_DAMAGE,
+		UpgradeType.SPELL_RANGE,
+		UpgradeType.SPELL_COOLDOWN
+	];
+	
 	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
 		const currentStacks = playerUpgrades[upgrade.id] || 0;
 		if (currentStacks >= upgrade.maxStacks) return false;
+		
+		if (isMelee && allProjectileUpgrades.includes(upgrade.type)) {
+			return false;
+		}
 		
 		if (upgrade.type === UpgradeType.SPELL && player) {
 			const unlockedSpells = player.getUnlockedSpells();
@@ -417,6 +525,15 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 			if (pokemonName && !canPokemonUnlockSpell(pokemonName, spellId)) {
 				return false;
 			}
+		}
+		
+		if (spellUpgradeTypes.includes(upgrade.type) && player) {
+			const unlockedSpells = player.getUnlockedSpells();
+			const spellId = upgrade.value?.spellId;
+			if (!spellId) return false;
+			
+			const isSpellUnlocked = unlockedSpells.some(spell => spell.id === spellId);
+			if (!isSpellUnlocked) return false;
 		}
 		
 		if (projectileTypeUpgrades.includes(upgrade.type) && hasProjectileType) {

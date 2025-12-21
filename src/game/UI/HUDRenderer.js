@@ -444,6 +444,15 @@ export default class HUDRenderer {
 					renderer.ctx.font = '32px Pokemon';
 					renderer.ctx.textAlign = 'center';
 					renderer.ctx.fillText(spellEmoji, spellX + spellSize / 2, spellY + spellSize / 2 + 10);
+					
+					const spellLevel = player.getSpellLevel(spell.id);
+					const totalLevel = spellLevel.damage + spellLevel.range + spellLevel.cooldown;
+					if (totalLevel > 0) {
+						renderer.ctx.fillStyle = '#ffff00';
+						renderer.ctx.font = 'bold 12px Pokemon';
+						renderer.ctx.textAlign = 'center';
+						renderer.ctx.fillText(`Lv.${totalLevel}`, spellX + spellSize / 2, spellY + spellSize - 5);
+					}
 				}
 
 			}

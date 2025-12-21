@@ -2,7 +2,6 @@ import Renderer from './Renderer.js';
 import SceneManager from './SceneManager.js';
 import InputManager from './InputManager.js';
 import SpriteManager from '../Systems/SpriteManager.js';
-import MenuManager from '../UI/MenuManager.js';
 import GameManager from '../Systems/GameManager.js';
 import AudioManager from '../Systems/AudioManager.js';
 import { PokemonSprites } from '../Config/SpriteConfig.js';
@@ -23,7 +22,6 @@ export default class GameEngine {
 		this.input.onFirstInteraction = () => {
 			this.audio.unlockAudio();
 		};
-		this.menuManager = new MenuManager(this);
 		this.gameManager = new GameManager(this);
 		this.sceneManager = new SceneManager(this);
 		
@@ -31,14 +29,13 @@ export default class GameEngine {
 		this.assetsLoaded = false;
 		this.money = 0;
 		this.displayedMoney = 0;
-		this.inventory = {
-			rattata_tail: 5, 
-			bronze_chest: 1
-		};
+		this.inventory = {};
 		this.encounteredPokemons = new Set();
 		this.playedPokemons = new Set();
 		this.playedMaps = new Set();
 		this.defeatedPokemonCounts = {};
+		this.totalPlayTime = 0;
+		this.gamesPlayed = 0;
 		
 		this.settings = {
 			screenshakeEnabled: true,
@@ -62,6 +59,12 @@ export default class GameEngine {
 			await this.sprites.load('background_1', process.env.PUBLIC_URL + '/background_1.png');
 			await this.sprites.load('background_2', process.env.PUBLIC_URL + '/background_2.png');
 			await this.sprites.load('background_3', process.env.PUBLIC_URL + '/background_3.png');
+			await this.sprites.load('menu_empty', process.env.PUBLIC_URL + '/menu_empty.png');
+			await this.sprites.load('empty_continue_game', process.env.PUBLIC_URL + '/empty_continue_game.png');
+			await this.sprites.load('hub_pause', process.env.PUBLIC_URL + '/hub_pause.png');
+			await this.sprites.load('map_selection_screen', process.env.PUBLIC_URL + '/map_selection_screen.png');
+			await this.sprites.load('confirm_menu', process.env.PUBLIC_URL + '/confirm_menu.png');
+			await this.sprites.load('coins', process.env.PUBLIC_URL + '/coins.png');
 			const hubPath = process.env.PUBLIC_URL + '/hub.png';
 			const quaksireWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Walk-Anim.png';
 			const rattataWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Walk-Anim.png';
@@ -80,6 +83,11 @@ export default class GameEngine {
 			const rattataTailPath = process.env.PUBLIC_URL + '/sprites/items/rattata_tail.png';
 			const keyPath = process.env.PUBLIC_URL + '/sprites/items/key.png';
 			const bronzechestPath = process.env.PUBLIC_URL + '/sprites/items/bronze_chest.png';
+			const kecleonNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Normal.png';
+			const kecleonHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Happy.png';
+			const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
+			const kecleonHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Hurt-Anim.png';
+			const kecleonWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Walk-Anim.png';
 
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
@@ -89,6 +97,11 @@ export default class GameEngine {
 			await this.sprites.load('rattata_tail', rattataTailPath);
 			await this.sprites.load('key', keyPath);
 			await this.sprites.load('bronze_chest', bronzechestPath);
+			await this.sprites.load('kecleon_normal', kecleonNormalPath);
+			await this.sprites.load('kecleon_happy', kecleonHappyPath);
+			await this.sprites.load('kecleon_idle', kecleonIdlePath);
+			await this.sprites.load('kecleon_hurt', kecleonHurtPath);
+			await this.sprites.load('kecleon_walk', kecleonWalkPath);
 
 			try {
 				await this.sprites.load('quaksire_faint', quaksireFaintPath);

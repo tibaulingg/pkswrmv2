@@ -96,6 +96,10 @@ export default class BattlePlayer {
 		this.maxSpells = 3;
 		this.spellPressAnimations = {};
 		this.forcedDirection = null;
+		this.spellLevels = {};
+		this.spellDamageMultipliers = {};
+		this.spellRangeMultipliers = {};
+		this.spellCooldownMultipliers = {};
 	}
 
 	update(deltaTime, input, mapWidth, mapHeight, camera = null, collisionSystem = null) {
@@ -388,6 +392,48 @@ export default class BattlePlayer {
 			case 'spell':
 				this.unlockSpell(upgrade.value);
 				break;
+			case 'spellDamage':
+				if (upgrade.value && upgrade.value.spellId) {
+					const spellId = upgrade.value.spellId;
+					if (!this.spellLevels[spellId]) {
+						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
+					}
+					this.spellLevels[spellId].damage++;
+					if (!this.spellDamageMultipliers[spellId]) {
+						this.spellDamageMultipliers[spellId] = 1;
+					}
+					this.spellDamageMultipliers[spellId] *= upgrade.value.multiplier;
+					this.updateSpellStats(spellId);
+				}
+				break;
+			case 'spellRange':
+				if (upgrade.value && upgrade.value.spellId) {
+					const spellId = upgrade.value.spellId;
+					if (!this.spellLevels[spellId]) {
+						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
+					}
+					this.spellLevels[spellId].range++;
+					if (!this.spellRangeMultipliers[spellId]) {
+						this.spellRangeMultipliers[spellId] = 1;
+					}
+					this.spellRangeMultipliers[spellId] *= upgrade.value.multiplier;
+					this.updateSpellStats(spellId);
+				}
+				break;
+			case 'spellCooldown':
+				if (upgrade.value && upgrade.value.spellId) {
+					const spellId = upgrade.value.spellId;
+					if (!this.spellLevels[spellId]) {
+						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
+					}
+					this.spellLevels[spellId].cooldown++;
+					if (!this.spellCooldownMultipliers[spellId]) {
+						this.spellCooldownMultipliers[spellId] = 1;
+					}
+					this.spellCooldownMultipliers[spellId] *= upgrade.value.multiplier;
+					this.updateSpellStats(spellId);
+				}
+				break;
 			default:
 				break;
 		}
@@ -411,13 +457,26 @@ export default class BattlePlayer {
 		
 		let spell = this.spells.find(s => s.id === spellId);
 		if (!spell) {
+			if (!this.spellLevels[spellId]) {
+				this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
+			}
+			if (!this.spellDamageMultipliers[spellId]) {
+				this.spellDamageMultipliers[spellId] = 1;
+			}
+			if (!this.spellRangeMultipliers[spellId]) {
+				this.spellRangeMultipliers[spellId] = 1;
+			}
+			if (!this.spellCooldownMultipliers[spellId]) {
+				this.spellCooldownMultipliers[spellId] = 1;
+			}
+			
 			spell = {
 				id: spellConfig.id,
 				name: spellConfig.name,
-				cooldownMax: spellConfig.cooldownMax,
+				cooldownMax: spellConfig.cooldownMax * this.spellCooldownMultipliers[spellId],
 				cooldown: 0,
-				damageMultiplier: spellConfig.damageMultiplier,
-				radius: spellConfig.baseRadius,
+				damageMultiplier: spellConfig.damageMultiplier * this.spellDamageMultipliers[spellId],
+				radius: spellConfig.baseRadius * this.spellRangeMultipliers[spellId],
 				animation: spellConfig.animation,
 				animationDuration: spellConfig.animationDuration,
 				particleColor: spellConfig.particleColor,
@@ -427,7 +486,30 @@ export default class BattlePlayer {
 			this.spells.push(spell);
 		} else if (!spell.unlocked) {
 			spell.unlocked = true;
+			this.updateSpellStats(spellId);
 		}
+	}
+
+	updateSpellStats(spellId) {
+		const spell = this.spells.find(s => s.id === spellId);
+		if (!spell) return;
+		
+		const spellConfig = getSpellConfig(spellId);
+		if (!spellConfig) return;
+		
+		spell.damageMultiplier = spellConfig.damageMultiplier * (this.spellDamageMultipliers[spellId] || 1);
+		spell.radius = spellConfig.baseRadius * (this.spellRangeMultipliers[spellId] || 1);
+		const newCooldownMax = spellConfig.cooldownMax * (this.spellCooldownMultipliers[spellId] || 1);
+		const cooldownRatio = spell.cooldown / spell.cooldownMax;
+		spell.cooldownMax = newCooldownMax;
+		spell.cooldown = spell.cooldown * cooldownRatio;
+	}
+
+	getSpellLevel(spellId) {
+		if (!this.spellLevels[spellId]) {
+			return { damage: 0, range: 0, cooldown: 0 };
+		}
+		return this.spellLevels[spellId];
 	}
 
 	getUnlockedSpells() {

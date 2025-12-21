@@ -2,6 +2,7 @@ export default class InputManager {
 	constructor() {
 		this.keys = {};
 		this.lastKeyPressed = null;
+		this.lastKeyValue = null;
 		this.lastKeyWasNewPress = false;
 		this.canvas = null;
 		this.mouseX = 0;
@@ -13,6 +14,7 @@ export default class InputManager {
 			this.handleFirstInteraction();
 			if (!this.keys[e.code]) {
 				this.lastKeyPressed = e.code;
+				this.lastKeyValue = e.key;
 				this.lastKeyWasNewPress = true;
 			} else {
 				this.lastKeyWasNewPress = false;
@@ -24,6 +26,7 @@ export default class InputManager {
 			this.keys[e.code] = false;
 			if (this.lastKeyPressed === e.code) {
 				this.lastKeyPressed = null;
+				this.lastKeyValue = null;
 				this.lastKeyWasNewPress = false;
 			}
 		});
@@ -102,8 +105,19 @@ export default class InputManager {
 		return key;
 	}
 
+	getLastKeyValue() {
+		return this.lastKeyValue;
+	}
+
+	consumeLastKeyValue() {
+		const value = this.lastKeyValue;
+		this.lastKeyValue = null;
+		return value;
+	}
+
 	clearInput() {
 		this.lastKeyPressed = null;
+		this.lastKeyValue = null;
 		this.lastKeyWasNewPress = false;
 		this.keys = {};
 	}

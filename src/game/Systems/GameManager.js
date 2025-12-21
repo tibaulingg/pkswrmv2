@@ -1,3 +1,5 @@
+import SaveManager from './SaveManager.js';
+
 export default class GameManager {
 	constructor(engine) {
 		this.engine = engine;
@@ -18,6 +20,16 @@ export default class GameManager {
 			this.engine.money = battleScene.player.money;
 			this.engine.displayedMoney = battleScene.player.displayedMoney;
 		}
+		
+		if (battleScene && battleScene.survivalTime) {
+			this.engine.totalPlayTime = (this.engine.totalPlayTime || 0) + battleScene.survivalTime;
+		}
+		
+		if (result === 'victory' || result === 'defeat') {
+			this.engine.gamesPlayed = (this.engine.gamesPlayed || 0) + 1;
+		}
+		
+		SaveManager.saveGame(this.engine, false);
 		
 		this.showEndGameMenu(result, battleScene);
 	}
@@ -41,6 +53,11 @@ export default class GameManager {
 			options.push({
 				label: 'Continuer (Endless)',
 				action: (engine) => {
+					if (battleScene && battleScene.survivalTime) {
+						engine.totalPlayTime = (engine.totalPlayTime || 0) + battleScene.survivalTime;
+						battleScene.survivalTime = 0;
+						SaveManager.saveGame(engine, false);
+					}
 					engine.menuManager.closeMenu();
 					battleScene.bossDefeated = false;
 					battleScene.bossSpawned = false;
@@ -67,6 +84,10 @@ export default class GameManager {
 		options.push({
 			label: 'Retour au Village',
 			action: (engine) => {
+				if (battleScene && battleScene.survivalTime) {
+					engine.totalPlayTime = (engine.totalPlayTime || 0) + battleScene.survivalTime;
+					SaveManager.saveGame(engine, false);
+				}
 				engine.menuManager.closeMenu();
 				this.currentMap = null;
 				engine.sceneManager.changeScene('game');
@@ -94,7 +115,6 @@ export default class GameManager {
 			options: options
 		};
 
-		this.engine.menuManager.openMenu(endMenuConfig);
 	}
 }
 

@@ -29,7 +29,6 @@ export default class BattleScene {
 		this.camera = null;
 		this.mapWidth = 2000;
 		this.mapHeight = 2000;
-		this.selectedPokemon = 'quaksire';
 		this.projectiles = [];
 		this.enemyProjectiles = [];
 		this.particleSystem = new ParticleSystem();
@@ -70,11 +69,12 @@ export default class BattleScene {
 			this.deathZoomProgress = 0;
 		this.killerEnemy = null;
 			
-			const pokemonConfig = getPokemonConfig(this.selectedPokemon);
-			const pokemonWalkSprite = this.engine.sprites.get(`${this.selectedPokemon}_walk`);
-			const pokemonHurtSprite = this.engine.sprites.get(`${this.selectedPokemon}_hurt`);
-			const pokemonChargeSprite = this.engine.sprites.get(`${this.selectedPokemon}_charge`);
-			const pokemonFaintSprite = this.engine.sprites.get(`${this.selectedPokemon}_faint`);
+			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+			const pokemonConfig = getPokemonConfig(selectedPokemon);
+			const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
+			const pokemonHurtSprite = this.engine.sprites.get(`${selectedPokemon}_hurt`);
+			const pokemonChargeSprite = this.engine.sprites.get(`${selectedPokemon}_charge`);
+			const pokemonFaintSprite = this.engine.sprites.get(`${selectedPokemon}_faint`);
 			const spriteImages = {};
 			if (pokemonWalkSprite) spriteImages.walk = pokemonWalkSprite;
 			if (pokemonHurtSprite) spriteImages.hurt = pokemonHurtSprite;
@@ -91,8 +91,8 @@ export default class BattleScene {
 			this.player.displayedMoney = this.engine.displayedMoney;
 	
 			
-			if (this.selectedPokemon) {
-				this.engine.playedPokemons.add(this.selectedPokemon);
+			if (selectedPokemon) {
+				this.engine.playedPokemons.add(selectedPokemon);
 			}
 			
 			const mapTileCollisions = MapTileCollisions[mapData.image] || [];
@@ -139,10 +139,6 @@ export default class BattleScene {
 			return;
 		}
 
-		if (this.engine.menuManager.isMenuOpen()) {
-			this.engine.menuManager.update();
-			return;
-		}
 
 		if (this.state === 'playing' || this.state === 'dying') {
 			this.updateBattle(deltaTime);
@@ -150,6 +146,13 @@ export default class BattleScene {
 	}
 
 	updateBattle(deltaTime) {
+		const currentScene = this.engine.sceneManager.getCurrentScene();
+		const isPauseOpen = currentScene && currentScene.constructor.name === 'PauseScene';
+		
+		if (isPauseOpen) {
+			return;
+		}
+		
 		if (this.state === 'dying') {
 			if (this.player && this.player.isDying) {
 				this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
@@ -174,7 +177,7 @@ export default class BattleScene {
 		
 		const key = this.engine.input.consumeLastKey();
 		if (key === 'Escape' && !this.upgradeChoices) {
-			this.openPauseMenu();
+			this.engine.sceneManager.pushScene('pause');
 			return;
 		}
 		if (key === 'KeyC' && !this.upgradeChoices) {
@@ -1045,7 +1048,6 @@ export default class BattleScene {
 				}
 			]
 		};
-		this.engine.menuManager.openMenu(pauseMenuConfig);
 	}
 
 	render(renderer) {
@@ -1061,9 +1063,6 @@ export default class BattleScene {
 			this.renderUpgradeMenu(renderer);
 		}
 
-		if (this.engine.menuManager.isMenuOpen()) {
-			this.engine.menuManager.render(renderer);
-		}
 	}
 
 	renderBattle(renderer) {
@@ -1163,7 +1162,8 @@ export default class BattleScene {
 			const bossTimerRemaining = this.enemySpawner ? this.enemySpawner.getBossTimerRemaining() : null;
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
-			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, this.selectedPokemon, this.engine, currentBoss, this.mapData);
+			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData);
 		}
 
 		this.renderMinimap(renderer);
@@ -1615,7 +1615,6 @@ export default class BattleScene {
 	}
 
 	showVictoryScreen() {
-		if (this.engine.menuManager.isMenuOpen()) return;
 		this.engine.gameManager.endGame('victory', this);
 	}
 
@@ -1633,8 +1632,6 @@ export default class BattleScene {
 	}
 
 	showDefeatMenu() {
-		if (this.engine.menuManager.isMenuOpen()) return;
-
 		this.engine.gameManager.endGame('defeat', this);
 	}
 
