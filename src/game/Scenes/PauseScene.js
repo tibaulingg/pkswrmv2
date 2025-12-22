@@ -137,12 +137,30 @@ export default class PauseScene {
 				this.handleInventoryItemAction();
 			}
 		} else {
+			const battleSceneCheck = this.engine.sceneManager.stack.find(
+				scene => scene.constructor.name === 'BattleScene'
+			);
+			const isInBattle = battleSceneCheck !== undefined;
+			const equipeIndex = this.options.findIndex(opt => opt.label === 'Equipe');
+			
 			if (key === 'ArrowUp') {
-				this.selectedIndex = Math.max(0, this.selectedIndex - 1);
-				this.engine.audio.play('ok', 0.3, 0.1);
+				let newIndex = Math.max(0, this.selectedIndex - 1);
+				if (isInBattle && newIndex === equipeIndex && equipeIndex !== -1) {
+					newIndex = Math.max(0, newIndex - 1);
+				}
+				if (newIndex !== this.selectedIndex) {
+					this.selectedIndex = newIndex;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				}
 			} else if (key === 'ArrowDown') {
-				this.selectedIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
-				this.engine.audio.play('ok', 0.3, 0.1);
+				let newIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
+				if (isInBattle && newIndex === equipeIndex && equipeIndex !== -1) {
+					newIndex = Math.min(this.options.length - 1, newIndex + 1);
+				}
+				if (newIndex !== this.selectedIndex) {
+					this.selectedIndex = newIndex;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				}
 			} else if (key === 'Enter') {
 				this.selectOption();
 			} else if (key === 'Escape') {
@@ -456,6 +474,15 @@ export default class PauseScene {
 
 	selectOption() {
 		const option = this.options[this.selectedIndex];
+		
+		const battleSceneCheck = this.engine.sceneManager.stack.find(
+			scene => scene.constructor.name === 'BattleScene'
+		);
+		const isInBattle = battleSceneCheck !== undefined;
+		
+		if (option.label === 'Equipe' && isInBattle) {
+			return;
+		}
 		
 		if (option.label === 'Objets') {
 			this.showInventory = true;
@@ -816,6 +843,11 @@ export default class PauseScene {
 		const optionSpacing = 40;
 		const fontSize = '18px';
 
+		const battleSceneCheck = this.engine.sceneManager.stack.find(
+			scene => scene.constructor.name === 'BattleScene'
+		);
+		const isInBattle = battleSceneCheck !== undefined;
+
 		this.options.forEach((option, index) => {
 			let y = optionStartY + index * optionSpacing;
 			if (option.label === 'Quitter') {
@@ -824,6 +856,10 @@ export default class PauseScene {
 			let color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
 			if (option.label === 'Quitter') {
 				color = '#ff6666';
+			}
+			
+			if (option.label === 'Equipe' && isInBattle) {
+				color = '#666666';
 			}
 			
 			renderer.drawText(option.label, optionStartX, y, fontSize, color, 'left');
@@ -836,10 +872,17 @@ export default class PauseScene {
 	}
 
 	getAvailablePokemons() {
-		if (!this.engine.playedPokemons || this.engine.playedPokemons.size === 0) {
-			return [];
+		const pokemons = new Set();
+		
+		if (this.engine.selectedPokemon) {
+			pokemons.add(this.engine.selectedPokemon);
 		}
-		return Array.from(this.engine.playedPokemons).sort();
+		
+		if (this.engine.playedPokemons && this.engine.playedPokemons.size > 0) {
+			this.engine.playedPokemons.forEach(pokemon => pokemons.add(pokemon));
+		}
+		
+		return Array.from(pokemons).sort();
 	}
 
 	handleTeamKey(key) {

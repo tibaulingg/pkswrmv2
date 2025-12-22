@@ -13,7 +13,10 @@ export default class MainMenuScene {
 		this.saveData = null;
 		this.showNewGameMenu = false;
 		this.selectedPokemonIndex = 0;
-		this.pokemonList = Object.keys(PokemonSprites);
+		this.pokemonList = Object.keys(PokemonSprites).filter(pokemonId => {
+			const pokemonConfig = PokemonSprites[pokemonId];
+			return pokemonConfig && pokemonConfig.starter === true;
+		});
 		this.selectedPokemons = [];
 		this.pseudo = '';
 		this.isTypingPseudo = true;
@@ -41,6 +44,9 @@ export default class MainMenuScene {
 				label: 'Continuer',
 				description: 'Reprenez votre aventure à partir de votre dernière sauvegarde'
 			});
+			this.showContinueMenu = true;
+			this.selectedContinueChoice = 0;
+			this.saveData = SaveManager.getSaveData();
 		}
 		
 		this.options.push({
@@ -350,16 +356,56 @@ export default class MainMenuScene {
 						renderer.ctx.lineWidth = 2;
 						renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
 					}
-					
-		
 				}
 
+				const defeatedPokemonCounts = this.saveData.defeatedPokemonCounts || {};
+				const encounteredPokemons = this.saveData.encounteredPokemons ? new Set(this.saveData.encounteredPokemons) : new Set();
+				const rank = RankManager.getPlayerRank(defeatedPokemonCounts, encounteredPokemons);
+				const rankColor = RankManager.getRankColor(rank);
+				const stars = RankManager.getRankStars(rank);
+
+				let currentX = infoX;
+
+				renderer.ctx.fillStyle = '#ffffff';
 				if (this.saveData.playerName) {
-					renderer.ctx.fillText(`${this.saveData.playerName}`, infoX, y);
-					y += lineHeight;
+					renderer.ctx.fillText(this.saveData.playerName, currentX, y);
+					const nameTextWidth = renderer.ctx.measureText(this.saveData.playerName).width;
+					currentX += nameTextWidth + 20;
 				}
 
+				renderer.ctx.fillStyle = rankColor;
+				const rankText = `${rank}`;
+				const rankTextWidth = renderer.ctx.measureText(rankText).width;
+				renderer.ctx.fillText(rankText, currentX, y);
+				currentX += rankTextWidth + 10;
+				
+				renderer.ctx.fillStyle = '#ffd700';
+				const starText = '★'.repeat(stars);
+				const starTextWidth = renderer.ctx.measureText(starText).width;
+				renderer.ctx.fillText(starText, currentX, y);
+				currentX += starTextWidth + 20;
 
+				if (this.saveData.money !== undefined) {
+					const money = this.saveData.money || 0;
+					const moneyText = SaveManager.formatLargeNumber(money);
+					const coinSize = 24;
+					const moneyTextFontSize = '18px';
+					renderer.ctx.font = `${moneyTextFontSize} Pokemon`;
+					const moneyTextWidth = renderer.ctx.measureText(moneyText).width;
+					renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
+					
+					renderer.ctx.fillText(moneyText, currentX, y + (coinSize / 2) - 6);
+					
+					const coinsImage = this.engine.sprites.get('coins');
+					if (coinsImage) {
+						renderer.drawImage(coinsImage, currentX + moneyTextWidth + 5, y, coinSize, coinSize);
+					}
+					
+					renderer.ctx.font = `${infoFontSize} Pokemon`;
+					renderer.ctx.fillStyle = '#ffffff';
+				}
+
+				y += lineHeight + 15;
 
 				if (this.saveData.gamesPlayed !== undefined) {
 					renderer.ctx.fillText(`Aventures: ${this.saveData.gamesPlayed}`, infoX, y);
@@ -372,43 +418,46 @@ export default class MainMenuScene {
 					y += lineHeight;
 				}
 
-				const defeatedPokemonCounts = this.saveData.defeatedPokemonCounts || {};
-				const encounteredPokemons = this.saveData.encounteredPokemons ? new Set(this.saveData.encounteredPokemons) : new Set();
-				const rank = RankManager.getPlayerRank(defeatedPokemonCounts, encounteredPokemons);
-				const rankColor = RankManager.getRankColor(rank);
-				const stars = RankManager.getRankStars(rank);
-				
-				renderer.ctx.fillStyle = rankColor;
-				const rankText = `${rank}`;
-				const rankTextWidth = renderer.ctx.measureText(rankText).width;
-				renderer.ctx.fillText(rankText, infoX, y);
-				
-				renderer.ctx.fillStyle = '#ffd700';
-				const starText = '★'.repeat(stars);
-				renderer.ctx.fillText(starText, infoX + rankTextWidth + 10, y);
+				const totalDefeated = SaveManager.getTotalDefeatedPokemon(this.saveData.defeatedPokemonCounts);
+				renderer.ctx.fillText(`Pokémon vaincus: ${totalDefeated}`, infoX, y);
+				y += lineHeight;
+
+				const playedPokemons = this.saveData.playedPokemons ? new Set(this.saveData.playedPokemons) : new Set();
+				const teamSize = playedPokemons.size + (this.saveData.selectedPokemon ? 1 : 0);
+				renderer.ctx.fillText(`Taille de l'équipe: ${teamSize}`, infoX, y);
+				y += lineHeight;
+
+				const eggsHatched = Math.max(0, encounteredPokemons.size - 1);
+				renderer.ctx.fillText(`Œufs éclos: ${eggsHatched}`, infoX, y);
+				y += lineHeight;
+
+				const playedMaps = this.saveData.playedMaps ? new Set(this.saveData.playedMaps) : new Set();
+				renderer.ctx.fillText(`Cartes explorées: ${playedMaps.size}`, infoX, y);
+				y += lineHeight;
+
+				renderer.ctx.fillText(`Pokémon rencontrés: ${encounteredPokemons.size}`, infoX, y);
+				y += lineHeight;
+
+				const bossCount = Object.keys(defeatedPokemonCounts).filter(pokemonName => {
+					const pokemonSprite = PokemonSprites[pokemonName];
+					return pokemonSprite && pokemonSprite.isBoss;
+				}).reduce((sum, pokemonName) => sum + (defeatedPokemonCounts[pokemonName] || 0), 0);
+				renderer.ctx.fillText(`Boss vaincus: ${bossCount}`, infoX, y);
+				y += lineHeight;
+
+				const eggProgress = this.saveData.eggProgress || {};
+				const eggsCompleted = Object.values(eggProgress).filter(progress => 
+					progress.currentKills >= progress.requiredKills
+				).length;
+				renderer.ctx.fillText(`Œufs complétés: ${eggsCompleted}`, infoX, y);
+				y += lineHeight;
+
+				const inventory = this.saveData.inventory || {};
+				const totalItems = Object.values(inventory).reduce((sum, quantity) => sum + (quantity || 0), 0);
+				renderer.ctx.fillText(`Total d'items: ${totalItems}`, infoX, y);
 				y += lineHeight;
 
 				renderer.ctx.restore();
-
-				if (this.saveData.money !== undefined) {
-					const money = this.saveData.money || 0;
-					const moneyText = SaveManager.formatLargeNumber(money);
-					const coinSize = 24;
-					const fullMoneyText = `${moneyText}`;
-					const moneyTextFontSize = '18px';
-					renderer.ctx.font = `${moneyTextFontSize} Pokemon`;
-					const moneyTextWidth = renderer.ctx.measureText(fullMoneyText).width;
-					renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
-					
-					renderer.ctx.fillText(fullMoneyText, infoX, y + 18);
-					
-					const coinsImage = this.engine.sprites.get('coins');
-					if (coinsImage) {
-						renderer.drawImage(coinsImage, infoX + moneyTextWidth, y, coinSize, coinSize);
-					}
-					
-					y += lineHeight;
-				}
 			}
 
 			

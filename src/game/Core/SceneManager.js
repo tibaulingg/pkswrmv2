@@ -2,8 +2,6 @@
 import GameScene from '../Scenes/GameScene.js';
 import BattleScene from '../Scenes/BattleScene.js';
 import MainMenuScene from '../Scenes/MainMenuScene.js';
-import ContinueGameScene from '../Scenes/ContinueGameScene.js';
-import NewGameScene from '../Scenes/NewGameScene.js';
 import PauseScene from '../Scenes/PauseScene.js';
 import MapSelectionScene from '../Scenes/MapSelectionScene.js';
 import ConfirmMenuScene from '../Scenes/ConfirmMenuScene.js';
@@ -16,8 +14,6 @@ export default class SceneManager {
 		this.engine = engine;
 		this.scenes = {
 			menu: new MainMenuScene(this.engine),
-			continueGame: new ContinueGameScene(this.engine),
-			newGame: new NewGameScene(this.engine),
 			game: new GameScene(this.engine),
 			battle: new BattleScene(this.engine),
 			pause: new PauseScene(this.engine),

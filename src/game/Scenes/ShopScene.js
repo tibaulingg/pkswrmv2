@@ -355,12 +355,8 @@ export default class ShopScene {
 		if (!this.engine.encounteredPokemons) {
 			this.engine.encounteredPokemons = new Set();
 		}
-		if (!this.engine.playedPokemons) {
-			this.engine.playedPokemons = new Set();
-		}
 		
 		this.engine.encounteredPokemons.add(hatchedPokemon);
-		this.engine.playedPokemons.add(hatchedPokemon);
 		
 		delete this.engine.eggProgress[egg.uniqueId];
 		const uniqueIds = this.engine.eggUniqueIds[egg.id] || [];

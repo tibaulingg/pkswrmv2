@@ -122,6 +122,9 @@ export default class GameEngine {
 			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk', 'charge']],
 			['garchomp', ['normal', 'hurt', 'walk', 'charge', 'sleep']],
 			['wooper', ['walk', 'hurt']],
+			['piplup', ['walk', 'hurt', 'charge']],
+			['chimchar', ['walk', 'hurt', 'charge']],
+			['turtwig', ['walk', 'hurt', 'charge']],
 		]
 
 		for (const [name, states] of pokemonSprites) {

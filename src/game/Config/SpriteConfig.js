@@ -12,6 +12,76 @@ const DIRECTIONS = {
 };
 
 export const PokemonSprites = {
+	piplup: {
+		name: 'piplup',
+		walk: {
+			frames: 4
+		},
+		hurt: {
+			frames: 2
+		},
+		charge: {
+			frames: 12,
+		},
+		attackType: 'range',
+		type: 'water',
+		hp: 30,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
+		projectileColor: '#4FC3F7',
+		starter: true,
+	},
+	chimchar: {
+		name: 'chimchar',
+		walk: {
+			frames: 7
+		},
+		hurt: {
+			frames: 2
+		},
+		charge: {
+			frames: 12
+		},
+		attackType: 'range',
+		type: 'fire',
+		hp: 30,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
+		projectileColor: '#FF5722',
+		projectileSize: 12,
+		projectileSpeed: 0.5,
+		starter: true,
+	},
+	turtwig: {
+		name: 'turtwig',
+		walk: {
+			frames: 4
+		},
+		hurt: {
+			frames: 2
+		},
+		charge: {
+			frames: 10
+		},
+		attackType: 'range',
+		type: 'grass',
+		hp: 30,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
+		projectileColor: '#689F38',
+		projectileSize: 12,
+		projectileSpeed: 0.5,
+		starter: true,
+	},
 	quaksire: {
 		name: 'quaksire',
 		walk: {

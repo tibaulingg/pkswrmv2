@@ -61,7 +61,7 @@ export const ItemConfig = {
 		name: 'Oeuf Commun',
 		category: 'egg',
 		iconImage: '/sprites/items/egg_common.png',
-		description: 'Peut éclore en Rattata ou Pidgey',
+		description: 'Un oeuf commun',
 		rarity: 'common',
 		requiredKills: 10,
 		possiblePokemon: ['rattata', 'pidgey']
@@ -71,17 +71,17 @@ export const ItemConfig = {
 		name: 'Oeuf Rare',
 		category: 'egg',
 		iconImage: '/sprites/items/egg_rare.png',
-		description: 'Peut éclore en Caterpie ou Quaksire',
+		description: 'Un oeuf rare',
 		rarity: 'rare',
 		requiredKills: 25,
-		possiblePokemon: ['caterpie', 'quaksire']
+		possiblePokemon: ['quaksire']
 	},
 	egg_epic: {
 		id: 'egg_epic',
 		name: 'Oeuf Épique',
 		category: 'egg',
 		iconImage: '/sprites/items/egg_epic.png',
-		description: 'Peut éclore en Kecleon ou Wooper',
+		description: 'Un oeuf épique',
 		rarity: 'epic',
 		requiredKills: 50,
 		possiblePokemon: ['kecleon', 'wooper']
@@ -91,7 +91,7 @@ export const ItemConfig = {
 		name: 'Oeuf Légendaire',
 		category: 'egg',
 		iconImage: '/sprites/items/egg_legendary.png',
-		description: 'Peut éclore en Garchomp',
+		description: 'Un oeuf légendaire',
 		rarity: 'legendary',
 		requiredKills: 100,
 		possiblePokemon: ['garchomp']

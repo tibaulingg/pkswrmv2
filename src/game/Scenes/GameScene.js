@@ -78,44 +78,7 @@ export default class GameScene {
 		
 		this.initNPCs();
 		
-		this.initReadyEggs();
-		
 		this.engine.audio.playMusic('hub');
-	}
-
-	initReadyEggs() {
-		if (!this.engine.eggProgress) {
-			this.engine.eggProgress = {};
-		}
-		if (!this.engine.eggUniqueIds) {
-			this.engine.eggUniqueIds = {};
-		}
-		
-		const eggTypes = ['egg_common', 'egg_rare', 'egg_epic', 'egg_legendary'];
-		const eggsPerType = 25;
-		
-		eggTypes.forEach(eggId => {
-			if (!this.engine.eggUniqueIds[eggId]) {
-				this.engine.eggUniqueIds[eggId] = [];
-			}
-			
-			const eggConfig = ItemConfig[eggId];
-			if (!eggConfig) return;
-			
-			const existingCount = this.engine.eggUniqueIds[eggId].length;
-			const neededCount = eggsPerType - existingCount;
-			
-			if (neededCount > 0) {
-				for (let i = 0; i < neededCount; i++) {
-					const uniqueId = `${eggId}_${Date.now()}_${i}_${Math.random()}`;
-					this.engine.eggUniqueIds[eggId].push(uniqueId);
-					this.engine.eggProgress[uniqueId] = {
-						currentKills: eggConfig.requiredKills,
-						requiredKills: eggConfig.requiredKills
-					};
-				}
-			}
-		});
 	}
 
 	initNPCs() {
@@ -485,11 +448,40 @@ export default class GameScene {
 			SaveManager.saveGame(engine, false);
 			engine.sceneManager.popScene();
 			this.eggHatchingAnimation = null;
+			
+			setTimeout(() => {
+				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
+				const shopScene = engine.sceneManager.stack.find(
+					scene => scene.constructor.name === 'ShopScene'
+				);
+				if (shopScene) {
+					shopScene.mode = 'hatching';
+					shopScene.selectedItemIndex = 0;
+					shopScene.currentPage = 0;
+				}
+			}, 100);
 		};
 		
 		const onNo = (engine) => {
+			if (!engine.encounteredPokemons) {
+				engine.encounteredPokemons = new Set();
+			}
+			engine.encounteredPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
+			SaveManager.saveGame(engine, false);
 			engine.sceneManager.popScene();
 			this.eggHatchingAnimation = null;
+			
+			setTimeout(() => {
+				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
+				const shopScene = engine.sceneManager.stack.find(
+					scene => scene.constructor.name === 'ShopScene'
+				);
+				if (shopScene) {
+					shopScene.mode = 'hatching';
+					shopScene.selectedItemIndex = 0;
+					shopScene.currentPage = 0;
+				}
+			}, 100);
 		};
 		
 		this.engine.sceneManager.pushScene('confirmMenu', {
