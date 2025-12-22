@@ -45,53 +45,67 @@ export default class ConfirmMenuScene {
 			renderer.drawImage(backgroundImage, 0, 0, renderer.width, renderer.height);
 		}
 
-		const messageX = 50;
-		const messageY = renderer.height - 100;
-		const messageFontSize = '24px';
+		const messageX = 100;
+		const messageY = renderer.height - 125;
+		const messageFontSize = '25px';
+		const maxWidth = renderer.width - 100;
 
 		renderer.ctx.save();
-		renderer.ctx.fillStyle = '#ffffff';
 		renderer.ctx.font = `${messageFontSize} Pokemon`;
 		renderer.ctx.textAlign = 'left';
-		renderer.ctx.fillText(this.message, messageX, messageY);
-		renderer.ctx.restore();
-
-		const optionStartX = renderer.width - 180;
-		const optionStartY = (renderer.height / 2) + 140;
-		const optionSpacing = 40;
-		const optionFontSize = '20px';
-
-		renderer.ctx.save();
-		renderer.ctx.fillStyle = this.selectedIndex === 0 ? '#ffff00' : '#ffffff';
-		renderer.ctx.font = `${optionFontSize} Pokemon`;
-		renderer.ctx.textAlign = 'left';
-		renderer.ctx.fillText('Oui', optionStartX, optionStartY);
-		renderer.ctx.restore();
-
-		if (this.selectedIndex === 0) {
-			renderer.ctx.save();
-			renderer.ctx.fillStyle = '#ffff00';
-			renderer.ctx.font = `${optionFontSize} Pokemon`;
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.fillText('>', optionStartX - 30, optionStartY);
-			renderer.ctx.restore();
+		renderer.ctx.textBaseline = 'top';
+		
+		const parts = this.message.split(':');
+		let currentX = messageX;
+		
+		if (parts.length >= 2) {
+			const beforeColon = parts[0];
+			const afterColon = parts.slice(1).join(':');
+			
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.fillText(beforeColon + ' ', currentX, messageY);
+			currentX += renderer.ctx.measureText(beforeColon + ' ').width;
+			
+			const values = afterColon.split(':');
+			if (values.length >= 2) {
+				renderer.ctx.fillStyle = '#ffff00';
+				renderer.ctx.fillText(values[0] + ' ', currentX, messageY);
+				currentX += renderer.ctx.measureText(values[0] + ' ').width;
+				
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.fillText('pour ', currentX, messageY);
+				currentX += renderer.ctx.measureText('pour ').width;
+				
+				renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
+				const priceText = values[1].trim();
+				renderer.ctx.fillText(priceText, currentX, messageY);
+			} else {
+				renderer.ctx.fillStyle = '#ffff00';
+				renderer.ctx.fillText(afterColon.trim(), currentX, messageY);
+			}
+		} else {
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.fillText(this.message, messageX, messageY);
 		}
-
-		renderer.ctx.save();
-		renderer.ctx.fillStyle = this.selectedIndex === 1 ? '#ffff00' : '#ffffff';
-		renderer.ctx.font = `${optionFontSize} Pokemon`;
-		renderer.ctx.textAlign = 'left';
-		renderer.ctx.fillText('Non', optionStartX, optionStartY + optionSpacing);
+		
 		renderer.ctx.restore();
 
-		if (this.selectedIndex === 1) {
-			renderer.ctx.save();
-			renderer.ctx.fillStyle = '#ffff00';
-			renderer.ctx.font = `${optionFontSize} Pokemon`;
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.fillText('>', optionStartX - 30, optionStartY + optionSpacing);
-			renderer.ctx.restore();
-		}
+		const choiceX = renderer.width - 220;
+		const choiceStartY = renderer.height - 330;
+		const choiceSpacing = 50;
+		const choiceFontSize = '24px';
+
+		const choices = ['Oui', 'Non'];
+
+		choices.forEach((choice, index) => {
+			const y = choiceStartY + index * choiceSpacing;
+			const color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
+			renderer.drawText(choice, choiceX, y, choiceFontSize, color, 'left');
+			
+			if (index === this.selectedIndex) {
+				renderer.drawText('>', choiceX - 40, y, choiceFontSize, color, 'left');
+			}
+		});
 	}
 }
 

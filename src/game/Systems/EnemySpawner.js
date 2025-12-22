@@ -13,10 +13,10 @@ export default class EnemySpawner {
 		this.collisionSystem = collisionSystem;
 		this.enemies = [];
 		this.spawnTimer = 0;
-		this.baseSpawnInterval = 2000;
+		this.baseSpawnInterval = 1000;
 		this.spawnInterval = this.baseSpawnInterval;
-		this.baseMaxEnemies = 530;
-		this.maxEnemies = this.baseMaxEnemies;
+		this.baseMaxEnemies = 9999999;
+		this.maxEnemies = 9999999;
 		this.enemyPool = MapEnemies[mapId] || [];
 		this.gameTime = 0;
 		this.spawnCount = 2;
@@ -166,12 +166,12 @@ export default class EnemySpawner {
 	calculateEnemyLevel() {
 		const timeMinutes = this.gameTime / 60000;
 		const baseLevel = 1;
-		const levelPerMinute = 0.8;
+		const levelPerMinute = 2.0;
 		const calculatedLevel = Math.floor(baseLevel + timeMinutes * levelPerMinute);
 		
 		const randomVariation = Math.random() < 0.3 ? Math.floor(Math.random() * 4) : 0;
 		
-		return Math.max(1, Math.min(30, calculatedLevel + randomVariation));
+		return Math.max(1, Math.min(100, calculatedLevel + randomVariation));
 	}
 
 	getRandomEnemyType() {

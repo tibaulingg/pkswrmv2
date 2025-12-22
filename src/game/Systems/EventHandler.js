@@ -20,26 +20,23 @@ export default class EventHandler {
 	}
 
 	openLeaveHubMenu() {
-		const leaveMenuConfig = {
-			title: 'Quitter le village ?',
-			style: 'center',
-			closeable: true,
-			options: [
-				{
-					label: 'Oui',
-					action: (engine) => {
-						engine.menuManager.closeMenu();
-						engine.sceneManager.changeScene('menu');
-					}
-				},
-				{
-					label: 'Non',
-					action: (engine) => {
-						engine.menuManager.closeMenu();
-					}
-				}
-			]
+		const message = 'Retour au menu principal ?';
+		
+		const onYes = (engine) => {
+			engine.sceneManager.changeScene('menu');
 		};
+		
+		const onNo = (engine) => {
+			engine.sceneManager.popScene();
+		};
+		
+		this.engine.sceneManager.pushScene('confirmMenu', {
+			message: message,
+			onYes: onYes,
+			onNo: onNo
+		});
+		
+		this.engine.audio.play('ok', 0.3, 0.1);
 	}
 
 	openMapSelection() {

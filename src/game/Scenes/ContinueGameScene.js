@@ -61,6 +61,11 @@ export default class ContinueGameScene {
 		if (continueGameImage) {
 			renderer.drawImage(continueGameImage, 0, 0, renderer.width, renderer.height);
 		}
+		
+		const continueMenuOverlay = this.engine.sprites.get('continue_menu_overlay');
+		if (continueMenuOverlay) {
+			renderer.drawImage(continueMenuOverlay, 0, 0, renderer.width, renderer.height);
+		}
 
 		if (this.saveData) {
 			const infoX = 50;
@@ -154,7 +159,7 @@ export default class ContinueGameScene {
 			const stars = RankManager.getRankStars(rank);
 			
 			renderer.ctx.fillStyle = rankColor;
-			const rankText = `Grade: ${rank}`;
+			const rankText = `${rank}`;
 			const rankTextWidth = renderer.ctx.measureText(rankText).width;
 			renderer.ctx.fillText(rankText, infoX, y);
 			
@@ -166,51 +171,32 @@ export default class ContinueGameScene {
 			renderer.ctx.restore();
 		}
 
-		const questionX = 50;
-		const questionY = renderer.height - 125;
+		const questionX = renderer.width / 2;
+		const questionY = renderer.height - 200;
 		const questionFontSize = '25px';
-		const questionMaxWidth = renderer.width - 400;
 
 		renderer.ctx.save();
 		renderer.ctx.fillStyle = '#ffffff';
 		renderer.ctx.font = `${questionFontSize} Pokemon`;
-		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textAlign = 'center';
 		renderer.ctx.textBaseline = 'top';
 		
-		const questionText = 'Voulez-vous reprendre la partie interrompue?';
-		const words = questionText.split(' ');
-		let line = '';
-		let y = questionY;
-		
-		words.forEach((word) => {
-			const testLine = line + word + ' ';
-			const metrics = renderer.ctx.measureText(testLine);
-			const testWidth = metrics.width;
-			
-			if (testWidth > questionMaxWidth && line !== '') {
-				renderer.ctx.fillText(line, questionX, y);
-				line = word + ' ';
-				y += 30;
-			} else {
-				line = testLine;
-			}
-		});
-		renderer.ctx.fillText(line, questionX, y);
+		renderer.ctx.fillText('Reprendre la partie', questionX, questionY);
 		renderer.ctx.restore();
 
-		const choiceX = renderer.width - 200;
-		const choiceStartY = renderer.height - 100;
-		const choiceSpacing = 40;
-		const choiceFontSize = '20px';
+		const choiceX = renderer.width / 2;
+		const choiceStartY = renderer.height - 150;
+		const choiceSpacing = 50;
+		const choiceFontSize = '24px';
 		const choices = ['Oui', 'Non'];
 
 		choices.forEach((choice, index) => {
 			const y = choiceStartY + index * choiceSpacing;
 			const color = index === this.selectedChoice ? '#ffff00' : '#ffffff';
-			renderer.drawText(choice, choiceX, y, choiceFontSize, color, 'left');
+			renderer.drawText(choice, choiceX, y, choiceFontSize, color, 'center');
 			
 			if (index === this.selectedChoice) {
-				renderer.drawText('>', choiceX - 20, y, choiceFontSize, color, 'left');
+				renderer.drawText('>', choiceX - 40, y, choiceFontSize, color, 'center');
 			}
 		});
 	}

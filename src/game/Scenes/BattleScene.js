@@ -19,6 +19,122 @@ import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '..
 
 const TILE_SIZE = 32;
 
+const BALANCE_CONFIG = {
+	XP: {
+		BASE_XP_PER_LEVEL: 5,
+		RANDOM_XP_PER_LEVEL: 5,
+	},
+	MONEY: {
+		BASE_MONEY_PER_LEVEL: 5,
+		RANDOM_MONEY_PER_LEVEL: 5,
+	},
+	LOOT: {
+		ITEM_DROP_OFFSET_MIN: 25,
+		ITEM_DROP_OFFSET_MAX: 15,
+		COIN_DROP_OFFSET_MIN: 25,
+		COIN_DROP_OFFSET_MAX: 15,
+	},
+	COMBAT: {
+		KNOCKBACK_PROJECTILE_MULTIPLIER: 0.5,
+		KNOCKBACK_BOSS_MULTIPLIER: 0.2,
+		KNOCKBACK_HYDROCANON_MULTIPLIER: 0.3,
+		EXPLOSION_PARTICLES_BASE: 15,
+		EXPLOSION_PARTICLES_AOE_DIVISOR: 2,
+		PROJECTILE_BOUNCE_SPEED_FALLBACK: 0.6,
+	},
+	PROJECTILES: {
+		BASE_SPEED_MULTIPLIER: 0.6,
+		BASE_SIZE: 8,
+		AOE_RADIUS_MULTIPLIER: 2,
+		BASE_RANGE: 600,
+		MAX_LIFETIME: 600,
+	},
+	SPELLS: {
+		HYDROCANON: {
+			ROTATION_SPEED: 1000,
+			DIRECTIONS_COUNT: 8,
+			PROJECTILE_COUNT: 3,
+			PROJECTILE_SPREAD: 0.15,
+			PROJECTILE_SPEED: 0.8,
+			PROJECTILE_SIZE_MIN: 12,
+			PROJECTILE_SIZE_MAX: 4,
+			DAMAGE_MULTIPLIER: 0.15,
+			PLAYER_SIZE_MULTIPLIER: 0.4,
+			PLAYER_OFFSET_FALLBACK: 30,
+		},
+		CIRCULAR_SWEEP: {
+			STRIKES_DEFAULT: 2,
+			STRIKE_DELAY_DEFAULT: 150,
+			FORWARD_OFFSET_DEFAULT: 80,
+			BASE_RADIUS_DEFAULT: 100,
+			DURATION: 300,
+			SWEEP_ANGLE: Math.PI,
+			TRAIL_LENGTH_MULTIPLIER: 0.3,
+		},
+	},
+	ANIMATIONS: {
+		UPGRADE_MENU_DURATION: 600,
+		UPGRADE_PRESS_ANIMATION: 100,
+		CONSUMABLE_PRESS_ANIMATION: 200,
+		DEATH_ZOOM_START: 1.5,
+		DEATH_ZOOM_END: 3.0,
+		HIT_FLASH_DURATION: 150,
+		HIT_FLASH_ALPHA_MAX: 0.4,
+	},
+	CAMERA: {
+		WIDTH: 1920,
+		HEIGHT: 1080,
+		ZOOM: 1.25,
+		SHAKE_INTENSITY_HIT: 20,
+		SHAKE_DURATION_HIT: 30,
+		SHAKE_INTENSITY_EARTHQUAKE: 15,
+		SHAKE_DURATION_EARTHQUAKE: 100,
+	},
+	AUDIO: {
+		ORB_VOLUME: 0.05,
+		ORB_PITCH: 0.3,
+		ORB_PITCH_LEVELUP: 0.35,
+		COINS_VOLUME: 0.5,
+		COINS_PITCH: 0.2,
+		HIT_VOLUME: 0.2,
+		HIT_PITCH: 0.2,
+		HIT_VOLUME_PLAYER: 0.3,
+		HIT_PITCH_PLAYER: 0.3,
+		OK_VOLUME: 0.3,
+		OK_PITCH: 0.2,
+		HYDROCANON_VOLUME: 0.3,
+		HYDROCANON_PITCH: 0.2,
+		EARTHQUAKE_VOLUME: 0.5,
+		EARTHQUAKE_PITCH: 0.2,
+		MUSIC_VOLUME_UPGRADE_MULTIPLIER: 0.5,
+		DEFEAT_MUSIC_VOLUME: 0.7,
+	},
+	UI: {
+		UPGRADE_CHOICES_COUNT: 3,
+		MINIMAP_SIZE: 180,
+		MINIMAP_PADDING: 5,
+		MINIMAP_OFFSET_X: 10,
+		MINIMAP_OFFSET_Y: 10,
+		PLAYER_MARKER_SIZE: 4,
+		ENEMY_MARKER_SIZE: 2,
+		DAMAGE_NUMBER_OFFSET_Y: -30,
+	},
+	VISUAL: {
+		DEBUG_GRID_COLOR: 'rgba(100, 100, 255, 0.3)',
+		DEBUG_GRID_LINE_WIDTH: 1,
+		MAP_BACKGROUND_COLOR: '#2a2a3e',
+		MINIMAP_BACKGROUND_COLOR: 'rgba(20, 20, 30, 0.85)',
+		MINIMAP_BORDER_COLOR: 'rgba(100, 100, 120, 0.8)',
+		MINIMAP_BORDER_WIDTH: 2,
+		PLAYER_MARKER_COLOR: '#4af626',
+		ENEMY_MARKER_COLOR: '#ff4444',
+		BOSS_MARKER_COLOR: '#ff0000',
+		BOSS_MARKER_FONT_SIZE: 18,
+		XP_ORB_COLOR: '#87CEEB',
+		XP_ORB_SIZE: 2,
+	},
+};
+
 export default class BattleScene {
 	constructor(engine) {
 		this.engine = engine;
@@ -44,7 +160,7 @@ export default class BattleScene {
 		this.upgradeChoices = null;
 		this.selectedUpgradeIndex = 0;
 		this.upgradeAnimationProgress = 0;
-		this.upgradeAnimationDuration = 600;
+		this.upgradeAnimationDuration = BALANCE_CONFIG.ANIMATIONS.UPGRADE_MENU_DURATION;
 		this.upgradePressAnimation = 0;
 		this.wasEnterPressed = false;
 		this.isEnterHeld = false;
@@ -52,8 +168,8 @@ export default class BattleScene {
 		this.originalMusicVolume = null;
 		this.playerDying = false;
 		this.deathAnimationComplete = false;
-		this.deathZoomStart = 1.5;
-		this.deathZoomEnd = 3.0;
+		this.deathZoomStart = BALANCE_CONFIG.ANIMATIONS.DEATH_ZOOM_START;
+		this.deathZoomEnd = BALANCE_CONFIG.ANIMATIONS.DEATH_ZOOM_END;
 		this.deathZoomProgress = 0;
 		this.killerEnemy = null;
 		this.collisionSystem = null;
@@ -68,7 +184,7 @@ export default class BattleScene {
 			this.playerDying = false;
 			this.deathAnimationComplete = false;
 			this.deathZoomProgress = 0;
-		this.killerEnemy = null;
+			this.killerEnemy = null;
 			
 			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
 			const pokemonConfig = getPokemonConfig(selectedPokemon);
@@ -91,6 +207,15 @@ export default class BattleScene {
 			this.player.money = this.engine.money;
 			this.player.displayedMoney = this.engine.displayedMoney;
 	
+			if (this.engine.equippedItems) {
+				this.engine.equippedItems.forEach(uniqueId => {
+					const baseItemId = uniqueId.split('_')[0];
+					const itemConfig = ItemConfig[baseItemId];
+					if (itemConfig) {
+						this.player.applyEquippedItem(baseItemId, itemConfig);
+					}
+				});
+			}
 			
 			if (selectedPokemon) {
 				this.engine.playedPokemons.add(selectedPokemon);
@@ -102,7 +227,7 @@ export default class BattleScene {
 			this.debugCollisions = false;
 			
 			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine, this.collisionSystem);
-			this.camera = new Camera(1280, 720, this.mapWidth, this.mapHeight, 1.25);
+			this.camera = new Camera(BALANCE_CONFIG.CAMERA.WIDTH, BALANCE_CONFIG.CAMERA.HEIGHT, this.mapWidth, this.mapHeight, BALANCE_CONFIG.CAMERA.ZOOM);
 			this.projectiles = [];
 			this.enemyProjectiles = [];
 			this.particleSystem.clear();
@@ -203,6 +328,9 @@ export default class BattleScene {
 		if ((key === 'Digit3' || key === 'Numpad3') && !this.upgradeChoices) {
 			this.castPlayerSpell(2);
 		}
+		if (key === 'KeyF' && !this.upgradeChoices) {
+			this.useAssignedConsumable();
+		}
 
 		if (this.player && this.player.isAlive) {
 			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
@@ -293,12 +421,12 @@ export default class BattleScene {
 		const enemyCenterX = enemy.getCenterX();
 		const enemyCenterY = enemy.getCenterY();
 		
-		this.particleSystem.createExplosion(enemyCenterX, enemyCenterY, enemy.particleColor, 15);
+		this.particleSystem.createExplosion(enemyCenterX, enemyCenterY, enemy.particleColor, BALANCE_CONFIG.COMBAT.EXPLOSION_PARTICLES_BASE);
 		
-		const xpReward = enemy.level * (10 + Math.floor(Math.random() * 10));
+		const xpReward = enemy.level * (BALANCE_CONFIG.XP.BASE_XP_PER_LEVEL + Math.floor(Math.random() * BALANCE_CONFIG.XP.RANDOM_XP_PER_LEVEL));
 		this.xpOrbSystem.spawnOrb(enemyCenterX, enemyCenterY, xpReward);
 		if (Math.random() < COIN_DROP_CHANCE && this.coinSystem) {
-			const moneyReward = enemy.level * (5 + Math.floor(Math.random() * 5));
+			const moneyReward = enemy.level * (BALANCE_CONFIG.MONEY.BASE_MONEY_PER_LEVEL + Math.floor(Math.random() * BALANCE_CONFIG.MONEY.RANDOM_MONEY_PER_LEVEL));
 			this.spawnRegularCoin(enemyCenterX, enemyCenterY, moneyReward);
 		}
 
@@ -312,9 +440,34 @@ export default class BattleScene {
 			this.dropLootFromPokemon(enemyCenterX, enemyCenterY, pokemonName);
 		}
 
+		if (this.engine.incubatingEgg) {
+			if (this.engine.incubatingEgg.currentKills < this.engine.incubatingEgg.requiredKills) {
+				this.engine.incubatingEgg.currentKills++;
+			}
+		}
+
 		if (enemy.isBoss) {
 			this.showVictoryScreen();
 		}
+	}
+
+	hatchEgg(egg) {
+		if (!egg.possiblePokemon || egg.possiblePokemon.length === 0) return;
+		
+		const randomIndex = Math.floor(Math.random() * egg.possiblePokemon.length);
+		const hatchedPokemon = egg.possiblePokemon[randomIndex];
+		
+		if (!this.engine.encounteredPokemons) {
+			this.engine.encounteredPokemons = new Set();
+		}
+		if (!this.engine.playedPokemons) {
+			this.engine.playedPokemons = new Set();
+		}
+		
+		this.engine.encounteredPokemons.add(hatchedPokemon);
+		this.engine.playedPokemons.add(hatchedPokemon);
+		
+		this.engine.audio.play('ok', 0.5, 0.2);
 	}
 
 	dropLootFromPokemon(x, y, pokemonName) {
@@ -327,7 +480,7 @@ export default class BattleScene {
 				if (itemConfig) {
 					const itemImage = this.engine.sprites.get(`item_${loot.itemId}`);
 					const offsetAngle = Math.random() * Math.PI * 2;
-					const offsetDistance = 25 + Math.random() * 15;
+					const offsetDistance = BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MAX;
 					const itemX = x + Math.cos(offsetAngle) * offsetDistance;
 					const itemY = y + Math.sin(offsetAngle) * offsetDistance;
 					const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
@@ -339,7 +492,7 @@ export default class BattleScene {
 
 	spawnRegularCoin(centerX, centerY, reward) {
 		const coinOffsetAngle = Math.random() * Math.PI * 2;
-		const coinOffsetDistance = 25 + Math.random() * 15;
+		const coinOffsetDistance = BALANCE_CONFIG.LOOT.COIN_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.COIN_DROP_OFFSET_MAX;
 		const coinX = centerX + Math.cos(coinOffsetAngle) * coinOffsetDistance;
 		const coinY = centerY + Math.sin(coinOffsetAngle) * coinOffsetDistance;
 		this.coinSystem.spawnCoin(coinX, coinY, reward);
@@ -383,11 +536,11 @@ export default class BattleScene {
 			projectile.update(deltaTime, this.collisionSystem);
 			
 			if (projectile.collidesWith(this.player.getHitboxX(), this.player.getHitboxY(), this.player.width, this.player.height)) {
-				this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, projectile.damage, true);
+				this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, projectile.damage, true);
 				if (this.camera) {
-					this.camera.shake(20, 30);
+					this.camera.shake(BALANCE_CONFIG.CAMERA.SHAKE_INTENSITY_HIT, BALANCE_CONFIG.CAMERA.SHAKE_DURATION_HIT);
 				}
-				this.engine.audio.play('hit', 0.3, 0.3);
+				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME_PLAYER, BALANCE_CONFIG.AUDIO.HIT_PITCH_PLAYER);
 				const killerEnemy = this.findEnemyByProjectile(projectile);
 				if (killerEnemy) {
 					this.killerEnemy = killerEnemy;
@@ -409,14 +562,14 @@ export default class BattleScene {
 		
 		const collectedXP = this.xpOrbSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange);
 		if (collectedXP > 0) {
-			this.engine.audio.play('orb', 0.05, 0.3);
+			this.engine.audio.play('orb', BALANCE_CONFIG.AUDIO.ORB_VOLUME, BALANCE_CONFIG.AUDIO.ORB_PITCH);
 			this.giveXP(collectedXP);
 		}
 
 		if (this.coinSystem) {
 			const collectedCoins = this.coinSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange);
 			if (collectedCoins > 0) {
-				this.engine.audio.play('coins', 0.5, 0.2);
+				this.engine.audio.play('coins', BALANCE_CONFIG.AUDIO.COINS_VOLUME, BALANCE_CONFIG.AUDIO.COINS_PITCH);
 				const multipliedAmount = collectedCoins * this.player.moneyGainMultiplier;
 				this.player.addMoney(multipliedAmount);
 				this.engine.money = this.player.money;
@@ -424,14 +577,22 @@ export default class BattleScene {
 			}
 		}
 
-		const collectedItems = this.itemDropSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange);
+		const collectedItems = this.itemDropSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange, this.engine.inventory);
 		if (collectedItems.length > 0) {
 			collectedItems.forEach(itemId => {
-				if (!this.engine.inventory[itemId]) {
-					this.engine.inventory[itemId] = 0;
+				const itemConfig = ItemConfig[itemId];
+				if (itemConfig && itemConfig.category === 'equipable') {
+					if (!this.engine.inventory[itemId]) {
+						this.engine.inventory[itemId] = 0;
+					}
+					this.engine.inventory[itemId]++;
+				} else {
+					if (!this.engine.inventory[itemId]) {
+						this.engine.inventory[itemId] = 0;
+					}
+					this.engine.inventory[itemId]++;
 				}
-				this.engine.inventory[itemId]++;
-				this.engine.audio.play('ok', 0.3, 0.2);
+				this.engine.audio.play('ok', BALANCE_CONFIG.AUDIO.OK_VOLUME, BALANCE_CONFIG.AUDIO.OK_PITCH);
 			});
 		}
 	}
@@ -457,7 +618,7 @@ export default class BattleScene {
 							attackData.targetY,
 							attackData.damage,
 							attackData.speed,
-							600,
+							BALANCE_CONFIG.PROJECTILES.MAX_LIFETIME,
 							attackData.color,
 							attackData.size,
 							0,
@@ -476,11 +637,11 @@ export default class BattleScene {
 						const attackData = enemy.attack();
 						if (attackData && attackData.type === 'melee') {
 							this.killerEnemy = enemy;
-							this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() - 30, attackData.damage, true);
+							this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, attackData.damage, true);
 							if (this.camera) {
-								this.camera.shake(20, 30);
+								this.camera.shake(BALANCE_CONFIG.CAMERA.SHAKE_INTENSITY_HIT, BALANCE_CONFIG.CAMERA.SHAKE_DURATION_HIT);
 							}
-							this.engine.audio.play('hit', 0.3, 0.3);
+							this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME_PLAYER, BALANCE_CONFIG.AUDIO.HIT_PITCH_PLAYER);
 							const died = this.player.takeDamage(attackData.damage);
 							if (died) {
 								this.startDeathAnimation();
@@ -526,12 +687,12 @@ export default class BattleScene {
 				}
 				
 				const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, directHitEnemy.getCenterX(), directHitEnemy.getCenterY());
-				const knockbackStrength = this.player.knockback * 0.5 * (directHitEnemy.isBoss ? 0.2 : 1);
+				const knockbackStrength = this.player.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_PROJECTILE_MULTIPLIER * (directHitEnemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1);
 				const knockbackX = knockbackDir.x * knockbackStrength;
 				const knockbackY = knockbackDir.y * knockbackStrength;
 				
-				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() - 30, projectile.damage, false, projectile.isCrit);
-				this.engine.audio.play('hit', 0.2, 0.2);
+				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, projectile.damage, false, projectile.isCrit);
+				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 				const died = directHitEnemy.takeDamage(projectile.damage, knockbackX, knockbackY, projectile.isCrit);
 				
 				this.applyLifeSteal(projectile.damage);
@@ -545,7 +706,7 @@ export default class BattleScene {
 				}
 				
 				if (!projectile.exploded) {
-					const explosionCount = projectile.hasAoE ? Math.floor(projectile.aoeRadius / 2) : 15;
+					const explosionCount = projectile.hasAoE ? Math.floor(projectile.aoeRadius / BALANCE_CONFIG.COMBAT.EXPLOSION_PARTICLES_AOE_DIVISOR) : BALANCE_CONFIG.COMBAT.EXPLOSION_PARTICLES_BASE;
 					this.particleSystem.createExplosion(projectile.x, projectile.y, projectile.color, explosionCount, projectile.type);
 					projectile.exploded = true;
 					
@@ -558,14 +719,14 @@ export default class BattleScene {
 						
 						if (distance <= projectile.aoeRadius) {
 					const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, enemy.getCenterX(), enemy.getCenterY());
-					const knockbackStrength = this.player.knockback * 0.5 * (enemy.isBoss ? 0.2 : 1);
+					const knockbackStrength = this.player.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_PROJECTILE_MULTIPLIER * (enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1);
 					const knockbackX = knockbackDir.x * knockbackStrength;
 					const knockbackY = knockbackDir.y * knockbackStrength;
 					
 							const damageToDeal = projectile.damage * this.player.aoeDamageMultiplier;
 							
-							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, damageToDeal, false, projectile.isCrit);
-					this.engine.audio.play('hit', 0.2, 0.2);
+							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, projectile.isCrit);
+					this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
 					
 							this.applyLifeSteal(damageToDeal);
@@ -625,8 +786,8 @@ export default class BattleScene {
 							projectile.currentBounces++;
 							const currentSpeed = Math.sqrt(projectile.velocityX * projectile.velocityX + projectile.velocityY * projectile.velocityY);
 							if (currentSpeed <= 0) {
-								projectile.velocityX = projectile.directionX * 0.6;
-								projectile.velocityY = projectile.directionY * 0.6;
+								projectile.velocityX = projectile.directionX * BALANCE_CONFIG.COMBAT.PROJECTILE_BOUNCE_SPEED_FALLBACK;
+								projectile.velocityY = projectile.directionY * BALANCE_CONFIG.COMBAT.PROJECTILE_BOUNCE_SPEED_FALLBACK;
 							}
 						}
 					} else {
@@ -654,19 +815,19 @@ export default class BattleScene {
 
 			hasActiveHydrocanon = true;
 
-			effect.rotationAngle += (Math.PI * 2 * deltaTime) / 1000;
+			effect.rotationAngle += (Math.PI * 2 * deltaTime) / BALANCE_CONFIG.SPELLS.HYDROCANON.ROTATION_SPEED;
 			if (effect.rotationAngle >= Math.PI * 2) {
 				effect.rotationAngle -= Math.PI * 2;
 			}
 
-			const directionIndex = Math.floor((effect.rotationAngle / (Math.PI * 2)) * 8) % 8;
+			const directionIndex = Math.floor((effect.rotationAngle / (Math.PI * 2)) * BALANCE_CONFIG.SPELLS.HYDROCANON.DIRECTIONS_COUNT) % BALANCE_CONFIG.SPELLS.HYDROCANON.DIRECTIONS_COUNT;
 			const directions = ['down', 'downRight', 'right', 'upRight', 'up', 'upLeft', 'left', 'downLeft'];
 			const currentDirection = directions[directionIndex];
 			this.player.forcedDirection = currentDirection;
 
 			effect.playerX = this.player.getCenterX();
 			effect.playerY = this.player.getCenterY();
-			effect.playerSize = Math.max(this.player.spriteWidth, this.player.spriteHeight) * 0.4;
+			effect.playerSize = Math.max(this.player.spriteWidth, this.player.spriteHeight) * BALANCE_CONFIG.SPELLS.HYDROCANON.PLAYER_SIZE_MULTIPLIER;
 
 			const directionAngles = {
 				'down': Math.PI / 2,
@@ -683,7 +844,7 @@ export default class BattleScene {
 			const currentDirX = Math.cos(baseAngle);
 			const currentDirY = Math.sin(baseAngle);
 
-			const playerOffset = effect.playerSize || 30;
+			const playerOffset = effect.playerSize || BALANCE_CONFIG.SPELLS.HYDROCANON.PLAYER_OFFSET_FALLBACK;
 			const spawnX = effect.playerX + currentDirX * playerOffset;
 			const spawnY = effect.playerY + currentDirY * playerOffset;
 
@@ -691,12 +852,12 @@ export default class BattleScene {
 			if (now - effect.lastProjectileTime >= effect.projectileInterval) {
 				const spellConfig = Spells[effect.spellId || 'hydrocanon'];
 				if (spellConfig && spellConfig.waveSoundEnabled) {
-					this.engine.audio.play('hydrocanon', 0.3, 0.2);
+					this.engine.audio.play('hydrocanon', BALANCE_CONFIG.AUDIO.HYDROCANON_VOLUME, BALANCE_CONFIG.AUDIO.HYDROCANON_PITCH);
 				}
 				
-				const projectileCount = 3;
+				const projectileCount = BALANCE_CONFIG.SPELLS.HYDROCANON.PROJECTILE_COUNT;
 				for (let i = 0; i < projectileCount; i++) {
-					const spread = (i - (projectileCount - 1) / 2) * 0.15;
+					const spread = (i - (projectileCount - 1) / 2) * BALANCE_CONFIG.SPELLS.HYDROCANON.PROJECTILE_SPREAD;
 					const angle = baseAngle + spread;
 					const dirX = Math.cos(angle);
 					const dirY = Math.sin(angle);
@@ -706,12 +867,12 @@ export default class BattleScene {
 						y: spawnY,
 						dirX: dirX,
 						dirY: dirY,
-						speed: 0.8,
-						size: 12 + Math.random() * 4,
+						speed: BALANCE_CONFIG.SPELLS.HYDROCANON.PROJECTILE_SPEED,
+						size: BALANCE_CONFIG.SPELLS.HYDROCANON.PROJECTILE_SIZE_MIN + Math.random() * BALANCE_CONFIG.SPELLS.HYDROCANON.PROJECTILE_SIZE_MAX,
 						maxDistance: effect.radius,
 						traveledDistance: 0,
 						active: true,
-						damage: effect.damage * 0.15
+						damage: effect.damage * BALANCE_CONFIG.SPELLS.HYDROCANON.DAMAGE_MULTIPLIER
 					};
 					
 					if (!effect.waterProjectiles) {
@@ -756,17 +917,17 @@ export default class BattleScene {
 
 							this.damageNumberSystem.addDamage(
 								enemy.getCenterX(),
-								enemy.getCenterY() - 30,
+								enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y,
 								finalDamage,
 								false,
 								damageCalc.isCrit
 							);
 
-							const knockbackMultiplier = enemy.isBoss ? 0.2 : 1;
-							const knockbackX = projectile.dirX * effect.knockback * 0.3 * knockbackMultiplier;
-							const knockbackY = projectile.dirY * effect.knockback * 0.3 * knockbackMultiplier;
+							const knockbackMultiplier = enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1;
+							const knockbackX = projectile.dirX * effect.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_HYDROCANON_MULTIPLIER * knockbackMultiplier;
+							const knockbackY = projectile.dirY * effect.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_HYDROCANON_MULTIPLIER * knockbackMultiplier;
 
-							this.engine.audio.play('hit', 0.2, 0.2);
+							this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 							const died = enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
 							this.applyLifeSteal(finalDamage);
@@ -842,7 +1003,7 @@ export default class BattleScene {
 
 						this.damageNumberSystem.addDamage(
 							enemy.getCenterX(),
-							enemy.getCenterY() - 30,
+							enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y,
 							finalDamage,
 							false,
 							damageCalc.isCrit
@@ -851,11 +1012,11 @@ export default class BattleScene {
 						const rockCenterX = rock.x + rock.width / 2;
 						const rockCenterY = rock.y + rock.height / 2;
 						const knockbackDir = this.calculateKnockbackDirection(rockCenterX, rockCenterY, enemy.getCenterX(), enemy.getCenterY());
-						const knockbackMultiplier = enemy.isBoss ? 0.2 : 1;
+						const knockbackMultiplier = enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1;
 						const knockbackX = knockbackDir.x * effect.knockback * knockbackMultiplier;
 						const knockbackY = knockbackDir.y * effect.knockback * knockbackMultiplier;
 
-						this.engine.audio.play('hit', 0.2, 0.2);
+						this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 						const died = enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
 						this.applyLifeSteal(finalDamage);
@@ -884,15 +1045,15 @@ export default class BattleScene {
 		const leveledUp = this.player.addXP(multipliedAmount);
 
 		
-		this.engine.audio.play('orb', 0.05, 0.35);
+		this.engine.audio.play('orb', BALANCE_CONFIG.AUDIO.ORB_VOLUME, BALANCE_CONFIG.AUDIO.ORB_PITCH_LEVELUP);
 
 		if (leveledUp) {
-			this.upgradeChoices = getRandomUpgrades(3, this.player.upgrades, this.player);
+			this.upgradeChoices = getRandomUpgrades(BALANCE_CONFIG.UI.UPGRADE_CHOICES_COUNT, this.player.upgrades, this.player);
 			this.selectedUpgradeIndex = 0;
 			this.upgradeAnimationProgress = 0;
 			if (this.originalMusicVolume === null) {
 				this.originalMusicVolume = this.engine.audio.musicVolume;
-				this.engine.audio.setMusicVolume(this.originalMusicVolume * 0.5);
+				this.engine.audio.setMusicVolume(this.originalMusicVolume * BALANCE_CONFIG.AUDIO.MUSIC_VOLUME_UPGRADE_MULTIPLIER);
 			}
 		}
 	}
@@ -913,8 +1074,8 @@ export default class BattleScene {
 		} else {
 			if (this.wasEnterPressed && !isEnterPressed) {
 			if (this.upgradeAnimationProgress >= this.upgradeAnimationDuration) {
-					this.engine.audio.play('ok', 0.3, 0.2);
-					this.upgradePressAnimation = 100;
+					this.engine.audio.play('ok', BALANCE_CONFIG.AUDIO.OK_VOLUME, BALANCE_CONFIG.AUDIO.OK_PITCH);
+					this.upgradePressAnimation = BALANCE_CONFIG.ANIMATIONS.UPGRADE_PRESS_ANIMATION;
 				const selectedUpgrade = this.upgradeChoices[this.selectedUpgradeIndex];
 				this.player.applyUpgrade(selectedUpgrade);
 				this.upgradeChoices = null;
@@ -932,6 +1093,37 @@ export default class BattleScene {
 		}
 	}
 
+	useAssignedConsumable() {
+		if (!this.engine.assignedConsumable) return;
+		
+		const itemId = this.engine.assignedConsumable;
+		const itemConfig = ItemConfig[itemId];
+		
+		if (!itemConfig || !itemConfig.effect) return;
+		
+		const currentQuantity = this.engine.inventory[itemId] || 0;
+		if (currentQuantity <= 0) return;
+		
+		if (itemConfig.effect.type === 'heal') {
+			if (this.player.hp >= this.player.maxHp) return;
+			
+			const healAmount = itemConfig.effect.value;
+			this.player.hp = Math.min(this.player.hp + healAmount, this.player.maxHp);
+			this.player.displayedHp = this.player.hp;
+			
+			const newQuantity = currentQuantity - 1;
+			if (newQuantity <= 0) {
+				delete this.engine.inventory[itemId];
+				this.engine.assignedConsumable = null;
+			} else {
+				this.engine.inventory[itemId] = newQuantity;
+			}
+			
+			this.player.consumablePressAnimation = BALANCE_CONFIG.ANIMATIONS.CONSUMABLE_PRESS_ANIMATION;
+			this.engine.audio.play('ok', BALANCE_CONFIG.AUDIO.OK_VOLUME, BALANCE_CONFIG.AUDIO.OK_PITCH);
+		}
+	}
+
 	handleMeleeAttack(attackData) {
 		if (!this.enemySpawner) return;
 
@@ -945,12 +1137,12 @@ export default class BattleScene {
 
 			if (distance <= attackData.range) {
 				const knockbackDir = this.calculateKnockbackDirection(attackData.x, attackData.y, enemyCenterX, enemyCenterY);
-				const knockbackMultiplier = enemy.isBoss ? 0.2 : 1;
+				const knockbackMultiplier = enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1;
 				const knockbackX = knockbackDir.x * attackData.knockback * knockbackMultiplier;
 				const knockbackY = knockbackDir.y * attackData.knockback * knockbackMultiplier;
 				
-				this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, attackData.damage, false, attackData.isCrit);
-				this.engine.audio.play('hit', 0.2, 0.2);
+				this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, attackData.damage, false, attackData.isCrit);
+				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 				const died = enemy.takeDamage(attackData.damage, knockbackX, knockbackY, attackData.isCrit);
 				
 				this.applyLifeSteal(attackData.damage);
@@ -1003,7 +1195,7 @@ export default class BattleScene {
 		
 		let aoeRadius = 0;
 		if (this.player.hasAoE) {
-			aoeRadius = (attackData.projectileSize || 8) * 6 * this.player.aoeRadiusMultiplier;
+			aoeRadius = (attackData.projectileSize || BALANCE_CONFIG.PROJECTILES.BASE_SIZE) * BALANCE_CONFIG.PROJECTILES.AOE_RADIUS_MULTIPLIER * this.player.aoeRadiusMultiplier;
 		}
 		
 		const projectile = new Projectile(
@@ -1012,10 +1204,10 @@ export default class BattleScene {
 			targetX,
 			targetY,
 			attackData.damage,
-			0.6 * (attackData.projectileSpeed || 1),
+			BALANCE_CONFIG.PROJECTILES.BASE_SPEED_MULTIPLIER * (attackData.projectileSpeed || 1),
 			this.player.range,
 			attackData.projectileColor || '#ffff00',
-			attackData.projectileSize || 8,
+			attackData.projectileSize || BALANCE_CONFIG.PROJECTILES.BASE_SIZE,
 			playerVelX,
 			playerVelY,
 			attackData.isCrit || false,
@@ -1025,7 +1217,7 @@ export default class BattleScene {
 			attackData.hasBounce || false,
 			attackData.bounceCount || 0,
 			this.player.piercingCount || 0,
-			this.player.bounceRange || 600,
+			this.player.bounceRange || BALANCE_CONFIG.PROJECTILES.BASE_RANGE,
 			attackData.projectileType || 'normal'
 		);
 		this.projectiles.push(projectile);
@@ -1035,10 +1227,10 @@ export default class BattleScene {
 		if (!this.enemySpawner || !attackData.spellConfig) return;
 
 		const config = attackData.spellConfig;
-		const strikes = config.strikes || 2;
-		const strikeDelay = config.strikeDelay || 150;
-		const forwardOffset = config.forwardOffset || 80;
-		const radius = config.baseRadius || 100;
+		const strikes = config.strikes || BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.STRIKES_DEFAULT;
+		const strikeDelay = config.strikeDelay || BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.STRIKE_DELAY_DEFAULT;
+		const forwardOffset = config.forwardOffset || BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.FORWARD_OFFSET_DEFAULT;
+		const radius = config.baseRadius || BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.BASE_RADIUS_DEFAULT;
 
 		const angle = Math.atan2(attackData.directionY, attackData.directionX);
 
@@ -1055,7 +1247,7 @@ export default class BattleScene {
 				isCrit: attackData.isCrit,
 				knockback: attackData.knockback,
 				startTime: Date.now() + (i * strikeDelay),
-				duration: 300,
+				duration: BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.DURATION,
 				hasHit: new Set(),
 				playerX: attackData.playerX,
 				playerY: attackData.playerY
@@ -1117,12 +1309,12 @@ export default class BattleScene {
 					if (isInSector) {
 						strike.hasHit.add(enemy);
 						const knockbackDir = this.calculateKnockbackDirection(strike.x, strike.y, enemyCenterX, enemyCenterY);
-						const knockbackMultiplier = enemy.isBoss ? 0.2 : 1;
+						const knockbackMultiplier = enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1;
 						const knockbackX = knockbackDir.x * strike.knockback * knockbackMultiplier;
 						const knockbackY = knockbackDir.y * strike.knockback * knockbackMultiplier;
 						
-						this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() - 30, strike.damage, false, strike.isCrit);
-						this.engine.audio.play('hit', 0.2, 0.2);
+						this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, strike.damage, false, strike.isCrit);
+						this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 						const died = enemy.takeDamage(strike.damage, knockbackX, knockbackY, strike.isCrit);
 						
 						this.applyLifeSteal(strike.damage);
@@ -1144,7 +1336,7 @@ export default class BattleScene {
 			if (elapsed < 0 || elapsed >= strike.duration) return;
 
 			const progress = elapsed / strike.duration;
-			const sweepAngle = Math.PI;
+			const sweepAngle = BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.SWEEP_ANGLE;
 			const startAngle = strike.angle - sweepAngle / 2;
 			const currentAngle = startAngle + sweepAngle * progress;
 			const bladeLength = strike.radius;
@@ -1181,7 +1373,7 @@ export default class BattleScene {
 			renderer.ctx.lineTo(bladeEndX, bladeEndY);
 			renderer.ctx.stroke();
 			
-			const trailLength = bladeLength * 0.3;
+			const trailLength = bladeLength * BALANCE_CONFIG.SPELLS.CIRCULAR_SWEEP.TRAIL_LENGTH_MULTIPLIER;
 			const trailStartX = bladeEndX - Math.cos(currentAngle) * trailLength;
 			const trailStartY = bladeEndY - Math.sin(currentAngle) * trailLength;
 			
@@ -1255,13 +1447,13 @@ export default class BattleScene {
 		if (this.mapBackground) {
 			renderer.ctx.drawImage(this.mapBackground, 0, 0);
 		} else {
-			renderer.drawRect(0, 0, this.mapWidth, this.mapHeight, '#2a2a3e');
+			renderer.drawRect(0, 0, this.mapWidth, this.mapHeight, BALANCE_CONFIG.VISUAL.MAP_BACKGROUND_COLOR);
 		}
 
 		if (this.collisionSystem && this.debugCollisions) {
 			renderer.ctx.save();
-			renderer.ctx.strokeStyle = 'rgba(100, 100, 255, 0.3)';
-			renderer.ctx.lineWidth = 1;
+			renderer.ctx.strokeStyle = BALANCE_CONFIG.VISUAL.DEBUG_GRID_COLOR;
+			renderer.ctx.lineWidth = BALANCE_CONFIG.VISUAL.DEBUG_GRID_LINE_WIDTH;
 			for (let x = 0; x <= this.mapWidth; x += TILE_SIZE) {
 				renderer.ctx.beginPath();
 				renderer.ctx.moveTo(x, 0);
@@ -1337,7 +1529,7 @@ export default class BattleScene {
 		}
 
 		if (this.player && this.player.hitFlashTime > 0) {
-			const alpha = Math.min(this.player.hitFlashTime / 150, 0.4);
+			const alpha = Math.min(this.player.hitFlashTime / BALANCE_CONFIG.ANIMATIONS.HIT_FLASH_DURATION, BALANCE_CONFIG.ANIMATIONS.HIT_FLASH_ALPHA_MAX);
 			renderer.ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
 			renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
 		}
@@ -1355,18 +1547,18 @@ export default class BattleScene {
 	}
 
 	renderMinimap(renderer) {
-		const minimapSize = 120;
-		const minimapX = renderer.width - minimapSize - 10;
-		const minimapY = 10;
-		const minimapPadding = 5;
+		const minimapSize = BALANCE_CONFIG.UI.MINIMAP_SIZE;
+		const minimapX = renderer.width - minimapSize - BALANCE_CONFIG.UI.MINIMAP_OFFSET_X;
+		const minimapY = BALANCE_CONFIG.UI.MINIMAP_OFFSET_Y;
+		const minimapPadding = BALANCE_CONFIG.UI.MINIMAP_PADDING;
 
 		renderer.ctx.save();
 
 		const minimapYWithTitle = minimapY;
-		renderer.ctx.fillStyle = 'rgba(20, 20, 30, 0.85)';
+		renderer.ctx.fillStyle = BALANCE_CONFIG.VISUAL.MINIMAP_BACKGROUND_COLOR;
 		renderer.ctx.fillRect(minimapX, minimapYWithTitle, minimapSize, minimapSize);
-		renderer.ctx.strokeStyle = 'rgba(100, 100, 120, 0.8)';
-		renderer.ctx.lineWidth = 2;
+		renderer.ctx.strokeStyle = BALANCE_CONFIG.VISUAL.MINIMAP_BORDER_COLOR;
+		renderer.ctx.lineWidth = BALANCE_CONFIG.VISUAL.MINIMAP_BORDER_WIDTH;
 		renderer.ctx.strokeRect(minimapX, minimapYWithTitle, minimapSize, minimapSize);
 
 		const mapScale = (minimapSize - minimapPadding * 2) / Math.max(this.mapWidth, this.mapHeight);
@@ -1403,9 +1595,9 @@ export default class BattleScene {
 			const playerMinimapX = minimapX + minimapPadding + (this.player.getCenterX() * mapScale);
 			const playerMinimapY = minimapYWithTitle + minimapPadding + (this.player.getCenterY() * mapScale);
 
-			renderer.ctx.fillStyle = '#4af626';
+			renderer.ctx.fillStyle = BALANCE_CONFIG.VISUAL.PLAYER_MARKER_COLOR;
 			renderer.ctx.beginPath();
-			renderer.ctx.arc(playerMinimapX, playerMinimapY, 4, 0, Math.PI * 2);
+			renderer.ctx.arc(playerMinimapX, playerMinimapY, BALANCE_CONFIG.UI.PLAYER_MARKER_SIZE, 0, Math.PI * 2);
 			renderer.ctx.fill();
 		}
 
@@ -1416,24 +1608,24 @@ export default class BattleScene {
 				const enemyMinimapY = minimapYWithTitle + minimapPadding + (enemy.getCenterY() * mapScale);
 				
 				if (enemy.isBoss) {
-					renderer.ctx.fillStyle = '#ff0000';
-					renderer.ctx.font = '12px Arial';
+					renderer.ctx.fillStyle = BALANCE_CONFIG.VISUAL.BOSS_MARKER_COLOR;
+					renderer.ctx.font = `${BALANCE_CONFIG.VISUAL.BOSS_MARKER_FONT_SIZE}px Arial`;
 					renderer.ctx.textAlign = 'center';
 					renderer.ctx.textBaseline = 'middle';
 					renderer.ctx.fillText('☠', enemyMinimapX, enemyMinimapY);
 				} else {
-					renderer.ctx.fillStyle = '#ff4444';
-					renderer.ctx.fillRect(enemyMinimapX - 1, enemyMinimapY - 1, 2, 2);
+					renderer.ctx.fillStyle = BALANCE_CONFIG.VISUAL.ENEMY_MARKER_COLOR;
+					renderer.ctx.fillRect(enemyMinimapX - 1, enemyMinimapY - 1, BALANCE_CONFIG.UI.ENEMY_MARKER_SIZE, BALANCE_CONFIG.UI.ENEMY_MARKER_SIZE);
 				}
 			});
 		}
 
 		if (this.xpOrbSystem && this.xpOrbSystem.orbs.length > 0) {
-			renderer.ctx.fillStyle = '#87CEEB';
+			renderer.ctx.fillStyle = BALANCE_CONFIG.VISUAL.XP_ORB_COLOR;
 			this.xpOrbSystem.orbs.forEach(orb => {
 				const orbMinimapX = minimapX + minimapPadding + (orb.x * mapScale);
 				const orbMinimapY = minimapYWithTitle + minimapPadding + (orb.y * mapScale);
-				renderer.ctx.fillRect(orbMinimapX - 1, orbMinimapY - 1, 2, 2);
+				renderer.ctx.fillRect(orbMinimapX - 1, orbMinimapY - 1, BALANCE_CONFIG.VISUAL.XP_ORB_SIZE, BALANCE_CONFIG.VISUAL.XP_ORB_SIZE);
 			});
 		}
 
@@ -1458,7 +1650,7 @@ export default class BattleScene {
 		renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
 		renderer.ctx.globalAlpha = 1;
 
-		const titleY = 100;
+		const titleY = 180;
 		const titleScale = Math.min(animProgress * 1.2, 1);
 		renderer.ctx.save();
 		renderer.ctx.translate(renderer.width / 2, titleY);
@@ -1489,7 +1681,7 @@ export default class BattleScene {
 		const cardHeight = 350;
 		const spacing = 30;
 		const startX = (renderer.width - (this.upgradeChoices.length * cardWidth + (this.upgradeChoices.length - 1) * spacing)) / 2;
-		const cardY = 240;
+		const cardY = 440;
 
 		this.upgradeChoices.forEach((upgrade, index) => {
 			const delayPerCard = 0.1;
@@ -1726,9 +1918,9 @@ export default class BattleScene {
 		if (spellEffect) {
 			if (spellEffect.type === 'earthquake') {
 				if (this.camera) {
-					this.camera.shake(15, 100);
+					this.camera.shake(BALANCE_CONFIG.CAMERA.SHAKE_INTENSITY_EARTHQUAKE, BALANCE_CONFIG.CAMERA.SHAKE_DURATION_EARTHQUAKE);
 				}
-				this.engine.audio.play('earthquake', 0.5, 0.2);
+				this.engine.audio.play('earthquake', BALANCE_CONFIG.AUDIO.EARTHQUAKE_VOLUME, BALANCE_CONFIG.AUDIO.EARTHQUAKE_PITCH);
 			}
 			if (spellEffect.hitEnemies) {
 				spellEffect.hitEnemies.forEach(hit => {
@@ -1737,17 +1929,17 @@ export default class BattleScene {
 					
 					this.damageNumberSystem.addDamage(
 						hit.enemy.getCenterX(),
-						hit.enemy.getCenterY() - 30,
+						hit.enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y,
 						finalDamage,
 						false,
 						damageCalc.isCrit
 					);
 
-					const knockbackMultiplier = hit.enemy.isBoss ? 0.2 : 1;
+					const knockbackMultiplier = hit.enemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1;
 					const knockbackX = hit.knockbackDirection.x * hit.knockback * knockbackMultiplier;
 					const knockbackY = hit.knockbackDirection.y * hit.knockback * knockbackMultiplier;
 					
-					this.engine.audio.play('hit', 0.2, 0.2);
+					this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 					const died = hit.enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
 					this.applyLifeSteal(finalDamage);
@@ -1782,7 +1974,7 @@ export default class BattleScene {
 	}
 
 	startDeathAnimation() {
-		this.engine.audio.playMusic('defeat', 0.7, false);
+		this.engine.audio.playMusic('defeat', BALANCE_CONFIG.AUDIO.DEFEAT_MUSIC_VOLUME, false);
 		if (this.playerDying) return;
 		this.playerDying = true;
 		this.state = 'dying';

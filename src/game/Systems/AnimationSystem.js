@@ -10,6 +10,10 @@ export default class AnimationSystem {
 		this.customAnimationDuration = null;
 		this.wasMoving = false;
 		this.forcedDirection = null;
+		this.idleInterval = 1000;
+		this.idleTimer = 0;
+		this.isPlayingIdle = false;
+		this.idleAnimationComplete = false;
 		
 		this.calculateFrameDimensions();
 	}
@@ -57,7 +61,16 @@ export default class AnimationSystem {
 			this.frameDuration = 150;
 		}
 		
+		if (animationName === 'idle') {
+			this.isPlayingIdle = true;
+			this.idleAnimationComplete = false;
+		}
+		
 		this.calculateFrameDimensions();
+	}
+
+	setIdleInterval(interval) {
+		this.idleInterval = interval;
 	}
 
 	setDirection(direction) {
@@ -99,7 +112,16 @@ export default class AnimationSystem {
 			
 			if (this.frameTime >= this.frameDuration) {
 				this.frameTime = 0;
-				this.currentFrame = (this.currentFrame + 1) % anim.frames;
+				this.currentFrame++;
+				
+				if (this.currentFrame >= anim.frames) {
+					this.currentFrame = 0;
+					this.idleAnimationComplete = true;
+					this.isPlayingIdle = false;
+					this.frameTime = 0;
+					this.idleTimer = 0;
+					return;
+				}
 			}
 			
 			if (this.forcedDirection === null && isMoving) {
@@ -144,7 +166,7 @@ export default class AnimationSystem {
 		}
 	}
 
-	render(renderer, x, y, scale = 1) {
+	render(renderer, x, y, scale = 1, drawShadow = true) {
 		const spriteImage = this.getCurrentSpriteImage();
 		if (!spriteImage) return;
 
@@ -158,15 +180,17 @@ export default class AnimationSystem {
 
 		renderer.ctx.save();
 		
-		const shadowWidth = this.frameWidth * scale * 0.5;
-		const shadowHeight = shadowWidth * 0.25;
-		const shadowX = x + (this.frameWidth * scale - shadowWidth) / 2;
-		const shadowY = y + this.frameHeight * scale - shadowHeight - 25;
-		
-		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-		renderer.ctx.beginPath();
-		renderer.ctx.ellipse(shadowX + shadowWidth / 2, shadowY + shadowHeight / 2, shadowWidth / 2, shadowHeight / 2, 0, 0, Math.PI * 2);
-		renderer.ctx.fill();
+		if (drawShadow) {
+			const shadowWidth = this.frameWidth * scale * 0.5;
+			const shadowHeight = shadowWidth * 0.25;
+			const shadowX = x + (this.frameWidth * scale - shadowWidth) / 2;
+			const shadowY = y + this.frameHeight * scale - shadowHeight - 25;
+			
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+			renderer.ctx.beginPath();
+			renderer.ctx.ellipse(shadowX + shadowWidth / 2, shadowY + shadowHeight / 2, shadowWidth / 2, shadowHeight / 2, 0, 0, Math.PI * 2);
+			renderer.ctx.fill();
+		}
 		
 		renderer.ctx.imageSmoothingEnabled = false;
 		renderer.ctx.drawImage(

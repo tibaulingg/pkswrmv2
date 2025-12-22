@@ -24,8 +24,8 @@ export default function Game() {
 		const updateScale = () => {
 			const windowWidth = window.innerWidth;
 			const windowHeight = window.innerHeight;
-			const gameWidth = 1280;
-			const gameHeight = 720;
+			const gameWidth = 1920;
+			const gameHeight = 1080;
 
 			const scaleX = windowWidth / gameWidth;
 			const scaleY = windowHeight / gameHeight;
@@ -52,8 +52,8 @@ export default function Game() {
 		}}>
 			<canvas 
 				ref={canvasRef} 
-				width="1280" 
-				height="720"
+				width="1920" 
+				height="1080"
 				style={{
 					backgroundColor: '#111',
 					boxShadow: '0 0 20px rgba(0,0,0,0.5)',

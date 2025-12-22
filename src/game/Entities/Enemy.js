@@ -32,15 +32,16 @@ export default class Enemy {
 		const damageMultiplier = config.damageMultiplier || 1.0;
 		const projectileSpeedMultiplier = config.projectileSpeedMultiplier || 1.0;
 		
-		const levelMultiplier = 1 + (level - 1) * 0.15;
-		this.hp = Math.floor(baseHp * hpMultiplier * levelMultiplier);
+		const hpLevelMultiplier = 1 + (level - 1) * 0.35;
+		const damageLevelMultiplier = 1 + (level - 1) * 0.3;
+		this.hp = Math.floor(baseHp * hpMultiplier * hpLevelMultiplier);
 		this.maxHp = this.hp;
 		this.displayedHp = this.hp;
 		this.lostHp = 0;
 		this.lostHpDecaySpeed = 0.5;
 		this.pokemonConfig = pokemonConfig;
 		this.speed = baseSpeed * speedMultiplier * (1 + (level - 1) * 0.05);
-		this.damage = Math.floor(baseDamage * damageMultiplier * levelMultiplier);
+		this.damage = Math.floor(baseDamage * damageMultiplier * damageLevelMultiplier);
 		
 		this.attackType = pokemonConfig?.attackType || 'melee';
 		

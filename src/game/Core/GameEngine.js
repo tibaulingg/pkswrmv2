@@ -30,6 +30,17 @@ export default class GameEngine {
 		this.money = 0;
 		this.displayedMoney = 0;
 		this.inventory = {};
+		for (let i = 1; i <= 25; i++) {
+			this.inventory[`test_item_${i}`] = 1;
+		}
+		this.inventory['apple'] = 5;
+		this.inventory['golden_apple'] = 2;
+		this.inventory['mystic_water'] = 3;
+		this.equippedItems = [];
+		this.assignedConsumable = null;
+		this.incubatingEgg = null;
+		this.eggProgress = {};
+		this.eggUniqueIds = {};
 		this.encounteredPokemons = new Set();
 		this.playedPokemons = new Set();
 		this.playedMaps = new Set();
@@ -61,7 +72,13 @@ export default class GameEngine {
 			await this.sprites.load('background_3', process.env.PUBLIC_URL + '/background_3.png');
 			await this.sprites.load('menu_empty', process.env.PUBLIC_URL + '/menu_empty.png');
 			await this.sprites.load('empty_continue_game', process.env.PUBLIC_URL + '/empty_continue_game.png');
+			await this.sprites.load('continue_menu_overlay', process.env.PUBLIC_URL + '/continue_menu_overlay.png');
+			await this.sprites.load('new_char_overlay', process.env.PUBLIC_URL + '/new_char_overlay.png');
+			await this.sprites.load('inventory_overlay', process.env.PUBLIC_URL + '/inventory_overlay.png');
 			await this.sprites.load('hub_pause', process.env.PUBLIC_URL + '/hub_pause.png');
+			await this.sprites.load('shop', process.env.PUBLIC_URL + '/shop.png');
+			await this.sprites.load('shop_long', process.env.PUBLIC_URL + '/shop_long.png');
+			await this.sprites.load('shop_overlay', process.env.PUBLIC_URL + '/shop_overlay.png');
 			await this.sprites.load('map_selection_screen', process.env.PUBLIC_URL + '/map_selection_screen.png');
 			await this.sprites.load('confirm_menu', process.env.PUBLIC_URL + '/confirm_menu.png');
 			await this.sprites.load('coins', process.env.PUBLIC_URL + '/coins.png');
@@ -88,11 +105,18 @@ export default class GameEngine {
 			const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
 			const kecleonHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Hurt-Anim.png';
 			const kecleonWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Walk-Anim.png';
+			const chanseyNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
+			const chanseyIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Idle-Anim.png';
+			const chanseyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Hurt-Anim.png';
+			const chanseyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Walk-Anim.png';
 			const garchompNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Normal.png';
 			const garchompHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Hurt-Anim.png';
 			const garchompWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Walk-Anim.png';
 			const garchompChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Charge-Anim.png';
 			const garchompSleepPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Sleep-Anim.png';
+			const goldenApplePath = process.env.PUBLIC_URL + '/sprites/items/golden_apple.png';
+			const mysticWaterPath = process.env.PUBLIC_URL + '/sprites/items/mystic_water.png';
+			const applePath = process.env.PUBLIC_URL + '/sprites/items/apple.png';
 
 			await this.sprites.load('hub', hubPath);
 			await this.sprites.load('quaksire_walk', quaksireWalkPath);
@@ -100,13 +124,19 @@ export default class GameEngine {
 			await this.sprites.load('quaksire_hurt', quaksireHurtPath);
 			await this.sprites.load('rattata_hurt', rattataHurtPath);
 			await this.sprites.load('rattata_tail', rattataTailPath);
+			await this.sprites.load('golden_apple', goldenApplePath);
+			await this.sprites.load('mystic_water', mysticWaterPath);
+			await this.sprites.load('apple', applePath);
 			await this.sprites.load('key', keyPath);
-			await this.sprites.load('bronze_chest', bronzechestPath);
+			await this.sprites.load('bronze_chest', bronzechestPath);	
 			await this.sprites.load('kecleon_normal', kecleonNormalPath);
 			await this.sprites.load('kecleon_happy', kecleonHappyPath);
 			await this.sprites.load('kecleon_idle', kecleonIdlePath);
 			await this.sprites.load('kecleon_hurt', kecleonHurtPath);
 			await this.sprites.load('kecleon_walk', kecleonWalkPath);
+			await this.sprites.load('chansey_idle', chanseyIdlePath);
+			await this.sprites.load('chansey_hurt', chanseyHurtPath);
+			await this.sprites.load('chansey_walk', chanseyWalkPath);
 			await this.sprites.load('garchomp_normal', garchompNormalPath);
 			await this.sprites.load('garchomp_hurt', garchompHurtPath);
 			await this.sprites.load('garchomp_walk', garchompWalkPath);
@@ -237,6 +267,24 @@ export default class GameEngine {
 				await this.sprites.load('kecleon_idle', kecleonIdlePath);
 			} catch (error) {
 				console.warn('Kecleon idle animation not found, skipping');
+			}
+			try {
+				const chanseyNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
+				await this.sprites.load('chansey_normal', chanseyNormalPath);
+			} catch (error) {
+				console.warn('Chansey normal image not found, skipping');
+			}
+			try {
+				const chanseyHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
+				await this.sprites.load('chansey_happy', chanseyHappyPath);
+			} catch (error) {
+				console.warn('Chansey happy image not found, skipping');
+			}
+			try {
+				const chanseyIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Idle-Anim.png';
+				await this.sprites.load('chansey_idle', chanseyIdlePath);
+			} catch (error) {
+				console.warn('Chansey idle animation not found, skipping');
 			}
 
 			for (const itemId of Object.keys(ItemConfig)) {

@@ -67,7 +67,7 @@ export default class BattlePlayer {
 		this.xp = 0;
 		this.displayedXp = 0;
 		this.level = 1;
-		this.xpToNextLevel = 100;
+		this.xpToNextLevel = 200;
 		this.money = 0;
 		this.displayedMoney = 0;
 		this.gems = 0;
@@ -96,11 +96,34 @@ export default class BattlePlayer {
 		this.spells = [];
 		this.maxSpells = 3;
 		this.spellPressAnimations = {};
+		this.consumablePressAnimation = 0;
+		this.statAnimations = {};
 		this.forcedDirection = null;
 		this.spellLevels = {};
 		this.spellDamageMultipliers = {};
 		this.spellRangeMultipliers = {};
 		this.spellCooldownMultipliers = {};
+		this.waterDamageMultiplier = 1.0;
+	}
+
+	applyEquippedItem(itemId, itemConfig) {
+		if (!itemConfig || !itemConfig.effect) return;
+		
+		const effect = itemConfig.effect;
+		
+		if (effect.type === 'waterDamageBoost') {
+			this.waterDamageMultiplier += effect.value;
+		}
+	}
+
+	removeEquippedItem(itemId, itemConfig) {
+		if (!itemConfig || !itemConfig.effect) return;
+		
+		const effect = itemConfig.effect;
+		
+		if (effect.type === 'waterDamageBoost') {
+			this.waterDamageMultiplier -= effect.value;
+		}
 	}
 
 	update(deltaTime, input, mapWidth, mapHeight, camera = null, collisionSystem = null) {
@@ -223,6 +246,22 @@ export default class BattlePlayer {
 			}
 		}
 
+		// Update consumable press animation
+		if (this.consumablePressAnimation > 0) {
+			this.consumablePressAnimation -= deltaTime;
+			if (this.consumablePressAnimation < 0) {
+				this.consumablePressAnimation = 0;
+			}
+		}
+
+		// Update stat animations
+		for (let statKey in this.statAnimations) {
+			this.statAnimations[statKey].timer -= deltaTime;
+			if (this.statAnimations[statKey].timer <= 0) {
+				delete this.statAnimations[statKey];
+			}
+		}
+
 		if (this.hitFlashTime > 0) {
 			this.hitFlashTime -= deltaTime;
 		}
@@ -291,7 +330,9 @@ export default class BattlePlayer {
 			this.xp -= this.xpToNextLevel;
 			this.displayedXp = 0;
 			this.level++;
-			this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.2);
+			const baseMultiplier = 1.5;
+			const levelExponent = 1 + (this.level - 1) * 0.05;
+			this.xpToNextLevel = Math.floor(this.xpToNextLevel * baseMultiplier * levelExponent);
 			return true;
 		}
 		return false;
@@ -305,6 +346,12 @@ export default class BattlePlayer {
 		this.gems += amount;
 	}
 
+	triggerStatAnimation(statKey) {
+		this.statAnimations[statKey] = {
+			timer: 500
+		};
+	}
+
 	applyUpgrade(upgrade) {
 		if (!this.upgrades[upgrade.id]) {
 			this.upgrades[upgrade.id] = 0;
@@ -313,28 +360,42 @@ export default class BattlePlayer {
 
 		switch(upgrade.type) {
 			case 'damage':
+				const oldDamage = this.damage;
 				this.damage *= upgrade.value;
+				this.triggerStatAnimation('damage', oldDamage, this.damage);
 				break;
 			case 'attackSpeed':
+				const oldAttackSpeed = this.attackSpeed;
 				this.attackSpeed *= upgrade.value;
 				this.attackCooldownMax = 1000 / this.attackSpeed;
+				this.triggerStatAnimation('attackSpeed', oldAttackSpeed, this.attackSpeed);
 				break;
 			case 'range':
+				const oldRange = this.range;
 				this.range *= upgrade.value;
+				this.triggerStatAnimation('range', oldRange, this.range);
 				break;
 			case 'speed':
+				const oldSpeed = this.speed;
 				this.speed *= upgrade.value;
+				this.triggerStatAnimation('speed', oldSpeed, this.speed);
 				break;
 			case 'maxHp':
+				const oldMaxHp = this.maxHp;
 				this.maxHp += upgrade.value;
 				this.hp += upgrade.value;
 				this.displayedHp += upgrade.value;
+				this.triggerStatAnimation('maxHp', oldMaxHp, this.maxHp);
 				break;
 			case 'hpRegen':
+				const oldHpRegen = this.hpRegen;
 				this.hpRegen += upgrade.value;
+				this.triggerStatAnimation('hpRegen', oldHpRegen, this.hpRegen);
 				break;
 			case 'knockback':
+				const oldKnockback = this.knockback;
 				this.knockback *= upgrade.value;
+				this.triggerStatAnimation('knockback', oldKnockback, this.knockback);
 				break;
 			case 'projectileSpeed':
 				this.projectileSpeedMultiplier *= upgrade.value;
@@ -373,13 +434,19 @@ export default class BattlePlayer {
 				this.fetchRange *= upgrade.value;
 				break;
 			case 'critChance':
+				const oldCritChance = this.critChance;
 				this.critChance += upgrade.value;
+				this.triggerStatAnimation('critChance', oldCritChance, this.critChance);
 				break;
 			case 'critDamage':
+				const oldCritDamage = this.critDamage;
 				this.critDamage += upgrade.value;
+				this.triggerStatAnimation('critDamage', oldCritDamage, this.critDamage);
 				break;
 			case 'lifeSteal':
+				const oldLifeSteal = this.lifeSteal;
 				this.lifeSteal += upgrade.value;
+				this.triggerStatAnimation('lifeSteal', oldLifeSteal, this.lifeSteal);
 				break;
 			case 'xpGain':
 				this.xpGainMultiplier *= upgrade.value;
@@ -442,7 +509,12 @@ export default class BattlePlayer {
 
 	calculateDamage() {
 		const isCrit = Math.random() < this.critChance;
-		const finalDamage = isCrit ? this.damage * this.critDamage : this.damage;
+		let finalDamage = isCrit ? this.damage * this.critDamage : this.damage;
+		
+		if (this.type === 'water') {
+			finalDamage *= this.waterDamageMultiplier;
+		}
+		
 		return { damage: finalDamage, isCrit: isCrit };
 	}
 

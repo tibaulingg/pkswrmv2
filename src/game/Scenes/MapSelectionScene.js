@@ -1,4 +1,5 @@
 import { Maps } from '../Config/MapConfig.js';
+import ConfirmMenuScene from './ConfirmMenuScene.js';
 
 export default class MapSelectionScene {
 	constructor(engine) {
@@ -7,16 +8,23 @@ export default class MapSelectionScene {
 		this.hoveredMapIndex = null;
 		this.showReturnButton = true;
 		this.blinkTimer = 0;
+		this.confirmMenu = null;
 	}
 
 	init() {
 		this.selectedMapIndex = 0;
 		this.hoveredMapIndex = null;
 		this.blinkTimer = 0;
+		this.confirmMenu = null;
 	}
 
 	update(deltaTime) {
 		this.blinkTimer += deltaTime;
+
+		if (this.confirmMenu) {
+			this.confirmMenu.update(deltaTime);
+			return;
+		}
 
 		const key = this.engine.input.consumeLastKey();
 		
@@ -132,25 +140,28 @@ export default class MapSelectionScene {
 			renderer.ctx.fillText('>', mapStartX - 30, returnButtonY);
 			renderer.ctx.restore();
 		}
+
+		if (this.confirmMenu) {
+			this.confirmMenu.render(renderer);
+		}
 	}
 
 	openConfirmMenu(selectedMap) {
 		const message = `Confirmation du choix "${selectedMap.name}"`;
 		
 		const onYes = (engine) => {
-			engine.sceneManager.popScene();
+			this.confirmMenu = null;
 			engine.sceneManager.pushScene('transition', {
 				mapData: selectedMap
 			});
 		};
 
 		const onNo = (engine) => {
-			engine.sceneManager.popScene();
-			engine.sceneManager.pushScene('mapSelection');
+			this.confirmMenu = null;
 		};
 
-		this.engine.sceneManager.popScene();
-		this.engine.sceneManager.pushScene('confirmMenu', {
+		this.confirmMenu = new ConfirmMenuScene(this.engine);
+		this.confirmMenu.init({
 			message: message,
 			onYes: onYes,
 			onNo: onNo

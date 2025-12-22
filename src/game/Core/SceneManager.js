@@ -8,6 +8,7 @@ import PauseScene from '../Scenes/PauseScene.js';
 import MapSelectionScene from '../Scenes/MapSelectionScene.js';
 import ConfirmMenuScene from '../Scenes/ConfirmMenuScene.js';
 import TransitionScene from '../Scenes/TransitionScene.js';
+import ShopScene from '../Scenes/ShopScene.js';
 
 export default class SceneManager {
 	constructor(engine) {
@@ -21,7 +22,8 @@ export default class SceneManager {
 			pause: new PauseScene(this.engine),
 			mapSelection: new MapSelectionScene(this.engine),
 			confirmMenu: new ConfirmMenuScene(this.engine),
-			transition: new TransitionScene(this.engine)
+			transition: new TransitionScene(this.engine),
+			shop: new ShopScene(this.engine)
 		};
 		this.stack = [];
 	}

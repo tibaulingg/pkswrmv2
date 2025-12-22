@@ -115,12 +115,21 @@ export default class NewGameScene {
 		this.engine.money = 0;
 		this.engine.displayedMoney = 0;
 		this.engine.inventory = {};
+		for (let i = 1; i <= 25; i++) {
+			this.engine.inventory[`test_item_${i}`] = 1;
+		}
+		this.engine.inventory['apple'] = 5;
+		this.engine.inventory['golden_apple'] = 2;
+		this.engine.inventory['mystic_water'] = 3;
 		this.engine.selectedPokemon = selectedPokemon;
 		this.engine.playerName = playerName;
 		this.engine.encounteredPokemons = new Set();
 		this.engine.playedPokemons = new Set();
 		this.engine.playedMaps = new Set();
 		this.engine.defeatedPokemonCounts = {};
+		this.engine.incubatingEgg = null;
+		this.engine.eggProgress = {};
+		this.engine.eggUniqueIds = {};
 		this.engine.totalPlayTime = 0;
 		this.engine.gamesPlayed = 0;
 		

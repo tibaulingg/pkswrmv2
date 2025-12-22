@@ -178,6 +178,34 @@ export const PokemonSprites = {
 			{ itemId: 'bronze_chest', chance: 0.05, },
 		]
 	},
+	chansey : {
+		name: 'chansey',
+		walk: {
+			frames: 4
+		},
+		idle: {
+			frames: 6
+		},
+		hurt: {
+			frames: 2
+		},
+		attackType: 'range',
+		type: 'normal',
+		hp: 20,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
+		particleColor: '#4b2666',
+		projectileColor: '#ffffff',
+		projectileSize: 10,
+		projectileSpeed: 0.2,
+		spells: [],
+		lootTable: [
+			{ itemId: 'bronze_chest', chance: 0.05 },
+		]
+	},
 };
 
 export function getPokemonConfig(pokemonName) {

@@ -121,10 +121,10 @@ export const ShopMenuConfig = {
 			}
 		}
 	],
-	getBuyOptions: () => {
+	getBuyOptions: (shopId = 'kecleon') => {
 		const buyOptions = [];
 
-		const shopItems = getShopItems();
+		const shopItems = getShopItems(shopId);
 		shopItems.forEach(shopItem => {
 			const item = ItemConfig[shopItem.itemId];
 			if (item) {

@@ -1,4 +1,6 @@
 import SaveManager from '../Systems/SaveManager.js';
+import RankManager from '../Systems/RankManager.js';
+import { PokemonSprites } from '../Config/SpriteConfig.js';
 
 export default class MainMenuScene {
 	constructor(engine) {
@@ -6,11 +8,32 @@ export default class MainMenuScene {
 		this.selectedIndex = 0;
 		this.backgroundIndex = 1;
 		this.options = [];
+		this.showContinueMenu = false;
+		this.selectedContinueChoice = 0;
+		this.saveData = null;
+		this.showNewGameMenu = false;
+		this.selectedPokemonIndex = 0;
+		this.pokemonList = Object.keys(PokemonSprites);
+		this.selectedPokemons = [];
+		this.pseudo = '';
+		this.isTypingPseudo = true;
+		this.cursorBlink = 0;
+		this.pokemonPerRow = 5;
+		this.pseudoValidated = false;
 	}
 
 	init() {
 		this.selectedIndex = 0;
 		this.backgroundIndex = Math.floor(Math.random() * 3) + 1;
+		this.showContinueMenu = false;
+		this.selectedContinueChoice = 0;
+		this.showNewGameMenu = false;
+		this.selectedPokemonIndex = 0;
+		this.selectedPokemons = [];
+		this.pseudo = '';
+		this.isTypingPseudo = true;
+		this.cursorBlink = 0;
+		this.pseudoValidated = false;
 		
 		this.options = [];
 		if (SaveManager.hasSave()) {
@@ -34,16 +57,89 @@ export default class MainMenuScene {
 	}
 
 	update(deltaTime) {
+		this.cursorBlink += deltaTime;
+		if (this.cursorBlink > 1000) {
+			this.cursorBlink = 0;
+		}
+
+		const currentScene = this.engine.sceneManager.getCurrentScene();
+		if (currentScene !== this && currentScene.constructor.name === 'ConfirmMenuScene') {
+			return;
+		}
+
 		const key = this.engine.input.consumeLastKey();
+		const keyValue = this.engine.input.consumeLastKeyValue();
 		
-		if (key === 'ArrowUp') {
-			this.selectedIndex = Math.max(0, this.selectedIndex - 1);
-			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (key === 'ArrowDown') {
-			this.selectedIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
-			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (key === 'Enter') {
-			this.selectOption();
+		if (this.showContinueMenu) {
+			if (key === 'ArrowUp') {
+				this.selectedContinueChoice = Math.max(0, this.selectedContinueChoice - 1);
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'ArrowDown') {
+				this.selectedContinueChoice = Math.min(1, this.selectedContinueChoice + 1);
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'Enter') {
+				this.selectContinueChoice();
+			} else if (key === 'Escape') {
+				this.showContinueMenu = false;
+				this.selectedContinueChoice = 0;
+				this.engine.audio.play('ok', 0.3, 0.1);
+			}
+		} else if (this.showNewGameMenu) {
+			if (this.isTypingPseudo) {
+				if (key && keyValue && keyValue.length === 1 && /[a-zA-Z0-9]/.test(keyValue)) {
+					if (this.pseudo.length < 15) {
+						this.pseudo += keyValue;
+						this.engine.audio.play('ok', 0.2, 0.1);
+					}
+				} else if (key === 'Backspace' && this.pseudo.length > 0) {
+					this.pseudo = this.pseudo.slice(0, -1);
+					this.engine.audio.play('ok', 0.2, 0.1);
+				} else if (key === 'Enter' && this.pseudo.length > 0) {
+					this.isTypingPseudo = false;
+					this.pseudoValidated = true;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				} else if (key === 'Tab') {
+					this.isTypingPseudo = false;
+					this.pseudoValidated = true;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				} else if (key === 'Space') {
+					if (this.pseudo.length < 15) {
+						this.pseudo += ' ';
+						this.engine.audio.play('ok', 0.2, 0.1);
+					}
+				} else if (key === 'Escape') {
+					this.showNewGameMenu = false;
+					this.pseudo = '';
+					this.isTypingPseudo = true;
+					this.pseudoValidated = false;
+					this.selectedPokemonIndex = 0;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				}
+			} else {
+				if (key === 'ArrowLeft') {
+					this.selectedPokemonIndex = Math.max(0, this.selectedPokemonIndex - 1);
+					this.engine.audio.play('ok', 0.3, 0.1);
+				} else if (key === 'ArrowRight') {
+					this.selectedPokemonIndex = Math.min(this.selectedPokemons.length - 1, this.selectedPokemonIndex + 1);
+					this.engine.audio.play('ok', 0.3, 0.1);
+				} else if (key === 'Enter') {
+					this.openConfirmNewGameMenu();
+				} else if (key === 'Escape' || key === 'Backspace') {
+					this.isTypingPseudo = true;
+					this.pseudoValidated = false;
+					this.engine.audio.play('ok', 0.3, 0.1);
+				}
+			}
+		} else {
+			if (key === 'ArrowUp') {
+				this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'ArrowDown') {
+				this.selectedIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'Enter') {
+				this.selectOption();
+			}
 		}
 	}
 
@@ -51,15 +147,100 @@ export default class MainMenuScene {
 		const option = this.options[this.selectedIndex];
 		
 		if (option.label === 'Continuer') {
-			this.engine.sceneManager.changeScene('continueGame');
-            this.engine.sceneManager.getCurrentScene().init();
+			this.showContinueMenu = true;
+			this.selectedContinueChoice = 0;
+			this.saveData = SaveManager.getSaveData();
+			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (option.label === 'Nouvelle Partie') {
-			SaveManager.deleteSave();
-			this.engine.sceneManager.changeScene('newGame');
-		} else if (option.label === 'Collection') {
-			this.engine.sceneManager.pushScene('collection');
-		} else if (option.label === 'Quitter') {
-			window.close();
+			this.showNewGameMenu = true;
+			this.pseudo = '';
+			this.isTypingPseudo = true;
+			this.selectedPokemonIndex = 0;
+			this.pseudoValidated = false;
+			const shuffled = [...this.pokemonList].sort(() => Math.random() - 0.5);
+			this.selectedPokemons = shuffled.slice(0, 3);
+			this.engine.audio.play('ok', 0.3, 0.1);
+		}
+	}
+
+	openConfirmNewGameMenu() {
+		const selectedPokemon = this.selectedPokemons[this.selectedPokemonIndex];
+		const pokemonConfig = PokemonSprites[selectedPokemon];
+		const pokemonName = pokemonConfig ? pokemonConfig.name : selectedPokemon;
+		const playerName = this.pseudo || 'Trainer';
+		const message = `Confirmer vos choix ?\nPseudo: ${playerName}\nStarter: ${pokemonName}`;
+		
+		const onYes = (engine) => {
+			engine.sceneManager.popScene();
+			this.startNewGame();
+		};
+
+		const onNo = (engine) => {
+			engine.sceneManager.popScene();
+			this.isTypingPseudo = true;
+			this.pseudoValidated = false;
+		};
+
+		this.engine.sceneManager.pushScene('confirmMenu', {
+			message: message,
+			onYes: onYes,
+			onNo: onNo
+		});
+		
+		this.engine.audio.play('ok', 0.3, 0.1);
+	}
+
+	startNewGame() {
+		const selectedPokemon = this.selectedPokemons[this.selectedPokemonIndex];
+		const playerName = this.pseudo || 'Trainer';
+		
+		SaveManager.deleteSave();
+		
+		this.engine.money = 0;
+		this.engine.displayedMoney = 0;
+		this.engine.inventory = {};
+		for (let i = 1; i <= 25; i++) {
+			this.engine.inventory[`test_item_${i}`] = 1;
+		}
+		this.engine.inventory['apple'] = 5;
+		this.engine.inventory['golden_apple'] = 2;
+		this.engine.inventory['mystic_water'] = 3;
+		this.engine.selectedPokemon = selectedPokemon;
+		this.engine.playerName = playerName;
+		this.engine.encounteredPokemons = new Set();
+		this.engine.playedPokemons = new Set();
+		this.engine.playedMaps = new Set();
+		this.engine.defeatedPokemonCounts = {};
+		this.engine.incubatingEgg = null;
+		this.engine.eggProgress = {};
+		this.engine.eggUniqueIds = {};
+		this.engine.totalPlayTime = 0;
+		this.engine.gamesPlayed = 0;
+		
+		SaveManager.saveGame(this.engine, true);
+		
+		this.engine.sceneManager.changeScene('game', {
+			selectedPokemon: selectedPokemon,
+			playerName: playerName
+		});
+	}
+
+	selectContinueChoice() {
+		if (this.selectedContinueChoice === 0) {
+			const loadedData = SaveManager.loadGame(this.engine);
+			if (loadedData) {
+				SaveManager.saveGame(this.engine, false);
+				this.engine.sceneManager.changeScene('game', {
+					selectedPokemon: loadedData.selectedPokemon || 'quaksire',
+					playerName: loadedData.playerName || 'Trainer'
+				});
+			} else {
+				this.engine.sceneManager.changeScene('game');
+			}
+		} else {
+			this.showContinueMenu = false;
+			this.selectedContinueChoice = 0;
+			this.engine.audio.play('ok', 0.3, 0.1);
 		}
 	}
 
@@ -76,15 +257,15 @@ export default class MainMenuScene {
 			renderer.drawImage(menuEmptyImage, 0, 0, renderer.width, renderer.height);
 		}
 		
-		const optionStartX = 80;
-		const optionStartY = 70;
+		const optionStartX = 90;
+		const optionStartY = 90;
 		const optionSpacing = 40;
 		const fontSize = '20px';
 		
 		this.options.forEach((option, index) => {
 			let y = optionStartY + index * optionSpacing;
 			if (option.label === 'Quitter') {
-				y += 380;
+				y += 110;
 			}
 			let color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
 			if (option.label === 'Quitter') {
@@ -100,8 +281,8 @@ export default class MainMenuScene {
 		});
 		
 		const selectedOption = this.options[this.selectedIndex];
-		if (selectedOption && selectedOption.description) {
-			const descX = 50;
+		if (selectedOption && selectedOption.description && !this.showContinueMenu && !this.showNewGameMenu) {
+			const descX = 100;
 			const descY = renderer.height - 125;
 			const descFontSize = '25px';
 			const maxWidth = renderer.width - 100;
@@ -132,6 +313,291 @@ export default class MainMenuScene {
 			renderer.ctx.fillText(line, descX, y);
 			renderer.ctx.restore();
 		}
+		
+		if (this.showContinueMenu) {
+			const continueMenuOverlay = this.engine.sprites.get('continue_menu_overlay');
+			if (continueMenuOverlay) {
+				renderer.drawImage(continueMenuOverlay, 0, 0, renderer.width, renderer.height);
+			}
+
+			if (this.saveData) {
+				const infoX = 620;
+				const infoY = 70;
+				const infoFontSize = '18px';
+				const lineHeight = 25;
+
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.font = `${infoFontSize} Pokemon`;
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textBaseline = 'top';
+
+				let y = infoY;
+				renderer.ctx.fillText('Aventure en cours:', infoX, y);
+				y += lineHeight;
+
+				renderer.ctx.strokeStyle = '#ffffff';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.beginPath();
+				renderer.ctx.moveTo(infoX, y);
+				renderer.ctx.lineTo(renderer.width - infoX - 50, y);
+				renderer.ctx.stroke();
+				y += lineHeight / 2;
+
+				if (this.saveData.selectedPokemon) {
+					const pokemonSprite = this.engine.sprites.get(`pokemon_${this.saveData.selectedPokemon}_normal`);
+					const iconSize = 48;
+					const iconX = infoX + 580;
+					const iconY = y;
+					
+					if (pokemonSprite) {
+						renderer.drawImage(pokemonSprite, iconX, iconY, iconSize, iconSize);
+						renderer.ctx.strokeStyle = '#ffffff';
+						renderer.ctx.lineWidth = 2;
+						renderer.ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+					}
+					
+		
+				}
+
+				if (this.saveData.playerName) {
+					renderer.ctx.fillText(`${this.saveData.playerName}`, infoX, y);
+					y += lineHeight;
+				}
+
+
+
+				if (this.saveData.gamesPlayed !== undefined) {
+					renderer.ctx.fillText(`Aventures: ${this.saveData.gamesPlayed}`, infoX, y);
+					y += lineHeight;
+				}
+
+				if (this.saveData.totalPlayTime !== undefined) {
+					const playTime = SaveManager.formatPlayTime(this.saveData.totalPlayTime);
+					renderer.ctx.fillText(`Temps de jeu: ${playTime}`, infoX, y);
+					y += lineHeight;
+				}
+
+				const defeatedPokemonCounts = this.saveData.defeatedPokemonCounts || {};
+				const encounteredPokemons = this.saveData.encounteredPokemons ? new Set(this.saveData.encounteredPokemons) : new Set();
+				const rank = RankManager.getPlayerRank(defeatedPokemonCounts, encounteredPokemons);
+				const rankColor = RankManager.getRankColor(rank);
+				const stars = RankManager.getRankStars(rank);
+				
+				renderer.ctx.fillStyle = rankColor;
+				const rankText = `${rank}`;
+				const rankTextWidth = renderer.ctx.measureText(rankText).width;
+				renderer.ctx.fillText(rankText, infoX, y);
+				
+				renderer.ctx.fillStyle = '#ffd700';
+				const starText = '★'.repeat(stars);
+				renderer.ctx.fillText(starText, infoX + rankTextWidth + 10, y);
+				y += lineHeight;
+
+				renderer.ctx.restore();
+
+				if (this.saveData.money !== undefined) {
+					const money = this.saveData.money || 0;
+					const moneyText = SaveManager.formatLargeNumber(money);
+					const coinSize = 24;
+					const fullMoneyText = `${moneyText}`;
+					const moneyTextFontSize = '18px';
+					renderer.ctx.font = `${moneyTextFontSize} Pokemon`;
+					const moneyTextWidth = renderer.ctx.measureText(fullMoneyText).width;
+					renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
+					
+					renderer.ctx.fillText(fullMoneyText, infoX, y + 18);
+					
+					const coinsImage = this.engine.sprites.get('coins');
+					if (coinsImage) {
+						renderer.drawImage(coinsImage, infoX + moneyTextWidth, y, coinSize, coinSize);
+					}
+					
+					y += lineHeight;
+				}
+			}
+
+			
+			const questionX = renderer.width - 1250;
+			const questionY = renderer.height - 125;
+			const questionFontSize = '25px';
+
+			renderer.ctx.save();
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.font = `${questionFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			
+			renderer.ctx.fillText('Reprendre la partie', questionX, questionY);
+			renderer.ctx.restore();
+
+			const choiceX = renderer.width - 220;
+			const choiceStartY = renderer.height - 330;
+			const choiceSpacing = 50;
+			const choiceFontSize = '24px';
+			const choices = ['Oui', 'Non'];
+
+			choices.forEach((choice, index) => {
+				const y = choiceStartY + index * choiceSpacing;
+				const color = index === this.selectedContinueChoice ? '#ffff00' : '#ffffff';
+				renderer.drawText(choice, choiceX, y, choiceFontSize, color, 'left');
+				
+				if (index === this.selectedContinueChoice) {
+					renderer.drawText('>', choiceX - 40, y, choiceFontSize, color, 'left');
+				}
+			});
+		} else if (this.showNewGameMenu) {
+			const newCharOverlay = this.engine.sprites.get('new_char_overlay');
+			if (newCharOverlay) {
+				renderer.drawImage(newCharOverlay, 0, 0, renderer.width, renderer.height);
+			}
+
+			const pseudoX = 635;
+			const pseudoY = 70;
+			const pseudoFontSize = '24px';
+
+			renderer.ctx.save();
+			renderer.ctx.font = `${pseudoFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			
+			if (this.isTypingPseudo) {
+				renderer.ctx.fillStyle = '#ffff00';
+				renderer.ctx.fillText('>', pseudoX - 30, pseudoY);
+			}
+			
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.fillText('Pseudo:', pseudoX, pseudoY);
+			
+			const pseudoText = this.pseudo || '';
+			const pseudoTextX = pseudoX + 170;
+			
+			renderer.ctx.fillStyle = '#ffff00';
+			renderer.ctx.fillText(pseudoText, pseudoTextX, pseudoY);
+			
+			if (this.isTypingPseudo && Math.floor(this.cursorBlink / 500) % 2 === 0) {
+				const textWidth = renderer.ctx.measureText(pseudoText).width;
+				renderer.ctx.fillText('_', pseudoTextX + textWidth, pseudoY);
+			}
+			
+			renderer.ctx.restore();
+
+			const starterLabelX = 635;
+			const starterLabelY = 150;
+			const pokemonStartX = 845;
+			const pokemonY = 130;
+			const pokemonIconSize = 64;
+			const pokemonSpacing = 120;
+
+			renderer.ctx.save();
+			renderer.ctx.font = `${pseudoFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.fillText('Starter :', starterLabelX, starterLabelY);
+			renderer.ctx.restore();
+
+			this.selectedPokemons.forEach((pokemonName, index) => {
+				const x = pokemonStartX + index * pokemonSpacing;
+				const y = pokemonY;
+				
+				const pokemonSprite = this.engine.sprites.get(`pokemon_${pokemonName}_normal`);
+				
+				if (pokemonSprite) {
+					if (index === this.selectedPokemonIndex && this.pseudoValidated) {
+						renderer.drawRect(x - 4, y - 4, pokemonIconSize + 8, pokemonIconSize + 8, 'rgba(255, 255, 0, 0.3)');
+						renderer.drawStrokeRect(x - 4, y - 4, pokemonIconSize + 8, pokemonIconSize + 8, '#ffff00', 3);
+					}
+					
+					renderer.drawImage(pokemonSprite, x, y, pokemonIconSize, pokemonIconSize);
+				}
+				
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = (index === this.selectedPokemonIndex && this.pseudoValidated) ? '#ffff00' : '#ffffff';
+				renderer.ctx.font = '14px Pokemon';
+				renderer.ctx.textAlign = 'center';
+				renderer.ctx.fillText(pokemonName, x + pokemonIconSize / 2, y + pokemonIconSize + 15);
+				renderer.ctx.restore();
+			});
+
+			{
+				const helpX = 100;
+				const helpY = renderer.height - 125;
+				const helpFontSize = '25px';
+				const maxWidth = renderer.width - 100;
+
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.font = `${helpFontSize} Pokemon`;
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textBaseline = 'top';
+
+				if (this.isTypingPseudo) {
+					const text = 'Tapez votre pseudo puis appuyez sur ENTER pour continuer';
+					const words = text.split(' ');
+					let line = '';
+					let y = helpY;
+					
+					words.forEach((word) => {
+						const testLine = line + word + ' ';
+						const metrics = renderer.ctx.measureText(testLine);
+						const testWidth = metrics.width;
+						
+						if (testWidth > maxWidth && line !== '') {
+							renderer.ctx.fillText(line, helpX, y);
+							line = word + ' ';
+							y += 22;
+						} else {
+							line = testLine;
+						}
+					});
+					renderer.ctx.fillText(line, helpX, y);
+				} else {
+					const text = 'Utilisez les flèches gauche/droite pour sélectionner un Pokémon, puis ENTER pour confirmer';
+					const words = text.split(' ');
+					let line = '';
+					let y = helpY;
+					
+					words.forEach((word) => {
+						const testLine = line + word + ' ';
+						const metrics = renderer.ctx.measureText(testLine);
+						const testWidth = metrics.width;
+						
+						if (testWidth > maxWidth && line !== '') {
+							renderer.ctx.fillText(line, helpX, y);
+							line = word + ' ';
+							y += 22;
+						} else {
+							line = testLine;
+						}
+					});
+					renderer.ctx.fillText(line, helpX, y);
+				}
+				
+				renderer.ctx.restore();
+			}
+		}
+	}
+
+	drawWrappedText(ctx, text, x, y, maxWidth, fontSize) {
+		ctx.font = `${fontSize} Pokemon`;
+		const words = text.split(' ');
+		let line = '';
+		let currentY = y;
+		
+		words.forEach((word) => {
+			const testLine = line + word + ' ';
+			const metrics = ctx.measureText(testLine);
+			const testWidth = metrics.width;
+			
+			if (testWidth > maxWidth && line !== '') {
+				ctx.fillText(line, x, currentY);
+				line = word + ' ';
+				currentY += 22;
+			} else {
+				line = testLine;
+			}
+		});
+		ctx.fillText(line, x, currentY);
 	}
 }
 
