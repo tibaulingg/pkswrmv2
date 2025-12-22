@@ -70,13 +70,18 @@ export default class Enemy {
 		this.hurtAnimationTime = 0;
 		this.hurtAnimationDuration = 300;
 		this.auraPulseTime = 0;
+		
+		this.separationRadius = 60;
+		this.separationStrength = 0.15;
 	}
 
-	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32) {
+	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32, otherEnemies = []) {
 		if (!this.isAlive) return;
 
 		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
 		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+		
+		const separationForce = this.calculateSeparation(otherEnemies);
 		
 		const knockbackX = this.knockbackVelocityX * deltaTime / 16;
 		const knockbackY = this.knockbackVelocityY * deltaTime / 16;
@@ -113,12 +118,15 @@ export default class Enemy {
 		
 		const minDistance = (Math.max(this.width, this.height) + Math.max(playerWidth, playerHeight)) / 2 - 5;
 
+		const separationMoveX = separationForce.x * deltaTime / 16;
+		const separationMoveY = separationForce.y * deltaTime / 16;
+		
 		if (this.attackType === 'range') {
 			if (distance > this.attackRange) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
-				const moveX = this.directionX * this.speed * deltaTime / 16;
-				const moveY = this.directionY * this.speed * deltaTime / 16;
+				const moveX = this.directionX * this.speed * deltaTime / 16 + separationMoveX;
+				const moveY = this.directionY * this.speed * deltaTime / 16 + separationMoveY;
 				
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
@@ -138,14 +146,32 @@ export default class Enemy {
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
+				const moveX = separationMoveX;
+				const moveY = separationMoveY;
+				
+				const newX = this.x + moveX;
+				const newY = this.y + moveY;
+				
+				if (collisionSystem) {
+					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+						this.x = newX;
+					}
+					
+					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+						this.y = newY;
+					}
+				} else {
+					this.x = newX;
+					this.y = newY;
+				}
 			}
 		} else {
 			const stopDistance = Math.max(this.attackRange, minDistance);
 			if (distance > stopDistance) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
-				const moveX = this.directionX * this.speed * deltaTime / 16;
-				const moveY = this.directionY * this.speed * deltaTime / 16;
+				const moveX = this.directionX * this.speed * deltaTime / 16 + separationMoveX;
+				const moveY = this.directionY * this.speed * deltaTime / 16 + separationMoveY;
 				
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
@@ -167,10 +193,44 @@ export default class Enemy {
 						this.x = newX;
 						this.y = newY;
 					}
+				} else {
+					const separationOnlyX = this.x + separationMoveX;
+					const separationOnlyY = this.y + separationMoveY;
+					
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(separationOnlyX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+							this.x = separationOnlyX;
+						}
+						
+						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, separationOnlyY + hitboxOffsetY, this.width, this.height)) {
+							this.y = separationOnlyY;
+						}
+					} else {
+						this.x = separationOnlyX;
+						this.y = separationOnlyY;
+					}
 				}
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
+				const moveX = separationMoveX;
+				const moveY = separationMoveY;
+				
+				const newX = this.x + moveX;
+				const newY = this.y + moveY;
+				
+				if (collisionSystem) {
+					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+						this.x = newX;
+					}
+					
+					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+						this.y = newY;
+					}
+				} else {
+					this.x = newX;
+					this.y = newY;
+				}
 			}
 		}
 
@@ -225,10 +285,11 @@ export default class Enemy {
 		
 		if (this.attackType === 'range') {
 			if (this.animationSystem) {
+				const enemy = this;
 				this.animationSystem.setAnimation('shoot');
 				setTimeout(() => {
-					if (this.animationSystem && this.isAlive) {
-						this.animationSystem.setAnimation('walk');
+					if (enemy.animationSystem && enemy.isAlive) {
+						enemy.animationSystem.setAnimation('walk');
 					}
 				}, 300);
 			}
@@ -300,6 +361,51 @@ export default class Enemy {
 	getCenterY() {
 		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
 		return this.y + hitboxOffsetY + this.height / 2;
+	}
+
+	calculateSeparation(otherEnemies) {
+		let separationX = 0;
+		let separationY = 0;
+		const thisCenterX = this.getCenterX();
+		const thisCenterY = this.getCenterY();
+		let neighborCount = 0;
+
+		for (const other of otherEnemies) {
+			if (!other.isAlive || other === this) continue;
+
+			const otherCenterX = other.getCenterX();
+			const otherCenterY = other.getCenterY();
+			const dx = thisCenterX - otherCenterX;
+			const dy = thisCenterY - otherCenterY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance > 0 && distance < this.separationRadius) {
+				const normalizedDx = dx / distance;
+				const normalizedDy = dy / distance;
+				const force = (this.separationRadius - distance) / this.separationRadius;
+				
+				separationX += normalizedDx * force;
+				separationY += normalizedDy * force;
+				neighborCount++;
+			}
+		}
+
+		if (neighborCount > 0) {
+			separationX /= neighborCount;
+			separationY /= neighborCount;
+		}
+
+		const separationMagnitude = Math.sqrt(separationX * separationX + separationY * separationY);
+		if (separationMagnitude > 0) {
+			const normalizedSeparationX = separationX / separationMagnitude;
+			const normalizedSeparationY = separationY / separationMagnitude;
+			return {
+				x: normalizedSeparationX * this.separationStrength * this.speed,
+				y: normalizedSeparationY * this.separationStrength * this.speed
+			};
+		}
+
+		return { x: 0, y: 0 };
 	}
 
 	render(renderer, debug = 0) {

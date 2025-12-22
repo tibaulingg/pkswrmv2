@@ -69,7 +69,7 @@ export default class MainMenuScene {
 		}
 
 		const currentScene = this.engine.sceneManager.getCurrentScene();
-		if (currentScene !== this && currentScene.constructor.name === 'ConfirmMenuScene') {
+		if (currentScene !== this && (currentScene === this.engine.sceneManager.scenes.confirmMenu || currentScene.constructor.name === 'ConfirmMenuScene')) {
 			return;
 		}
 
@@ -176,15 +176,16 @@ export default class MainMenuScene {
 		const playerName = this.pseudo || 'Trainer';
 		const message = `Confirmer vos choix ?\nPseudo: ${playerName}\nStarter: ${pokemonName}`;
 		
+		const mainMenuScene = this;
 		const onYes = (engine) => {
 			engine.sceneManager.popScene();
-			this.startNewGame();
+			mainMenuScene.startNewGame();
 		};
 
 		const onNo = (engine) => {
 			engine.sceneManager.popScene();
-			this.isTypingPseudo = true;
-			this.pseudoValidated = false;
+			mainMenuScene.isTypingPseudo = true;
+			mainMenuScene.pseudoValidated = false;
 		};
 
 		this.engine.sceneManager.pushScene('confirmMenu', {
@@ -221,7 +222,8 @@ export default class MainMenuScene {
 		
 		this.engine.sceneManager.changeScene('game', {
 			selectedPokemon: selectedPokemon,
-			playerName: playerName
+			playerName: playerName,
+			enteringFromTop: false
 		});
 	}
 
@@ -232,10 +234,13 @@ export default class MainMenuScene {
 				SaveManager.saveGame(this.engine, false);
 				this.engine.sceneManager.changeScene('game', {
 					selectedPokemon: loadedData.selectedPokemon || 'quaksire',
-					playerName: loadedData.playerName || 'Trainer'
+					playerName: loadedData.playerName || 'Trainer',
+					enteringFromTop: false
 				});
 			} else {
-				this.engine.sceneManager.changeScene('game');
+				this.engine.sceneManager.changeScene('game', {
+					enteringFromTop: false
+				});
 			}
 		} else {
 			this.showContinueMenu = false;

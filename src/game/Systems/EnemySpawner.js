@@ -15,8 +15,8 @@ export default class EnemySpawner {
 		this.spawnTimer = 0;
 		this.baseSpawnInterval = 1000;
 		this.spawnInterval = this.baseSpawnInterval;
-		this.baseMaxEnemies = 9999999;
-		this.maxEnemies = 9999999;
+		this.baseMaxEnemies = 50;
+		this.maxEnemies = 50;
 		this.enemyPool = MapEnemies[mapId] || [];
 		this.gameTime = 0;
 		this.spawnCount = 1;
@@ -26,6 +26,7 @@ export default class EnemySpawner {
 		this.bossType = bossType;
 		this.bossSpawned = false;
 		this.totalEnemiesKilled = 0;
+		this.maxEnemyDistance = 1200;
 	}
 
 	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32) {
@@ -43,10 +44,14 @@ export default class EnemySpawner {
 			this.bossSpawned = true;
 		}
 
-		if (this.spawnTimer >= this.spawnInterval && this.enemies.length < this.maxEnemies) {
-			const spawnCount = Math.min(this.spawnCount, this.maxEnemies - this.enemies.length);
+		const currentEnemyCount = this.enemies.filter(e => e.isAlive).length;
+		const spawnRateMultiplier = Math.max(0.3, 1 - (currentEnemyCount / this.maxEnemies) * 0.7);
+		const adjustedSpawnInterval = this.spawnInterval / spawnRateMultiplier;
+
+		if (this.spawnTimer >= adjustedSpawnInterval && currentEnemyCount < this.maxEnemies) {
+			const spawnCount = Math.min(this.spawnCount, this.maxEnemies - currentEnemyCount);
 			for (let i = 0; i < spawnCount; i++) {
-				if (this.enemies.length < this.maxEnemies) {
+				if (currentEnemyCount < this.maxEnemies) {
 					const angle = (Math.PI * 2 / spawnCount) * i + Math.random() * 0.5;
 					this.spawnEnemy(playerX, playerY, angle);
 				}
@@ -54,9 +59,15 @@ export default class EnemySpawner {
 			this.spawnTimer = 0;
 		}
 
+		const aliveEnemies = this.enemies.filter(e => e.isAlive);
 		this.enemies.forEach(enemy => {
-			enemy.update(deltaTime, playerX, playerY, this.collisionSystem, playerWidth, playerHeight);
+			if (enemy.isAlive) {
+				const otherEnemies = aliveEnemies.filter(e => e !== enemy);
+				enemy.update(deltaTime, playerX, playerY, this.collisionSystem, playerWidth, playerHeight, otherEnemies);
+			}
 		});
+
+		this.cleanupDistantEnemies(playerX, playerY);
 
 		const beforeCount = this.enemies.length;
 		this.enemies = this.enemies.filter(enemy => enemy.isAlive);
@@ -69,7 +80,7 @@ export default class EnemySpawner {
 		
 		this.spawnInterval = Math.max(500, this.baseSpawnInterval - (minutes * 150));
 		
-		this.maxEnemies = Math.min(200, this.baseMaxEnemies + Math.floor(minutes * 15));
+		this.maxEnemies = Math.min(80, this.baseMaxEnemies + Math.floor(minutes * 5));
 		
 		if (minutes < 1) {
 			this.spawnCount = 3;
@@ -82,6 +93,25 @@ export default class EnemySpawner {
 		} else if (minutes >= 8 && this.spawnCount < 8) {
 			this.spawnCount = 8;
 		}
+	}
+
+	cleanupDistantEnemies(playerX, playerY) {
+		const aliveEnemies = this.enemies.filter(e => e.isAlive);
+		if (aliveEnemies.length <= this.maxEnemies * 0.7) {
+			return;
+		}
+
+		aliveEnemies.forEach(enemy => {
+			if (enemy.isBoss) return;
+
+			const dx = enemy.getCenterX() - playerX;
+			const dy = enemy.getCenterY() - playerY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance > this.maxEnemyDistance) {
+				enemy.isAlive = false;
+			}
+		});
 	}
 
 	spawnEnemy(playerX, playerY, angle = null) {

@@ -1,4 +1,5 @@
 import SaveManager from './SaveManager.js';
+import { ItemConfig } from '../Config/ItemConfig.js';
 
 export default class GameManager {
 	constructor(engine) {
@@ -40,13 +41,41 @@ export default class GameManager {
 			this.engine.displayedMoney += moneyKept;
 			
 			const sessionInventory = battleScene.sessionInventory || {};
+			const sessionEggs = battleScene.sessionEggs || {};
+			
 			for (const [itemId, quantity] of Object.entries(sessionInventory)) {
-				const keptQuantity = Math.floor(quantity / 2);
-				if (keptQuantity > 0) {
+				const itemConfig = ItemConfig[itemId];
+				if (itemConfig && itemConfig.category === 'egg') {
 					if (!this.engine.inventory[itemId]) {
 						this.engine.inventory[itemId] = 0;
 					}
-					this.engine.inventory[itemId] += keptQuantity;
+					if (!this.engine.eggProgress) {
+						this.engine.eggProgress = {};
+					}
+					if (!this.engine.eggUniqueIds) {
+						this.engine.eggUniqueIds = {};
+					}
+					if (!this.engine.eggUniqueIds[itemId]) {
+						this.engine.eggUniqueIds[itemId] = [];
+					}
+					
+					const sessionEggUniqueIds = sessionEggs[itemId] || [];
+					const keptQuantity = Math.floor(quantity / 2);
+					const keptUniqueIds = sessionEggUniqueIds.slice(0, keptQuantity);
+					
+					keptUniqueIds.forEach(uniqueId => {
+						this.engine.eggUniqueIds[itemId].push(uniqueId);
+						this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: itemConfig.requiredKills };
+						this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
+					});
+				} else {
+					const keptQuantity = Math.floor(quantity / 2);
+					if (keptQuantity > 0) {
+						if (!this.engine.inventory[itemId]) {
+							this.engine.inventory[itemId] = 0;
+						}
+						this.engine.inventory[itemId] += keptQuantity;
+					}
 				}
 			}
 		}

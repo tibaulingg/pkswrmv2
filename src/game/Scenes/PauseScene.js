@@ -53,6 +53,11 @@ export default class PauseScene {
 	}
 
 	updateOptions() {
+		const battleScene = this.engine.sceneManager.stack.find(
+			scene => scene === this.engine.sceneManager.scenes.battle
+		);
+		const isInBattle = battleScene !== undefined;
+		
 		this.options = [
 			{
 				label: 'Objets'
@@ -64,12 +69,19 @@ export default class PauseScene {
 				label: 'Equipe'
 			},
 			{
-				label: 'Quitter'
+				label: isInBattle ? 'Abandonner' : 'Quitter'
 			}
 		];
 	}
 
 	update(deltaTime) {
+		const currentScene = this.engine.sceneManager.getCurrentScene();
+		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
+		
+		if (isConfirmMenuOpen) {
+			return;
+		}
+		
 		const key = this.engine.input.consumeLastKey();
 		
 		if (this.showTeam) {
@@ -138,7 +150,7 @@ export default class PauseScene {
 			}
 		} else {
 			const battleSceneCheck = this.engine.sceneManager.stack.find(
-				scene => scene.constructor.name === 'BattleScene'
+				scene => scene === this.engine.sceneManager.scenes.battle
 			);
 			const isInBattle = battleSceneCheck !== undefined;
 			const equipeIndex = this.options.findIndex(opt => opt.label === 'Equipe');
@@ -476,7 +488,7 @@ export default class PauseScene {
 		const option = this.options[this.selectedIndex];
 		
 		const battleSceneCheck = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'BattleScene'
+			scene => scene === this.engine.sceneManager.scenes.battle
 		);
 		const isInBattle = battleSceneCheck !== undefined;
 		
@@ -511,7 +523,7 @@ export default class PauseScene {
 			this.selectedTeamPokemonIndex = 0;
 			this.teamCurrentPage = 0;
 			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (option.label === 'Quitter') {
+		} else if (option.label === 'Quitter' || option.label === 'Abandonner') {
 			this.openConfirmQuitMenu();
 		}
 	}
@@ -520,30 +532,44 @@ export default class PauseScene {
 		if (this.engine.audio.currentMusic && this.originalMusicVolume !== null) {
 			this.engine.audio.currentMusic.volume = this.originalMusicVolume;
 		}
-		this.engine.sceneManager.popScene();
 		
 		const battleScene = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'BattleScene'
+			scene => scene === this.engine.sceneManager.scenes.battle
 		);
 		
 		const isInBattle = battleScene !== undefined;
-		const message = isInBattle ? 'Quitter la partie et abandonner le butin ?' : 'Retour au menu principal ?';
+		const message = isInBattle ? 'Abandonner l\'aventure ?' : 'Retour au menu principal ?';
 		
 		const onYes = (engine) => {
-			if (battleScene && battleScene.survivalTime) {
-				engine.totalPlayTime = (engine.totalPlayTime || 0) + battleScene.survivalTime;
-				if (battleScene.bossDefeated) {
-					SaveManager.saveGame(engine, false);
-				} else {
-					const savedMoney = engine.money;
-					const savedDisplayedMoney = engine.displayedMoney;
-					const savedInventory = { ...engine.inventory };
-					SaveManager.saveGame(engine, false);
-					engine.money = savedMoney;
-					engine.displayedMoney = savedDisplayedMoney;
-					engine.inventory = savedInventory;
+			engine.sceneManager.popScene();
+			engine.sceneManager.popScene();
+			
+			if (battleScene) {
+				if (battleScene.player && battleScene.player.isAlive) {
+					battleScene.player.hp = 0;
+					battleScene.player.displayedHp = 0;
+					battleScene.player.lostHp = 0;
+					battleScene.player.isAlive = false;
+					battleScene.player.isDying = true;
+					battleScene.player.faintAnimationTime = battleScene.player.faintAnimationDuration || 0;
+					battleScene.deathAnimationComplete = false;
+					battleScene.state = 'dying';
+					
+					if (battleScene.player.animationSystem) {
+						const hasFaintAnimation = battleScene.player.pokemonConfig && battleScene.player.pokemonConfig.animations && battleScene.player.pokemonConfig.animations.faint;
+						if (hasFaintAnimation) {
+							battleScene.player.animationSystem.setAnimation('faint');
+						} else {
+							battleScene.player.animationSystem.setAnimation('hurt');
+						}
+					}
+					
+					if (battleScene.deathZoomStart === undefined) {
+						battleScene.deathZoomStart = battleScene.camera.zoom || 1;
+						battleScene.deathZoomEnd = battleScene.deathZoomStart * 1.5;
+						battleScene.deathZoomProgress = 0;
+					}
 				}
-				engine.sceneManager.changeScene('game', { enteringFromTop: true });
 			} else {
 				engine.sceneManager.changeScene('menu');
 			}
@@ -551,7 +577,6 @@ export default class PauseScene {
 		
 		const onNo = (engine) => {
 			engine.sceneManager.popScene();
-			engine.sceneManager.pushScene('pause');
 		};
 		
 		this.engine.sceneManager.pushScene('confirmMenu', {
@@ -565,7 +590,7 @@ export default class PauseScene {
 
 	render(renderer) {
 		const battleScene = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'BattleScene'
+			scene => scene === this.engine.sceneManager.scenes.battle
 		);
 		
 		if (battleScene) {
@@ -604,7 +629,7 @@ export default class PauseScene {
 
 		let y = infoY;
 
-		const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+		const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 		const pokemonSprite = this.engine.sprites.get(`pokemon_${selectedPokemon}_normal`);
 		const iconSize = 48;
 		const iconX = infoX;
@@ -844,17 +869,17 @@ export default class PauseScene {
 		const fontSize = '18px';
 
 		const battleSceneCheck = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'BattleScene'
+			scene => scene === this.engine.sceneManager.scenes.battle
 		);
 		const isInBattle = battleSceneCheck !== undefined;
 
 		this.options.forEach((option, index) => {
 			let y = optionStartY + index * optionSpacing;
-			if (option.label === 'Quitter') {
+			if (option.label === 'Quitter' || option.label === 'Abandonner') {
 				y += 150;
 			}
 			let color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
-			if (option.label === 'Quitter') {
+			if (option.label === 'Quitter' || option.label === 'Abandonner') {
 				color = '#ff6666';
 			}
 			
@@ -865,7 +890,7 @@ export default class PauseScene {
 			renderer.drawText(option.label, optionStartX, y, fontSize, color, 'left');
 			
 			if (index === this.selectedIndex) {
-				const cursorY = option.label === 'Quitter' ? y : y;
+				const cursorY = option.label === 'Quitter' || option.label === 'Abandonner' ? y : y;
 				renderer.drawText('>', optionStartX - 20, cursorY, fontSize, color, 'left');
 			}
 		});
@@ -933,7 +958,7 @@ export default class PauseScene {
 			SaveManager.saveGame(this.engine, false);
 			
 			const gameScene = this.engine.sceneManager.stack.find(
-				scene => scene.constructor.name === 'GameScene'
+				scene => scene === this.engine.sceneManager.scenes.game
 			);
 			
 			if (gameScene && gameScene.player) {
@@ -954,7 +979,7 @@ export default class PauseScene {
 
 	renderTeamMenu(renderer) {
 		const availablePokemons = this.getAvailablePokemons();
-		const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+		const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 		
 		const titleX = 300;
 		const titleY = 200;

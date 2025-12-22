@@ -11,6 +11,11 @@ const DIRECTIONS = {
 	downLeft: 7
 };
 
+const BASE_LOOT_TABLE = [
+	{ itemId: 'egg_common', chance: 0.10 },
+	{ itemId: 'apple', chance: 0.1 },
+];
+
 export const PokemonSprites = {
 	piplup: {
 		name: 'piplup',
@@ -82,8 +87,8 @@ export const PokemonSprites = {
 		projectileSpeed: 0.5,
 		starter: true,
 	},
-	quaksire: {
-		name: 'quaksire',
+	quagsire: {
+		name: 'quagsire',
 		walk: {
 			frames: 4
 		},
@@ -185,8 +190,7 @@ export const PokemonSprites = {
 		projectileSpeed: 0.6,
 		spells: [],
 		lootTable: [
-			{ itemId: 'rattata_tail', chance: 1, },
-			{  },
+			{ itemId: 'rattata_tail', chance: 1 },
 		]
 	},
 	caterpie: {
@@ -216,9 +220,6 @@ export const PokemonSprites = {
 		projectileSize: 10,
 		projectileSpeed: 0.2,
 		spells: [],
-		lootTable: [
-			{  },
-		]
 	},
 	pidgey: {
 		name: 'pidgey',
@@ -244,9 +245,6 @@ export const PokemonSprites = {
 		projectileSize: 10,
 		projectileSpeed: 0.2,
 		spells: [],
-		lootTable: [
-			{ },
-		]
 	},
 	chansey : {
 		name: 'chansey',
@@ -275,9 +273,6 @@ export const PokemonSprites = {
 		projectileSize: 10,
 		projectileSpeed: 0.2,
 		spells: [],
-		lootTable: [
-			{ },
-		]
 	},
 	wooper : {
 		name: 'wooper',
@@ -370,6 +365,30 @@ export function getPokemonConfig(pokemonName) {
 		projectileSize: pokemon.projectileSize,
 		projectileSpeed: pokemon.projectileSpeed,
 		meleeAttackColor: pokemon.meleeAttackColor || null,
+		lootTable: getPokemonLootTable(pokemonName),
 	};
+}
+
+export function getPokemonLootTable(pokemonName) {
+	const pokemon = PokemonSprites[pokemonName];
+	if (!pokemon) return BASE_LOOT_TABLE;
+	
+	if (!pokemon.lootTable) return BASE_LOOT_TABLE;
+	
+	const mergedLootTable = [...BASE_LOOT_TABLE];
+	
+	pokemon.lootTable.forEach(pokemonLoot => {
+		const existingIndex = mergedLootTable.findIndex(
+			baseLoot => baseLoot.itemId === pokemonLoot.itemId
+		);
+		
+		if (existingIndex !== -1) {
+			mergedLootTable[existingIndex].chance = pokemonLoot.chance;
+		} else {
+			mergedLootTable.push(pokemonLoot);
+		}
+	});
+	
+	return mergedLootTable;
 }
 

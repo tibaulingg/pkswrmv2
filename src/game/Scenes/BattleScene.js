@@ -12,11 +12,12 @@ import { ItemConfig } from '../Config/ItemConfig.js';
 import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
 import { Spells } from '../Config/SpellConfig.js';
-import { getPokemonConfig, PokemonSprites } from '../Config/SpriteConfig.js';
+import { getPokemonConfig, PokemonSprites, getPokemonLootTable } from '../Config/SpriteConfig.js';
 import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType,  } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
+import ChestSystem from '../Systems/ChestSystem.js';
 
 const TILE_SIZE = 32;
 
@@ -85,7 +86,7 @@ const BALANCE_CONFIG = {
 	CAMERA: {
 		WIDTH: 1920,
 		HEIGHT: 1080,
-		ZOOM: 1.25,
+		ZOOM: 2,
 		SHAKE_INTENSITY_HIT: 20,
 		SHAKE_DURATION_HIT: 30,
 		SHAKE_INTENSITY_EARTHQUAKE: 15,
@@ -178,7 +179,9 @@ export default class BattleScene {
 		this.initialMoney = 0;
 		this.initialDisplayedMoney = 0;
 		this.sessionInventory = {};
+		this.sessionEggs = {};
 		this.bossDefeated = false;
+		this.chestSystem = new ChestSystem(this.engine);
 	}
 
 		init(mapData) {
@@ -193,9 +196,10 @@ export default class BattleScene {
 			this.initialMoney = this.engine.money || 0;
 			this.initialDisplayedMoney = this.engine.displayedMoney || 0;
 			this.sessionInventory = {};
+			this.sessionEggs = {};
 			this.bossDefeated = false;
 			
-			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+			const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 			const pokemonConfig = getPokemonConfig(selectedPokemon);
 			const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
 			const pokemonHurtSprite = this.engine.sprites.get(`${selectedPokemon}_hurt`);
@@ -246,6 +250,10 @@ export default class BattleScene {
 			const coinImage = this.engine.sprites.get('coins');
 			this.coinSystem = new CoinSystem(coinImage);
 			
+			if (!this.chestSystem) {
+				this.chestSystem = new ChestSystem(this.engine);
+			}
+			
 			const musicName = `map_${mapData.image}`;
 			this.engine.audio.playMusic(musicName);
 			
@@ -293,7 +301,11 @@ export default class BattleScene {
 		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
 		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
 		
-		if (isPauseOpen || isConfirmMenuOpen) {
+		if (isPauseOpen || isConfirmMenuOpen || this.chestSystem.isOpening) {
+			if (this.chestSystem.isOpening) {
+				this.chestSystem.update(deltaTime);
+				this.chestSystem.handleInput(this.engine.input);
+			}
 			return;
 		}
 		
@@ -349,7 +361,8 @@ export default class BattleScene {
 		}
 
 		if (this.player && this.player.isAlive) {
-			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem);
+			const enemies = this.getAllEnemies();
+			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem, enemies);
 			
 			if ((this.player.attackType === 'range' && this.player.autoShoot) || this.player.attackType === 'circular_sweep') {
 				this.updatePlayerAutoAim();
@@ -505,20 +518,31 @@ export default class BattleScene {
 	}
 
 	dropLootFromPokemon(x, y, pokemonName) {
-		const pokemonConfig = PokemonSprites[pokemonName];
-		if (!pokemonConfig || !pokemonConfig.lootTable) return;
+		const lootTable = getPokemonLootTable(pokemonName);
+		if (!lootTable || lootTable.length === 0) return;
 
-		pokemonConfig.lootTable.forEach(loot => {
+		lootTable.forEach(loot => {
 			if (Math.random() < loot.chance) {
 				const itemConfig = ItemConfig[loot.itemId];
 				if (itemConfig) {
 					const itemImage = this.engine.sprites.get(`item_${loot.itemId}`);
-					const offsetAngle = Math.random() * Math.PI * 2;
-					const offsetDistance = BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MAX;
-					const itemX = x + Math.cos(offsetAngle) * offsetDistance;
-					const itemY = y + Math.sin(offsetAngle) * offsetDistance;
-					const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
-					this.itemDropSystem.spawnItem(itemX, itemY, loot.itemId, itemImage, dropScale);
+					
+					if (!itemImage) {
+						console.warn(`Sprite not found for item: item_${loot.itemId}`);
+						return;
+					}
+					
+					if (itemConfig.category === 'chest') {
+						const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
+						this.itemDropSystem.spawnItem(x, y, loot.itemId, itemImage, dropScale);
+					} else {
+						const offsetAngle = Math.random() * Math.PI * 2;
+						const offsetDistance = BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MAX;
+						const itemX = x + Math.cos(offsetAngle) * offsetDistance;
+						const itemY = y + Math.sin(offsetAngle) * offsetDistance;
+						const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
+						this.itemDropSystem.spawnItem(itemX, itemY, loot.itemId, itemImage, dropScale);
+					}
 				}
 			}
 		});
@@ -613,7 +637,18 @@ export default class BattleScene {
 		if (collectedItems.length > 0) {
 			collectedItems.forEach(itemId => {
 				const itemConfig = ItemConfig[itemId];
-				if (itemConfig && itemConfig.category === 'equipable') {
+				if (itemConfig && itemConfig.category === 'egg') {
+					if (!this.sessionEggs[itemId]) {
+						this.sessionEggs[itemId] = [];
+					}
+					const uniqueId = `${itemId}_${Date.now()}_${Math.random()}`;
+					this.sessionEggs[itemId].push(uniqueId);
+					
+					if (!this.sessionInventory[itemId]) {
+						this.sessionInventory[itemId] = 0;
+					}
+					this.sessionInventory[itemId]++;
+				} else if (itemConfig && itemConfig.category === 'equipable') {
 					if (!this.sessionInventory[itemId]) {
 						this.sessionInventory[itemId] = 0;
 					}
@@ -626,6 +661,14 @@ export default class BattleScene {
 				}
 				this.engine.audio.play('ok', BALANCE_CONFIG.AUDIO.OK_VOLUME, BALANCE_CONFIG.AUDIO.OK_PITCH);
 			});
+		}
+		
+		if (!this.chestSystem.isOpening) {
+			this.checkChestInteraction();
+		}
+		
+		if (this.chestSystem.isOpening) {
+			this.chestSystem.update(deltaTime);
 		}
 	}
 
@@ -1481,6 +1524,10 @@ export default class BattleScene {
 			if (this.state === 'dying') {
 				this.applyGrayscaleFilter(renderer);
 			}
+			
+			if (this.chestSystem.isOpening) {
+				this.chestSystem.render(renderer);
+			}
 		}
 
 		if (this.upgradeChoices) {
@@ -1589,7 +1636,7 @@ export default class BattleScene {
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
 			const bossDefeated = this.enemySpawner ? (this.enemySpawner.bossSpawned && (!currentBoss || !currentBoss.isAlive)) : false;
-			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+			const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData, bossDefeated, this);
 		}
 
@@ -2003,10 +2050,11 @@ export default class BattleScene {
 			this.activeSpellEffects.push(spellEffect);
 			
 			if (spellEffect.type !== 'rock_trap') {
+				const battleScene = this;
 				setTimeout(() => {
-					const index = this.activeSpellEffects.indexOf(spellEffect);
+					const index = battleScene.activeSpellEffects.indexOf(spellEffect);
 					if (index > -1) {
-						this.activeSpellEffects.splice(index, 1);
+						battleScene.activeSpellEffects.splice(index, 1);
 					}
 				}, spellEffect.duration || 600);
 			}
@@ -2032,10 +2080,33 @@ export default class BattleScene {
 		this.engine.displayedMoney += displayedMoneyGained;
 		
 		for (const itemId in this.sessionInventory) {
-			if (!this.engine.inventory[itemId]) {
-				this.engine.inventory[itemId] = 0;
+			const itemConfig = ItemConfig[itemId];
+			if (itemConfig && itemConfig.category === 'egg') {
+				if (!this.engine.inventory[itemId]) {
+					this.engine.inventory[itemId] = 0;
+				}
+				if (!this.engine.eggProgress) {
+					this.engine.eggProgress = {};
+				}
+				if (!this.engine.eggUniqueIds) {
+					this.engine.eggUniqueIds = {};
+				}
+				if (!this.engine.eggUniqueIds[itemId]) {
+					this.engine.eggUniqueIds[itemId] = [];
+				}
+				
+				const sessionEggUniqueIds = this.sessionEggs[itemId] || [];
+				sessionEggUniqueIds.forEach(uniqueId => {
+					this.engine.eggUniqueIds[itemId].push(uniqueId);
+					this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: itemConfig.requiredKills };
+					this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
+				});
+			} else {
+				if (!this.engine.inventory[itemId]) {
+					this.engine.inventory[itemId] = 0;
+				}
+				this.engine.inventory[itemId] += this.sessionInventory[itemId];
 			}
-			this.engine.inventory[itemId] += this.sessionInventory[itemId];
 		}
 		
 		this.bossDefeated = true;
@@ -2076,6 +2147,28 @@ export default class BattleScene {
 		
 		renderer.ctx.putImageData(imageData, 0, 0);
 		renderer.ctx.restore();
+	}
+	
+	checkChestInteraction() {
+		if (!this.itemDropSystem || !this.player) return;
+		
+		const playerCenterX = this.player.getCenterX();
+		const playerCenterY = this.player.getCenterY();
+		const chestInteractionRange = 50;
+		
+		for (const item of this.itemDropSystem.items) {
+			if (!item.isActive || !item.isChest || !item.hasLanded) continue;
+			
+			const dx = playerCenterX - item.x;
+			const dy = playerCenterY - item.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			if (distance < chestInteractionRange) {
+				this.chestSystem.startOpening(item);
+				item.isActive = false;
+				break;
+			}
+		}
 	}
 }
 

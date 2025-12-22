@@ -63,7 +63,7 @@ export default class GameScene {
 		this.isEntering = true;
 		this.enteringAnimationTimer = 0;
 		this.enteringAnimationDuration = 1000;
-		this.enteringFromTop = data?.enteringFromTop || false;
+		this.enteringFromTop = data?.enteringFromTop !== undefined ? data.enteringFromTop : false;
 		
 		if (this.player) {
 			if (this.enteringFromTop) {
@@ -427,13 +427,17 @@ export default class GameScene {
 			hatchDuration: 2000,
 			totalDuration: 5000,
 			hitSoundPlayed: false,
-			confirmMenuShown: false
+			confirmMenuShown: false,
+			chanseyReturnedToIdle: false,
+			pokemonAnimationSystem: null
 		};
 	}
 
 	showHatchConfirmMenu() {
-		const pokemonConfig = getPokemonConfig(this.eggHatchingAnimation.hatchedPokemon);
-		const pokemonName = pokemonConfig ? pokemonConfig.name : this.eggHatchingAnimation.hatchedPokemon;
+		const gameScene = this;
+		const hatchedPokemon = this.eggHatchingAnimation.hatchedPokemon;
+		const pokemonConfig = getPokemonConfig(hatchedPokemon);
+		const pokemonName = pokemonConfig ? pokemonConfig.name : hatchedPokemon;
 		const message = `Accueillir ${pokemonName} ?`;
 		
 		const onYes = (engine) => {
@@ -443,16 +447,16 @@ export default class GameScene {
 			if (!engine.playedPokemons) {
 				engine.playedPokemons = new Set();
 			}
-			engine.encounteredPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
-			engine.playedPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
+			engine.encounteredPokemons.add(hatchedPokemon);
+			engine.playedPokemons.add(hatchedPokemon);
 			SaveManager.saveGame(engine, false);
 			engine.sceneManager.popScene();
-			this.eggHatchingAnimation = null;
+			gameScene.eggHatchingAnimation = null;
 			
 			setTimeout(() => {
 				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
 				const shopScene = engine.sceneManager.stack.find(
-					scene => scene.constructor.name === 'ShopScene'
+					scene => scene === engine.sceneManager.scenes.shop
 				);
 				if (shopScene) {
 					shopScene.mode = 'hatching';
@@ -466,15 +470,15 @@ export default class GameScene {
 			if (!engine.encounteredPokemons) {
 				engine.encounteredPokemons = new Set();
 			}
-			engine.encounteredPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
+			engine.encounteredPokemons.add(hatchedPokemon);
 			SaveManager.saveGame(engine, false);
 			engine.sceneManager.popScene();
-			this.eggHatchingAnimation = null;
+			gameScene.eggHatchingAnimation = null;
 			
 			setTimeout(() => {
 				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
 				const shopScene = engine.sceneManager.stack.find(
-					scene => scene.constructor.name === 'ShopScene'
+					scene => scene === engine.sceneManager.scenes.shop
 				);
 				if (shopScene) {
 					shopScene.mode = 'hatching';

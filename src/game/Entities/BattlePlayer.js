@@ -105,6 +105,9 @@ export default class BattlePlayer {
 		this.spellRangeMultipliers = {};
 		this.spellCooldownMultipliers = {};
 		this.waterDamageMultiplier = 1.0;
+		
+		this.enemyRepulsionRadius = 80;
+		this.enemyRepulsionStrength = 0.4;
 	}
 
 	applyEquippedItem(itemId, itemConfig) {
@@ -127,7 +130,7 @@ export default class BattlePlayer {
 		}
 	}
 
-	update(deltaTime, input, mapWidth, mapHeight, camera = null, collisionSystem = null) {
+	update(deltaTime, input, mapWidth, mapHeight, camera = null, collisionSystem = null, enemies = []) {
 		if (!this.isAlive && !this.isDying) return;
 		
 		if (this.isDying) {
@@ -153,6 +156,10 @@ export default class BattlePlayer {
 		if (input.isKeyDown('ArrowRight') || input.isKeyDown('KeyD')) moveX += 1;
 
 		const isMoving = moveX !== 0 || moveY !== 0;
+		
+		const enemyRepulsion = this.calculateEnemyRepulsion(enemies);
+		const repulsionX = enemyRepulsion.x * deltaTime / 16;
+		const repulsionY = enemyRepulsion.y * deltaTime / 16;
 
 		if (isMoving) {
 			const length = Math.sqrt(moveX * moveX + moveY * moveY);
@@ -162,8 +169,8 @@ export default class BattlePlayer {
 			this.velocityX = this.directionX * this.speed / 16;
 			this.velocityY = this.directionY * this.speed / 16;
 			
-			const deltaX = this.velocityX * deltaTime;
-			const deltaY = this.velocityY * deltaTime;
+			const deltaX = this.velocityX * deltaTime + repulsionX;
+			const deltaY = this.velocityY * deltaTime + repulsionY;
 
 			const newX = this.x + deltaX;
 			const newY = this.y + deltaY;
@@ -184,6 +191,28 @@ export default class BattlePlayer {
 				this.y = newY;
 			}
 		} else {
+			const deltaX = repulsionX;
+			const deltaY = repulsionY;
+			
+			const newX = this.x + deltaX;
+			const newY = this.y + deltaY;
+			
+			if (collisionSystem) {
+				const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
+				const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+				
+				if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+					this.x = newX;
+				}
+
+				if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+					this.y = newY;
+				}
+			} else {
+				this.x = newX;
+				this.y = newY;
+			}
+			
 			this.velocityX = 0;
 			this.velocityY = 0;
 		}
@@ -773,6 +802,51 @@ export default class BattlePlayer {
 	getCenterY() {
 		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
 		return this.y + hitboxOffsetY + this.height / 2;
+	}
+
+	calculateEnemyRepulsion(enemies) {
+		let repulsionX = 0;
+		let repulsionY = 0;
+		const thisCenterX = this.getCenterX();
+		const thisCenterY = this.getCenterY();
+		let neighborCount = 0;
+
+		for (const enemy of enemies) {
+			if (!enemy.isAlive) continue;
+
+			const enemyCenterX = enemy.getCenterX();
+			const enemyCenterY = enemy.getCenterY();
+			const dx = thisCenterX - enemyCenterX;
+			const dy = thisCenterY - enemyCenterY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			if (distance > 0 && distance < this.enemyRepulsionRadius) {
+				const normalizedDx = dx / distance;
+				const normalizedDy = dy / distance;
+				const force = (this.enemyRepulsionRadius - distance) / this.enemyRepulsionRadius;
+				
+				repulsionX += normalizedDx * force;
+				repulsionY += normalizedDy * force;
+				neighborCount++;
+			}
+		}
+
+		if (neighborCount > 0) {
+			repulsionX /= neighborCount;
+			repulsionY /= neighborCount;
+		}
+
+		const repulsionMagnitude = Math.sqrt(repulsionX * repulsionX + repulsionY * repulsionY);
+		if (repulsionMagnitude > 0) {
+			const normalizedRepulsionX = repulsionX / repulsionMagnitude;
+			const normalizedRepulsionY = repulsionY / repulsionMagnitude;
+			return {
+				x: normalizedRepulsionX * this.enemyRepulsionStrength * this.speed,
+				y: normalizedRepulsionY * this.enemyRepulsionStrength * this.speed
+			};
+		}
+
+		return { x: 0, y: 0 };
 	}
 
 	getHitboxX() {

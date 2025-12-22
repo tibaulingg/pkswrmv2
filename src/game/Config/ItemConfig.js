@@ -74,7 +74,7 @@ export const ItemConfig = {
 		description: 'Un oeuf rare',
 		rarity: 'rare',
 		requiredKills: 25,
-		possiblePokemon: ['quaksire']
+		possiblePokemon: ['wooper']
 	},
 	egg_epic: {
 		id: 'egg_epic',
@@ -84,7 +84,7 @@ export const ItemConfig = {
 		description: 'Un oeuf épique',
 		rarity: 'epic',
 		requiredKills: 50,
-		possiblePokemon: ['kecleon', 'wooper']
+		possiblePokemon: ['kecleon', 'quagsire']
 	},
 	egg_legendary: {
 		id: 'egg_legendary',

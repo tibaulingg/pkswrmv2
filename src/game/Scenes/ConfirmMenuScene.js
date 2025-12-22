@@ -34,6 +34,8 @@ export default class ConfirmMenuScene {
 		} else if (key === 'Escape') {
 			if (this.onNo) {
 				this.onNo(this.engine);
+			} else {
+				this.engine.sceneManager.popScene();
 			}
 			this.engine.audio.play('ok', 0.3, 0.1);
 		}

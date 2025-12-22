@@ -12,7 +12,7 @@ export default class GameEngine {
 	constructor(canvas) {
 		this.canvas = canvas
 		this.ctx = canvas.getContext('2d')
-		this.canvas.style.cursor = 'crosshair'
+		this.canvas.style.cursor = 'none'
 
 		this.renderer = new Renderer(this.ctx)
 		this.input = new InputManager()
@@ -114,7 +114,7 @@ export default class GameEngine {
 		}
 
 		const pokemonSprites = [
-			['quaksire', ['walk', 'hurt', 'faint', 'charge']],
+			['quagsire', ['walk', 'hurt', 'faint', 'charge']],
 			['rattata', ['walk', 'hurt', 'faint']],
 			['caterpie', ['walk', 'hurt', 'faint', 'shoot']],
 			['pidgey', ['walk', 'hurt', 'faint']],
@@ -153,7 +153,10 @@ export default class GameEngine {
 			hit: '/hit.wav',
 			ok: '/ok.wav',
 			victory: '/victory.mp3',
-			defeat: '/defeat.mp3'
+			defeat: '/defeat.mp3',
+			crit: '/crit.mp3',
+			death: '/death_impact.mp3',
+			chest_reward: '/chest_reward.mp3',
 		}
 
 		for (const [id, path] of Object.entries(sounds)) {

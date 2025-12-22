@@ -148,16 +148,17 @@ export default class MapSelectionScene {
 
 	openConfirmMenu(selectedMap) {
 		const message = `Confirmation du choix "${selectedMap.name}"`;
+		const mapSelectionScene = this;
 		
 		const onYes = (engine) => {
-			this.confirmMenu = null;
+			mapSelectionScene.confirmMenu = null;
 			engine.sceneManager.pushScene('transition', {
 				mapData: selectedMap
 			});
 		};
 
 		const onNo = (engine) => {
-			this.confirmMenu = null;
+			mapSelectionScene.confirmMenu = null;
 		};
 
 		this.confirmMenu = new ConfirmMenuScene(this.engine);

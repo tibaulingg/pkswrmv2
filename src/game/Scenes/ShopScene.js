@@ -25,6 +25,9 @@ export default class ShopScene {
 		this.keyRepeatTimers = {};
 		this.keyRepeatDelay = 300;
 		this.keyRepeatInterval = 50;
+		this.selectedQuantity = 1;
+		this.quantityBlinkTimer = 0;
+		this.quantityBlinkInterval = 1000;
 	}
 
 	init(data) {
@@ -40,6 +43,7 @@ export default class ShopScene {
 		this.currentPage = 0;
 		this.showNpcHappy = false;
 		this.happyTimer = 0;
+		this.selectedQuantity = 1;
 		
 		if (this.shopId === 'chansey') {
 			this.options = [
@@ -63,6 +67,10 @@ export default class ShopScene {
 			}
 		}
 		
+		this.quantityBlinkTimer += deltaTime;
+		if (this.quantityBlinkTimer >= this.quantityBlinkInterval) {
+			this.quantityBlinkTimer = 0;
+		}
 		
 		const moneyDiff = this.engine.money - this.engine.displayedMoney;
 		if (Math.abs(moneyDiff) > 0.5) {
@@ -81,6 +89,34 @@ export default class ShopScene {
 		const key = this.engine.input.consumeLastKey();
 		
 		if (this.mode === 'buying') {
+			const arrowKeys = ['ArrowLeft', 'ArrowRight'];
+			
+			if (key === 'ArrowLeft' || key === 'ArrowRight') {
+				if (!this.keyRepeatTimers[key]) {
+					this.keyRepeatTimers[key] = this.keyRepeatDelay;
+					this.handleBuyingQuantityKey(key);
+				}
+			}
+			
+			arrowKeys.forEach(arrowKey => {
+				if (this.engine.input.isKeyDown(arrowKey)) {
+					if (!this.keyRepeatTimers[arrowKey]) {
+						this.keyRepeatTimers[arrowKey] = this.keyRepeatDelay;
+						this.handleBuyingQuantityKey(arrowKey);
+					} else {
+						this.keyRepeatTimers[arrowKey] -= deltaTime;
+						if (this.keyRepeatTimers[arrowKey] <= 0) {
+							this.keyRepeatTimers[arrowKey] = this.keyRepeatInterval;
+							this.handleBuyingQuantityKey(arrowKey);
+						}
+					}
+				} else {
+					if (this.keyRepeatTimers[arrowKey]) {
+						delete this.keyRepeatTimers[arrowKey];
+					}
+				}
+			});
+			
 			if (key === 'ArrowUp') {
 				const items = this.getCurrentPageItems();
 				const totalPages = Math.ceil(this.shopItems.length / this.itemsPerPage);
@@ -92,6 +128,8 @@ export default class ShopScene {
 				} else {
 					this.selectedItemIndex = Math.max(0, this.selectedItemIndex - 1);
 				}
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else if (key === 'ArrowDown') {
 				const items = this.getCurrentPageItems();
@@ -106,6 +144,8 @@ export default class ShopScene {
 				} else {
 					this.selectedItemIndex = Math.min(maxIndex, this.selectedItemIndex + 1);
 				}
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else if (key === 'Enter') {
 				this.confirmPurchase();
@@ -113,10 +153,40 @@ export default class ShopScene {
 				this.mode = 'main';
 				this.selectedItemIndex = 0;
 				this.currentPage = 0;
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}
 		} else if (this.mode === 'selling') {
 			const sellableItems = this.getSellableItems();
+			const arrowKeys = ['ArrowLeft', 'ArrowRight'];
+			
+			if (key === 'ArrowLeft' || key === 'ArrowRight') {
+				if (!this.keyRepeatTimers[key]) {
+					this.keyRepeatTimers[key] = this.keyRepeatDelay;
+					this.handleSellingQuantityKey(key, sellableItems);
+				}
+			}
+			
+			arrowKeys.forEach(arrowKey => {
+				if (this.engine.input.isKeyDown(arrowKey)) {
+					if (!this.keyRepeatTimers[arrowKey]) {
+						this.keyRepeatTimers[arrowKey] = this.keyRepeatDelay;
+						this.handleSellingQuantityKey(arrowKey, sellableItems);
+					} else {
+						this.keyRepeatTimers[arrowKey] -= deltaTime;
+						if (this.keyRepeatTimers[arrowKey] <= 0) {
+							this.keyRepeatTimers[arrowKey] = this.keyRepeatInterval;
+							this.handleSellingQuantityKey(arrowKey, sellableItems);
+						}
+					}
+				} else {
+					if (this.keyRepeatTimers[arrowKey]) {
+						delete this.keyRepeatTimers[arrowKey];
+					}
+				}
+			});
+			
 			if (key === 'ArrowUp') {
 				const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
 				
@@ -127,6 +197,8 @@ export default class ShopScene {
 				} else {
 					this.selectedItemIndex = Math.max(0, this.selectedItemIndex - 1);
 				}
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else if (key === 'ArrowDown') {
 				const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
@@ -140,6 +212,8 @@ export default class ShopScene {
 				} else {
 					this.selectedItemIndex = Math.min(maxIndex, this.selectedItemIndex + 1);
 				}
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else if (key === 'Enter') {
 				this.confirmSale();
@@ -147,6 +221,8 @@ export default class ShopScene {
 				this.mode = 'main';
 				this.selectedItemIndex = 0;
 				this.currentPage = 0;
+				this.selectedQuantity = 1;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}
 		} else if (this.mode === 'hatching') {
@@ -338,6 +414,62 @@ export default class ShopScene {
 		}
 	}
 
+	handleBuyingQuantityKey(key) {
+		if (key === 'ArrowLeft') {
+			if (this.selectedQuantity === 1) {
+				const items = this.getCurrentPageItems();
+				if (this.selectedItemIndex >= 0 && this.selectedItemIndex < items.length) {
+					const globalIndex = this.currentPage * this.itemsPerPage + this.selectedItemIndex;
+					const shopItem = this.shopItems[globalIndex];
+					const maxAffordable = Math.floor(this.engine.money / shopItem.buyPrice) || 1;
+					this.selectedQuantity = Math.min(99, maxAffordable);
+				}
+			} else {
+				this.selectedQuantity = Math.max(1, this.selectedQuantity - 1);
+			}
+			this.engine.audio.play('ok', 0.2, 0.1);
+		} else if (key === 'ArrowRight') {
+			const items = this.getCurrentPageItems();
+			if (this.selectedItemIndex >= 0 && this.selectedItemIndex < items.length) {
+				const globalIndex = this.currentPage * this.itemsPerPage + this.selectedItemIndex;
+				const shopItem = this.shopItems[globalIndex];
+				const maxAffordable = Math.floor(this.engine.money / shopItem.buyPrice) || 1;
+				this.selectedQuantity = Math.min(99, Math.min(maxAffordable, this.selectedQuantity + 1));
+			}
+			this.engine.audio.play('ok', 0.2, 0.1);
+		}
+	}
+
+	handleSellingQuantityKey(key, sellableItems) {
+		if (key === 'ArrowLeft') {
+			if (this.selectedQuantity === 1) {
+				const startIndex = this.currentPage * this.itemsPerPage;
+				const itemIndex = startIndex + this.selectedItemIndex;
+				if (itemIndex < sellableItems.length) {
+					const sellItem = sellableItems[itemIndex];
+					const maxAvailable = this.engine.inventory[sellItem.id] || 0;
+					if (maxAvailable > 0) {
+						this.selectedQuantity = maxAvailable;
+					}
+				}
+			} else {
+				this.selectedQuantity = Math.max(1, this.selectedQuantity - 1);
+			}
+			this.engine.audio.play('ok', 0.2, 0.1);
+		} else if (key === 'ArrowRight') {
+			const startIndex = this.currentPage * this.itemsPerPage;
+			const itemIndex = startIndex + this.selectedItemIndex;
+			if (itemIndex < sellableItems.length) {
+				const sellItem = sellableItems[itemIndex];
+				const maxAvailable = this.engine.inventory[sellItem.id] || 0;
+				if (maxAvailable > 0) {
+					this.selectedQuantity = Math.min(maxAvailable, this.selectedQuantity + 1);
+				}
+			}
+			this.engine.audio.play('ok', 0.2, 0.1);
+		}
+	}
+
 	hatchSelectedEgg() {
 		const readyEggs = this.getReadyEggs();
 		const startIndex = this.currentPage * this.itemsPerPage;
@@ -368,11 +500,11 @@ export default class ShopScene {
 		SaveManager.saveGame(this.engine, false);
 		this.engine.audio.play('ok', 0.5, 0.2);
 		
-		const gameScene = this.engine.sceneManager.stack.find(
-			scene => scene.constructor.name === 'GameScene'
-		);
-		if (gameScene) {
-			const chanseyNpc = gameScene.npcs.find(npc => npc.id === 'chansey');
+		const gameScene = this.engine.sceneManager.scenes.game;
+		const isGameSceneInStack = this.engine.sceneManager.stack.includes(gameScene);
+		
+		if (gameScene && isGameSceneInStack) {
+			const chanseyNpc = gameScene.npcs && gameScene.npcs.find ? gameScene.npcs.find(npc => npc.id === 'chansey') : null;
 			if (chanseyNpc) {
 				const pokemonConfig = getPokemonConfig('chansey');
 				const chargeSprite = this.engine.sprites.get('chansey_charge');
@@ -382,7 +514,9 @@ export default class ShopScene {
 					chanseyNpc.animationSystem.setAnimation('charge', 5000);
 					chanseyNpc.animationSystem.setDirection('down');
 					
-					gameScene.startEggHatchingAnimation(chanseyNpc, egg.id, hatchedPokemon);
+					if (gameScene.startEggHatchingAnimation && typeof gameScene.startEggHatchingAnimation === 'function') {
+						gameScene.startEggHatchingAnimation(chanseyNpc, egg.id, hatchedPokemon);
+					}
 				}
 			}
 		}
@@ -396,46 +530,51 @@ export default class ShopScene {
 			const globalIndex = this.currentPage * this.itemsPerPage + this.selectedItemIndex;
 			const shopItem = this.shopItems[globalIndex];
 			const item = shopItem.itemConfig;
+			const totalPrice = shopItem.buyPrice * this.selectedQuantity;
 			
-			if (this.engine.money < shopItem.buyPrice) {
+			if (this.engine.money < totalPrice) {
 				this.engine.audio.play('ok', 0.1, 0.1);
 				return;
 			}
 			
-			const message = `Acheter:${item.name}:${shopItem.buyPrice} pièces ?`;
+			const message = `Acheter ${this.selectedQuantity}x ${item.name}:${totalPrice} pièces ?`;
 			
 			this.engine.sceneManager.pushScene('confirmMenu', {
 				message: message,
 				onYes: (engine) => {
-					if (engine.money >= shopItem.buyPrice) {
-						engine.money -= shopItem.buyPrice;
+					if (engine.money >= totalPrice) {
+						engine.money -= totalPrice;
 						if (!engine.inventory) {
 							engine.inventory = {};
 						}
-						if (item.category === 'equipable') {
-							engine.inventory[item.id] = (engine.inventory[item.id] || 0) + 1;
-						} else {
-							engine.inventory[item.id] = (engine.inventory[item.id] || 0) + 1;
-						}
 						
-						if (item.category === 'egg') {
-							if (!engine.eggProgress) {
-								engine.eggProgress = {};
+						for (let i = 0; i < this.selectedQuantity; i++) {
+							if (item.category === 'equipable') {
+								engine.inventory[item.id] = (engine.inventory[item.id] || 0) + 1;
+							} else {
+								engine.inventory[item.id] = (engine.inventory[item.id] || 0) + 1;
 							}
-							if (!engine.eggUniqueIds) {
-								engine.eggUniqueIds = {};
+							
+							if (item.category === 'egg') {
+								if (!engine.eggProgress) {
+									engine.eggProgress = {};
+								}
+								if (!engine.eggUniqueIds) {
+									engine.eggUniqueIds = {};
+								}
+								if (!engine.eggUniqueIds[item.id]) {
+									engine.eggUniqueIds[item.id] = [];
+								}
+								const uniqueId = `${item.id}_${Date.now()}_${Math.random()}_${i}`;
+								engine.eggUniqueIds[item.id].push(uniqueId);
+								engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: item.requiredKills };
 							}
-							if (!engine.eggUniqueIds[item.id]) {
-								engine.eggUniqueIds[item.id] = [];
-							}
-							const uniqueId = `${item.id}_${Date.now()}_${Math.random()}`;
-							engine.eggUniqueIds[item.id].push(uniqueId);
-							engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: item.requiredKills };
 						}
 						
 						engine.audio.play('coins', 0.5, 0.2);
 						this.showNpcHappy = true;
 						this.happyTimer = 0;
+						this.selectedQuantity = 1;
 						SaveManager.saveGame(engine, false);
 					} else {
 						engine.audio.play('ok', 0.1, 0.1);
@@ -459,26 +598,36 @@ export default class ShopScene {
 		
 		const sellItem = sellableItems[itemIndex];
 		const item = sellItem.itemConfig;
+		const availableQuantity = this.engine.inventory[sellItem.id] || 0;
 		
-		if (!this.engine.inventory[sellItem.id] || this.engine.inventory[sellItem.id] <= 0) {
+		if (availableQuantity <= 0) {
 			this.engine.audio.play('ok', 0.1, 0.1);
 			return;
 		}
 		
-		const message = `Vendre:${item.name}:${sellItem.sellPrice} pièces ?`;
+		if (this.selectedQuantity > availableQuantity) {
+			this.selectedQuantity = availableQuantity;
+		}
+		
+		const totalPrice = sellItem.sellPrice * this.selectedQuantity;
+		const message = `Vendre ${this.selectedQuantity}x ${item.name}:${totalPrice} pièces ?`;
 		
 		this.engine.sceneManager.pushScene('confirmMenu', {
 			message: message,
 			onYes: (engine) => {
-				if (engine.inventory[sellItem.id] && engine.inventory[sellItem.id] > 0) {
-					engine.inventory[sellItem.id]--;
+				const currentQuantity = engine.inventory[sellItem.id] || 0;
+				const sellQuantity = Math.min(this.selectedQuantity, currentQuantity);
+				
+				if (sellQuantity > 0) {
+					engine.inventory[sellItem.id] -= sellQuantity;
 					if (engine.inventory[sellItem.id] <= 0) {
 						delete engine.inventory[sellItem.id];
 					}
-					engine.money += sellItem.sellPrice;
+					engine.money += sellItem.sellPrice * sellQuantity;
 					engine.audio.play('coins', 0.5, 0.2);
 					this.showNpcHappy = true;
 					this.happyTimer = 0;
+					this.selectedQuantity = 1;
 					SaveManager.saveGame(engine, false);
 				} else {
 					engine.audio.play('ok', 0.1, 0.1);
@@ -522,15 +671,29 @@ export default class ShopScene {
 			}
 		}
 
+		const ITEM_LIST_START_X = 280;
+
 		if (this.mode === 'buying') {
 
-			const itemListStartX = 280;
-			const itemListStartY = 400;
+			const itemListStartX = ITEM_LIST_START_X;
+			const itemListStartY = 420;
 			const itemSpacing = 40;
 			const itemFontSize = '20px';
 
 			const items = this.getCurrentPageItems();
 			const totalPages = Math.ceil(this.shopItems.length / this.itemsPerPage);
+
+			renderer.ctx.save();
+			renderer.ctx.font = 'bold 28px Pokemon';
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			const titleText = this.shopId === 'kecleon' ? 'ÉCHOPE KECLEON' : 'NEURSEURUIE LEVAINARD';
+			renderer.ctx.strokeText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.fillText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.restore();
 
 			renderer.ctx.save();
 			renderer.ctx.font = `${itemFontSize} Pokemon`;
@@ -563,9 +726,15 @@ export default class ShopScene {
 				renderer.ctx.fillStyle = color;
 				renderer.ctx.fillText(item.name, currentX, y);
 				
-				const priceText = SaveManager.formatLargeNumber(shopItem.buyPrice);
+				let priceText;
+				if (index === this.selectedItemIndex) {
+					const totalPrice = shopItem.buyPrice * this.selectedQuantity;
+					priceText = SaveManager.formatLargeNumber(totalPrice);
+				} else {
+					priceText = SaveManager.formatLargeNumber(shopItem.buyPrice);
+				}
 				const priceTextWidth = renderer.ctx.measureText(priceText).width;
-				const priceX = itemListStartX + 480;
+				const priceX = itemListStartX + 600;
 				const coinSize = 20;
 				
 				renderer.ctx.fillStyle = canAfford ? '#ffffff' : '#ff0000';
@@ -598,7 +767,7 @@ export default class ShopScene {
 				const selectedShopItem = this.shopItems[globalIndex];
 				const selectedItem = selectedShopItem.itemConfig;
 				
-				const moneyX = 1000;
+				const moneyX = 1100;
 				const moneyY = 815;
 				const moneyFontSize = '20px';
 				const coinSize = 24;
@@ -617,6 +786,15 @@ export default class ShopScene {
 				if (coinsImage) {
 					renderer.drawImage(coinsImage, moneyX + moneyTextWidth + 5, moneyY - coinSize / 2, coinSize, coinSize);
 				}
+				
+				const priceX = itemListStartX + 570;
+				const quantityText = `x${this.selectedQuantity}`;
+				const selectedY = itemListStartY + this.selectedItemIndex * itemSpacing;
+				const blinkPhase = Math.floor(this.quantityBlinkTimer / (this.quantityBlinkInterval / 2));
+				const isVisible = blinkPhase % 2 === 0;
+				renderer.ctx.font = '20px Pokemon';
+				renderer.ctx.fillStyle = isVisible ? '#ffffff' : 'rgba(255, 255, 255, 0.3)';
+				renderer.ctx.fillText(quantityText, priceX - 70, selectedY);
 				renderer.ctx.restore();
 			}
 
@@ -633,13 +811,29 @@ export default class ShopScene {
 				renderer.ctx.font = `${helperFontSize} Pokemon`;
 				renderer.ctx.textAlign = 'left';
 				renderer.ctx.fillText(selectedItem.description, 70, helperY);
+				
+				const quantityHelpText = `Flèches ← → pour changer la quantité`;
+				renderer.ctx.font = '20px Pokemon';
+				renderer.ctx.fillText(quantityHelpText, 70, helperY + 35);
 				renderer.ctx.restore();
 			}
 		} else if (this.mode === 'hatching') {
-			const itemListStartX = 650;
-			const itemListStartY = 320;
+			const itemListStartX = ITEM_LIST_START_X + 400;
+			const itemListStartY = 340;
 			const itemSpacing = 40;
 			const itemFontSize = '20px';
+
+			renderer.ctx.save();
+			renderer.ctx.font = 'bold 28px Pokemon';
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			const titleText = 'NEURSEURUIE LEVAINARD';
+			renderer.ctx.strokeText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.fillText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.restore();
 
 			const readyEggs = this.getReadyEggs();
 			const startIndex = this.currentPage * this.itemsPerPage;
@@ -701,8 +895,8 @@ export default class ShopScene {
 				renderer.ctx.restore();
 			}
 		} else if (this.mode === 'selling') {
-			const itemListStartX = 280;
-			const itemListStartY = 400;
+			const itemListStartX = ITEM_LIST_START_X;
+			const itemListStartY = 420;
 			const itemSpacing = 40;
 			const itemFontSize = '20px';
 
@@ -711,6 +905,18 @@ export default class ShopScene {
 			const endIndex = Math.min(startIndex + this.itemsPerPage, sellableItems.length);
 			const itemsToShow = sellableItems.slice(startIndex, endIndex);
 			const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
+
+			renderer.ctx.save();
+			renderer.ctx.font = 'bold 28px Pokemon';
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			const titleText = this.shopId === 'kecleon' ? 'ÉCHOPE KECLEON' : 'NEURSEURUIE LEVAINARD';
+			renderer.ctx.strokeText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.fillText(titleText, itemListStartX, itemListStartY - 50);
+			renderer.ctx.restore();
 
 			renderer.ctx.save();
 			renderer.ctx.font = `${itemFontSize} Pokemon`;
@@ -746,13 +952,19 @@ export default class ShopScene {
 					renderer.ctx.fillText(item.name, currentX, y);
 					
 					const quantityText = `x${sellItem.quantity}`;
-					const quantityX = itemListStartX + 350;
+					const quantityX = itemListStartX + 370;
 					renderer.ctx.fillStyle = color;
 					renderer.ctx.fillText(quantityText, quantityX, y);
 					
-					const priceText = SaveManager.formatLargeNumber(sellItem.sellPrice);
+					let priceText;
+					if (index === this.selectedItemIndex) {
+						const totalPrice = sellItem.sellPrice * this.selectedQuantity;
+						priceText = SaveManager.formatLargeNumber(totalPrice);
+					} else {
+						priceText = SaveManager.formatLargeNumber(sellItem.sellPrice);
+					}
 					const priceTextWidth = renderer.ctx.measureText(priceText).width;
-					const priceX = itemListStartX + 480;
+					const priceX = itemListStartX + 570;
 					const coinSize = 20;
 					
 					renderer.ctx.fillStyle = '#ffffff';
@@ -780,7 +992,7 @@ export default class ShopScene {
 				renderer.ctx.restore();
 			}
 
-			const moneyX = 1000;
+			const moneyX = 1100;
 			const moneyY = 815;
 			const moneyFontSize = '20px';
 			const coinSize = 24;
@@ -799,6 +1011,18 @@ export default class ShopScene {
 			if (coinsImage) {
 				renderer.drawImage(coinsImage, moneyX + moneyTextWidth + 5, moneyY - coinSize / 2, coinSize, coinSize);
 			}
+			
+			if (this.selectedItemIndex >= 0 && this.selectedItemIndex < itemsToShow.length) {
+				const priceX = itemListStartX + 570;
+				const quantityText = `x${this.selectedQuantity}`;
+				const selectedY = itemListStartY + this.selectedItemIndex * itemSpacing;
+				const blinkPhase = Math.floor(this.quantityBlinkTimer / (this.quantityBlinkInterval / 2));
+				const isVisible = blinkPhase % 2 === 0;
+				renderer.ctx.font = '20px Pokemon';
+				renderer.ctx.fillStyle = isVisible ? '#ffffff' : 'rgba(255, 255, 255, 0.3)';
+				renderer.ctx.fillText(quantityText, priceX - 70, selectedY);
+			}
+			
 			renderer.ctx.restore();
 
 			const helperY = renderer.height - 100;
@@ -813,6 +1037,10 @@ export default class ShopScene {
 				renderer.ctx.font = `${helperFontSize} Pokemon`;
 				renderer.ctx.textAlign = 'left';
 				renderer.ctx.fillText(selectedItem.description, 70, helperY);
+				
+				const quantityHelpText = `Flèches ← → pour changer la quantité`;
+				renderer.ctx.font = '20px Pokemon';
+				renderer.ctx.fillText(quantityHelpText, 70, helperY + 35);
 				renderer.ctx.restore();
 			}
 		} else {

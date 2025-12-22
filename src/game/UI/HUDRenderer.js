@@ -862,7 +862,7 @@ export default class HUDRenderer {
 		const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
 		const hpFilledWidth = hpBarWidth * hpPercent;
 
-		renderer.ctx.fillStyle = '#F74B33';
+		renderer.ctx.fillStyle = barXpEmpty;
 		renderer.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, barHeight);
 
 		let hpBarColor;

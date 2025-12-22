@@ -42,7 +42,7 @@ export default class SaveManager {
 			incubatingEgg: engine.incubatingEgg || null,
 			eggProgress: engine.eggProgress || {},
 			eggUniqueIds: engine.eggUniqueIds || {},
-			selectedPokemon: engine.selectedPokemon || 'quaksire',
+			selectedPokemon: engine.selectedPokemon || 'quagsire',
 			playerName: engine.playerName || 'Trainer',
 			encounteredPokemons: Array.from(engine.encounteredPokemons || []),
 			playedPokemons: Array.from(engine.playedPokemons || []),
@@ -78,7 +78,7 @@ export default class SaveManager {
 			engine.incubatingEgg = saveData.incubatingEgg || null;
 			engine.eggProgress = saveData.eggProgress || {};
 			engine.eggUniqueIds = saveData.eggUniqueIds || {};
-			engine.selectedPokemon = saveData.selectedPokemon || 'quaksire';
+			engine.selectedPokemon = saveData.selectedPokemon || 'quagsire';
 			engine.playerName = saveData.playerName || 'Trainer';
 			
 			if (saveData.encounteredPokemons) {

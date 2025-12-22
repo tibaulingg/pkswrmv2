@@ -59,7 +59,8 @@ export default function Game() {
 					boxShadow: '0 0 20px rgba(0,0,0,0.5)',
 					transform: `scale(${scale})`,
 					transformOrigin: 'center center',
-					imageRendering: 'pixelated'
+					imageRendering: 'pixelated',
+					cursor: 'none'
 				}}
 			/>
 		</div>

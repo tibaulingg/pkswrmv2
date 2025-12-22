@@ -20,15 +20,13 @@ export default class GameOverScene {
 		
 		if (this.battleScene) {
 			const moneyGained = this.battleScene.player.money - (this.battleScene.initialMoney || 0);
-			if (moneyGained > 0) {
-				const moneyOriginal = Math.floor(moneyGained);
-				const moneyKept = Math.floor(moneyOriginal / 2);
-				this.itemAnimations['money'] = {
-					original: moneyOriginal,
-					target: moneyKept,
-					current: moneyOriginal
-				};
-			}
+			const moneyOriginal = Math.floor(moneyGained);
+			const moneyKept = Math.floor(moneyOriginal / 2);
+			this.itemAnimations['money'] = {
+				original: moneyOriginal,
+				target: moneyKept,
+				current: moneyOriginal
+			};
 			
 			const sessionInventory = this.battleScene.sessionInventory || {};
 			Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
@@ -173,6 +171,14 @@ export default class GameOverScene {
 				}
 				
 				currentY += pokemonIconSize + 20;
+			} else {
+				renderer.ctx.font = `${fontSize}px Pokemon`;
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.strokeStyle = '#000000';
+				renderer.ctx.lineWidth = 3;
+				renderer.ctx.fillText('Abandon', startX, currentY);
+				
+				currentY += lineHeight + 20;
 			}
 		}
 
@@ -192,117 +198,131 @@ export default class GameOverScene {
 		
 		currentY += lineHeight + 30;
 
-		if (this.itemAnimations['money']) {
-			const anim = this.itemAnimations['money'];
-			const coinSprite = this.engine.sprites.get('coins');
+		const moneyAnim = this.itemAnimations['money'] || { original: 0, target: 0, current: 0 };
+		const coinSprite = this.engine.sprites.get('coins');
+		
+		if (coinSprite) {
+			renderer.ctx.drawImage(coinSprite, startX, currentY - iconSize / 2, iconSize, iconSize);
+		}
+		
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textBaseline = 'middle';
+		renderer.ctx.font = `${fontSize}px Pokemon`;
+		
+		const currentText = `${moneyAnim.current}`;
+		const originalText = `${moneyAnim.original}`;
+		const textY = currentY;
+		const textX = startX + iconSize + spacing;
+		
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = '#000000';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.strokeText(currentText, textX, textY);
+		renderer.ctx.fillText(currentText, textX, textY);
+		
+		if (this.isDefeat && moneyAnim.original !== moneyAnim.target) {
+			const currentWidth = renderer.ctx.measureText(currentText).width;
+			const originalX = textX + currentWidth + spacing;
 			
-			if (coinSprite) {
-				renderer.ctx.drawImage(coinSprite, startX, currentY - iconSize / 2, iconSize, iconSize);
-			}
-			
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.textBaseline = 'middle';
-			renderer.ctx.font = `${fontSize}px Pokemon`;
-			
-			const currentText = `${anim.current}`;
-			const originalText = `${anim.original}`;
-			const textY = currentY;
-			const textX = startX + iconSize + spacing;
-			
-			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.fillStyle = '#888888';
 			renderer.ctx.strokeStyle = '#000000';
 			renderer.ctx.lineWidth = 2;
-			renderer.ctx.strokeText(currentText, textX, textY);
-			renderer.ctx.fillText(currentText, textX, textY);
+			renderer.ctx.strokeText(`(${originalText}`, originalX, textY);
+			renderer.ctx.fillText(`(${originalText}`, originalX, textY);
 			
-			if (this.isDefeat && anim.original !== anim.target) {
-				const currentWidth = renderer.ctx.measureText(currentText).width;
-				const originalX = textX + currentWidth + spacing;
-				
-				renderer.ctx.fillStyle = '#888888';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeText(`(${originalText}`, originalX, textY);
-				renderer.ctx.fillText(`(${originalText}`, originalX, textY);
-				
-				const originalWidth = renderer.ctx.measureText(`(${originalText}`).width;
-				
-				renderer.ctx.strokeStyle = '#ff0000';
-				renderer.ctx.lineWidth = 3;
-				renderer.ctx.beginPath();
-				renderer.ctx.moveTo(originalX, textY);
-				renderer.ctx.lineTo(originalX + originalWidth, textY);
-				renderer.ctx.stroke();
-				
-				renderer.ctx.fillStyle = '#888888';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeText(')', originalX + originalWidth, textY);
-				renderer.ctx.fillText(')', originalX + originalWidth, textY);
-			}
+			const originalWidth = renderer.ctx.measureText(`(${originalText}`).width;
 			
-			currentY += lineHeight;
+			renderer.ctx.strokeStyle = '#ff0000';
+			renderer.ctx.lineWidth = 3;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(originalX, textY);
+			renderer.ctx.lineTo(originalX + originalWidth, textY);
+			renderer.ctx.stroke();
+			
+			renderer.ctx.fillStyle = '#888888';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.strokeText(')', originalX + originalWidth, textY);
+			renderer.ctx.fillText(')', originalX + originalWidth, textY);
 		}
+		
+		currentY += lineHeight;
 
 		const sessionInventory = this.battleScene.sessionInventory || {};
-		Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
-			if (quantity <= 0) return;
+		const itemsPerColumn = 3;
+		const columnWidth = 250;
+		
+		const validItems = Object.entries(sessionInventory)
+			.filter(([itemId, quantity]) => {
+				if (quantity <= 0) return false;
+				const itemConfig = ItemConfig[itemId];
+				if (!itemConfig) return false;
+				if (!this.itemAnimations[itemId]) return false;
+				return true;
+			});
+		
+		const totalItems = validItems.length;
+		const itemsStartY = currentY;
+		
+		if (totalItems > 0) {
+			validItems.forEach(([itemId, quantity], index) => {
+				const columnIndex = Math.floor(index / itemsPerColumn);
+				const rowIndex = index % itemsPerColumn;
+				const itemX = startX + (columnIndex * columnWidth);
+				const itemY = itemsStartY + (rowIndex * lineHeight);
 			
-			const itemConfig = ItemConfig[itemId];
-			if (!itemConfig) return;
-
-			if (!this.itemAnimations[itemId]) return;
-			
-			const anim = this.itemAnimations[itemId];
-			const itemSprite = this.engine.sprites.get(`item_${itemId}`);
-			
-			if (itemSprite) {
-				renderer.ctx.drawImage(itemSprite, startX, currentY - iconSize / 2, iconSize, iconSize);
-			}
-			
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.textBaseline = 'middle';
-			renderer.ctx.font = `${fontSize}px Pokemon`;
-			
-			const currentText = `${anim.current}`;
-			const originalText = `${anim.original}`;
-			const textY = currentY;
-			const textX = startX + iconSize + spacing;
-			
-			renderer.ctx.fillStyle = '#ffffff';
-			renderer.ctx.strokeStyle = '#000000';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.strokeText(currentText, textX, textY);
-			renderer.ctx.fillText(currentText, textX, textY);
-			
-			if (this.isDefeat && anim.original !== anim.target) {
-				const currentWidth = renderer.ctx.measureText(currentText).width;
-				const originalX = textX + currentWidth + spacing;
+				const anim = this.itemAnimations[itemId];
+				const itemSprite = this.engine.sprites.get(`item_${itemId}`);
 				
-				renderer.ctx.fillStyle = '#888888';
+				if (itemSprite) {
+					renderer.ctx.drawImage(itemSprite, itemX, itemY - iconSize / 2, iconSize, iconSize);
+				}
+				
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textBaseline = 'middle';
+				renderer.ctx.font = `${fontSize}px Pokemon`;
+				
+				const currentText = `${anim.current}`;
+				const originalText = `${anim.original}`;
+				const textY = itemY;
+				const textX = itemX + iconSize + spacing;
+				
+				renderer.ctx.fillStyle = '#ffffff';
 				renderer.ctx.strokeStyle = '#000000';
 				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeText(`(${originalText}`, originalX, textY);
-				renderer.ctx.fillText(`(${originalText}`, originalX, textY);
+				renderer.ctx.strokeText(currentText, textX, textY);
+				renderer.ctx.fillText(currentText, textX, textY);
 				
-				const originalWidth = renderer.ctx.measureText(`(${originalText}`).width;
-				
-				renderer.ctx.strokeStyle = '#ff0000';
-				renderer.ctx.lineWidth = 3;
-				renderer.ctx.beginPath();
-				renderer.ctx.moveTo(originalX, textY);
-				renderer.ctx.lineTo(originalX + originalWidth, textY);
-				renderer.ctx.stroke();
-				
-				renderer.ctx.fillStyle = '#888888';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeText(')', originalX + originalWidth, textY);
-				renderer.ctx.fillText(')', originalX + originalWidth, textY);
-			}
-			
-			currentY += lineHeight;
-		});
+				if (this.isDefeat && anim.original !== anim.target) {
+					const currentWidth = renderer.ctx.measureText(currentText).width;
+					const originalX = textX + currentWidth + spacing;
+					
+					renderer.ctx.fillStyle = '#888888';
+					renderer.ctx.strokeStyle = '#000000';
+					renderer.ctx.lineWidth = 2;
+					renderer.ctx.strokeText(`(${originalText}`, originalX, textY);
+					renderer.ctx.fillText(`(${originalText}`, originalX, textY);
+					
+					const originalWidth = renderer.ctx.measureText(`(${originalText}`).width;
+					
+					renderer.ctx.strokeStyle = '#ff0000';
+					renderer.ctx.lineWidth = 3;
+					renderer.ctx.beginPath();
+					renderer.ctx.moveTo(originalX, textY);
+					renderer.ctx.lineTo(originalX + originalWidth, textY);
+					renderer.ctx.stroke();
+					
+					renderer.ctx.fillStyle = '#888888';
+					renderer.ctx.strokeStyle = '#000000';
+					renderer.ctx.lineWidth = 2;
+					renderer.ctx.strokeText(')', originalX + originalWidth, textY);
+					renderer.ctx.fillText(')', originalX + originalWidth, textY);
+				}
+			});
+		}
+		
+		const maxRowsInAnyColumn = Math.min(itemsPerColumn, Math.max(totalItems, itemsPerColumn));
+		currentY = itemsStartY + (maxRowsInAnyColumn * lineHeight);
 
 		renderer.ctx.restore();
 

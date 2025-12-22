@@ -59,7 +59,7 @@ export const Spells = {
 };
 
 export const PokemonSpellAccess = {
-	quaksire: ['earthquake', 'rock_trap', 'hydrocanon']
+	quagsire: ['earthquake', 'rock_trap', 'hydrocanon']
 };
 
 export function getSpellConfig(spellId) {
