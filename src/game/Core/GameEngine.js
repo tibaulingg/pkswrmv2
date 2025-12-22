@@ -86,6 +86,7 @@ export default class GameEngine {
 			shop: '/shop.png',
 			shop_long: '/shop_long.png',
 			shop_overlay: '/shop_overlay.png',
+			hatch_egg_bg: '/hatch_egg_bg.png',
 			map_selection_screen: '/map_selection_screen.png',
 			confirm_menu: '/confirm_menu.png',
 			hub: '/hub.png',

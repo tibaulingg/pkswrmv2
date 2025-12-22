@@ -22,6 +22,9 @@ export default class ShopScene {
 		this.showNpcHappy = false;
 		this.happyTimer = 0;
 		this.happyDuration = 2000;
+		this.keyRepeatTimers = {};
+		this.keyRepeatDelay = 300;
+		this.keyRepeatInterval = 50;
 	}
 
 	init(data) {
@@ -148,36 +151,34 @@ export default class ShopScene {
 			}
 		} else if (this.mode === 'hatching') {
 			const readyEggs = this.getReadyEggs();
-			if (key === 'ArrowUp') {
-				const totalPages = Math.ceil(readyEggs.length / this.itemsPerPage);
-				
-				if (this.selectedItemIndex === 0 && this.currentPage > 0) {
-					this.currentPage--;
-					const itemsOnPage = Math.min(this.itemsPerPage, readyEggs.length - (this.currentPage * this.itemsPerPage));
-					this.selectedItemIndex = itemsOnPage - 1;
+			const arrowKeys = ['ArrowUp', 'ArrowDown'];
+			
+			arrowKeys.forEach(arrowKey => {
+				if (this.engine.input.isKeyDown(arrowKey)) {
+					if (!this.keyRepeatTimers[arrowKey]) {
+						this.keyRepeatTimers[arrowKey] = this.keyRepeatDelay;
+						this.handleHatchingKey(arrowKey, readyEggs);
+					} else {
+						this.keyRepeatTimers[arrowKey] -= deltaTime;
+						if (this.keyRepeatTimers[arrowKey] <= 0) {
+							this.keyRepeatTimers[arrowKey] = this.keyRepeatInterval;
+							this.handleHatchingKey(arrowKey, readyEggs);
+						}
+					}
 				} else {
-					this.selectedItemIndex = Math.max(0, this.selectedItemIndex - 1);
+					if (this.keyRepeatTimers[arrowKey]) {
+						delete this.keyRepeatTimers[arrowKey];
+					}
 				}
-				this.engine.audio.play('ok', 0.3, 0.1);
-			} else if (key === 'ArrowDown') {
-				const totalPages = Math.ceil(readyEggs.length / this.itemsPerPage);
-				const startIndex = this.currentPage * this.itemsPerPage;
-				const endIndex = Math.min(startIndex + this.itemsPerPage, readyEggs.length);
-				const maxIndex = endIndex - startIndex - 1;
-				
-				if (this.selectedItemIndex === maxIndex && this.currentPage < totalPages - 1) {
-					this.currentPage++;
-					this.selectedItemIndex = 0;
-				} else {
-					this.selectedItemIndex = Math.min(maxIndex, this.selectedItemIndex + 1);
-				}
-				this.engine.audio.play('ok', 0.3, 0.1);
-			} else if (key === 'Enter') {
+			});
+			
+			if (key === 'Enter') {
 				this.hatchSelectedEgg();
 			} else if (key === 'Escape') {
 				this.mode = 'main';
 				this.selectedItemIndex = 0;
 				this.currentPage = 0;
+				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}
 		} else {
@@ -307,6 +308,34 @@ export default class ShopScene {
 		});
 
 		return readyEggs;
+	}
+
+	handleHatchingKey(key, readyEggs) {
+		if (key === 'ArrowUp') {
+			const totalPages = Math.ceil(readyEggs.length / this.itemsPerPage);
+			
+			if (this.selectedItemIndex === 0 && this.currentPage > 0) {
+				this.currentPage--;
+				const itemsOnPage = Math.min(this.itemsPerPage, readyEggs.length - (this.currentPage * this.itemsPerPage));
+				this.selectedItemIndex = itemsOnPage - 1;
+			} else {
+				this.selectedItemIndex = Math.max(0, this.selectedItemIndex - 1);
+			}
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (key === 'ArrowDown') {
+			const totalPages = Math.ceil(readyEggs.length / this.itemsPerPage);
+			const startIndex = this.currentPage * this.itemsPerPage;
+			const endIndex = Math.min(startIndex + this.itemsPerPage, readyEggs.length);
+			const maxIndex = endIndex - startIndex - 1;
+			
+			if (this.selectedItemIndex === maxIndex && this.currentPage < totalPages - 1) {
+				this.currentPage++;
+				this.selectedItemIndex = 0;
+			} else {
+				this.selectedItemIndex = Math.min(maxIndex, this.selectedItemIndex + 1);
+			}
+			this.engine.audio.play('ok', 0.3, 0.1);
+		}
 	}
 
 	hatchSelectedEgg() {
@@ -468,7 +497,12 @@ export default class ShopScene {
 	}
 
 	render(renderer) {
-		if (this.mode === 'buying' || this.mode === 'hatching' || this.mode === 'selling') {
+		if (this.mode === 'hatching') {
+			const hatchEggBg = this.engine.sprites.get('hatch_egg_bg');
+			if (hatchEggBg) {
+				renderer.drawImage(hatchEggBg, 0, 0, renderer.width, renderer.height);
+			}
+		} else if (this.mode === 'buying' || this.mode === 'selling') {
 			const shopOverlay = this.engine.sprites.get('shop_overlay');
 			if (shopOverlay) {
 				renderer.drawImage(shopOverlay, 0, 0, renderer.width, renderer.height);
@@ -481,13 +515,15 @@ export default class ShopScene {
 			}
 		}
 
-		const npcIconKey = this.showNpcHappy ? `${this.shopId}_happy` : `${this.shopId}_normal`;
-		const npcIcon = this.engine.sprites.get(npcIconKey);
-		if (npcIcon) {
-			const iconSize = 160;
-			const iconX = 28;
-			const iconY = renderer.height - iconSize - 235;
-			renderer.drawImage(npcIcon, iconX, iconY, iconSize, iconSize);
+		if (this.mode !== 'hatching') {
+			const npcIconKey = this.showNpcHappy ? `${this.shopId}_happy` : `${this.shopId}_normal`;
+			const npcIcon = this.engine.sprites.get(npcIconKey);
+			if (npcIcon) {
+				const iconSize = 160;
+				const iconX = 28;
+				const iconY = renderer.height - iconSize - 235;
+				renderer.drawImage(npcIcon, iconX, iconY, iconSize, iconSize);
+			}
 		}
 
 		if (this.mode === 'buying') {
@@ -604,8 +640,8 @@ export default class ShopScene {
 				renderer.ctx.restore();
 			}
 		} else if (this.mode === 'hatching') {
-			const itemListStartX = 280;
-			const itemListStartY = 400;
+			const itemListStartX = 650;
+			const itemListStartY = 320;
 			const itemSpacing = 40;
 			const itemFontSize = '20px';
 
@@ -659,27 +695,13 @@ export default class ShopScene {
 			if (totalPages > 1) {
 				const pageText = `${this.currentPage + 1}/${totalPages}`;
 				const pageY = 720;
-				const pageX = 850;
+				const pageX = 1150;
 				
 				renderer.ctx.save();
 				renderer.ctx.fillStyle = '#ffffff';
 				renderer.ctx.font = '18px Pokemon';
 				renderer.ctx.textAlign = 'left';
 				renderer.ctx.fillText(pageText, pageX, pageY);
-				renderer.ctx.restore();
-			}
-
-			const helperY = renderer.height - 100;
-			const helperFontSize = '25px';
-			
-			if (this.selectedItemIndex >= 0 && this.selectedItemIndex < eggsToShow.length) {
-				const egg = eggsToShow[this.selectedItemIndex];
-				
-				renderer.ctx.save();
-				renderer.ctx.fillStyle = '#ffffff';
-				renderer.ctx.font = `${helperFontSize} Pokemon`;
-				renderer.ctx.textAlign = 'left';
-				renderer.ctx.fillText(egg.config.description, 70, helperY);
 				renderer.ctx.restore();
 			}
 		} else if (this.mode === 'selling') {
