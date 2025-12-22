@@ -1,4 +1,4 @@
-import { getShopItems, getShopConfig } from '../Config/ShopConfig.js';
+import { getShopItems, getShopConfig, ShopConfig } from '../Config/ShopConfig.js';
 import { ItemConfig, getItemsByCategory } from '../Config/ItemConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
 
@@ -30,7 +30,7 @@ export default class ShopScene {
 		this.shopItems = getShopItems(this.shopId).map(shopItem => {
 			const item = ItemConfig[shopItem.itemId];
 			return item ? { ...shopItem, itemConfig: item } : null;
-		}).filter(item => item !== null);
+		}).filter(item => item !== null && item.buyPrice > 0);
 		this.selectedItemIndex = 0;
 		this.currentPage = 0;
 		this.showNpcHappy = false;
@@ -109,6 +109,40 @@ export default class ShopScene {
 				this.currentPage = 0;
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}
+		} else if (this.mode === 'selling') {
+			const sellableItems = this.getSellableItems();
+			if (key === 'ArrowUp') {
+				const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
+				
+				if (this.selectedItemIndex === 0 && this.currentPage > 0) {
+					this.currentPage--;
+					const itemsOnPage = Math.min(this.itemsPerPage, sellableItems.length - (this.currentPage * this.itemsPerPage));
+					this.selectedItemIndex = itemsOnPage - 1;
+				} else {
+					this.selectedItemIndex = Math.max(0, this.selectedItemIndex - 1);
+				}
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'ArrowDown') {
+				const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
+				const startIndex = this.currentPage * this.itemsPerPage;
+				const endIndex = Math.min(startIndex + this.itemsPerPage, sellableItems.length);
+				const maxIndex = endIndex - startIndex - 1;
+				
+				if (this.selectedItemIndex === maxIndex && this.currentPage < totalPages - 1) {
+					this.currentPage++;
+					this.selectedItemIndex = 0;
+				} else {
+					this.selectedItemIndex = Math.min(maxIndex, this.selectedItemIndex + 1);
+				}
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'Enter') {
+				this.confirmSale();
+			} else if (key === 'Escape') {
+				this.mode = 'main';
+				this.selectedItemIndex = 0;
+				this.currentPage = 0;
+				this.engine.audio.play('ok', 0.3, 0.1);
+			}
 		} else if (this.mode === 'hatching') {
 			const readyEggs = this.getReadyEggs();
 			if (key === 'ArrowUp') {
@@ -173,6 +207,9 @@ export default class ShopScene {
 			this.currentPage = 0;
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (option.label === 'Vendre') {
+			this.mode = 'selling';
+			this.selectedItemIndex = 0;
+			this.currentPage = 0;
 			this.engine.audio.play('ok', 0.3, 0.1);
 		}
 	}
@@ -181,6 +218,38 @@ export default class ShopScene {
 		const startIndex = this.currentPage * this.itemsPerPage;
 		const endIndex = Math.min(startIndex + this.itemsPerPage, this.shopItems.length);
 		return this.shopItems.slice(startIndex, endIndex);
+	}
+
+	getSellableItems() {
+		const sellableItems = [];
+		if (!this.engine.inventory) return sellableItems;
+
+		const currentShopItems = getShopItems(this.shopId);
+
+		Object.entries(this.engine.inventory).forEach(([itemId, quantity]) => {
+			if (quantity <= 0) return;
+			
+			const item = ItemConfig[itemId];
+			if (!item) return;
+			
+			const shopItem = currentShopItems.find(si => si.itemId === itemId);
+			if (!shopItem || !shopItem.sellPrice || shopItem.sellPrice <= 0) return;
+			
+			sellableItems.push({
+				id: itemId,
+				itemConfig: item,
+				quantity: quantity,
+				sellPrice: shopItem.sellPrice
+			});
+		});
+
+		sellableItems.sort((a, b) => {
+			const nameA = a.itemConfig.name || a.id;
+			const nameB = b.itemConfig.name || b.id;
+			return nameA.localeCompare(nameB);
+		});
+
+		return sellableItems;
 	}
 
 	getReadyEggs() {
@@ -334,8 +403,50 @@ export default class ShopScene {
 		}
 	}
 
+	confirmSale() {
+		const sellableItems = this.getSellableItems();
+		const startIndex = this.currentPage * this.itemsPerPage;
+		const itemIndex = startIndex + this.selectedItemIndex;
+		
+		if (itemIndex >= sellableItems.length) return;
+		
+		const sellItem = sellableItems[itemIndex];
+		const item = sellItem.itemConfig;
+		
+		if (!this.engine.inventory[sellItem.id] || this.engine.inventory[sellItem.id] <= 0) {
+			this.engine.audio.play('ok', 0.1, 0.1);
+			return;
+		}
+		
+		const message = `Vendre:${item.name}:${sellItem.sellPrice} pièces ?`;
+		
+		this.engine.sceneManager.pushScene('confirmMenu', {
+			message: message,
+			onYes: (engine) => {
+				if (engine.inventory[sellItem.id] && engine.inventory[sellItem.id] > 0) {
+					engine.inventory[sellItem.id]--;
+					if (engine.inventory[sellItem.id] <= 0) {
+						delete engine.inventory[sellItem.id];
+					}
+					engine.money += sellItem.sellPrice;
+					engine.audio.play('coins', 0.5, 0.2);
+					this.showNpcHappy = true;
+					this.happyTimer = 0;
+					SaveManager.saveGame(engine, false);
+				} else {
+					engine.audio.play('ok', 0.1, 0.1);
+				}
+				engine.sceneManager.popScene();
+			},
+			onNo: (engine) => {
+				engine.sceneManager.popScene();
+			}
+		});
+		this.engine.audio.play('ok', 0.3, 0.1);
+	}
+
 	render(renderer) {
-		if (this.mode === 'buying' || this.mode === 'hatching') {
+		if (this.mode === 'buying' || this.mode === 'hatching' || this.mode === 'selling') {
 			const shopOverlay = this.engine.sprites.get('shop_overlay');
 			if (shopOverlay) {
 				renderer.drawImage(shopOverlay, 0, 0, renderer.width, renderer.height);
@@ -547,6 +658,121 @@ export default class ShopScene {
 				renderer.ctx.font = `${helperFontSize} Pokemon`;
 				renderer.ctx.textAlign = 'left';
 				renderer.ctx.fillText(egg.config.description, 70, helperY);
+				renderer.ctx.restore();
+			}
+		} else if (this.mode === 'selling') {
+			const itemListStartX = 280;
+			const itemListStartY = 400;
+			const itemSpacing = 40;
+			const itemFontSize = '20px';
+
+			const sellableItems = this.getSellableItems();
+			const startIndex = this.currentPage * this.itemsPerPage;
+			const endIndex = Math.min(startIndex + this.itemsPerPage, sellableItems.length);
+			const itemsToShow = sellableItems.slice(startIndex, endIndex);
+			const totalPages = Math.ceil(sellableItems.length / this.itemsPerPage);
+
+			renderer.ctx.save();
+			renderer.ctx.font = `${itemFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'middle';
+
+			if (itemsToShow.length === 0) {
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.fillText('Aucun item à vendre', itemListStartX, itemListStartY);
+			} else {
+				itemsToShow.forEach((sellItem, index) => {
+					const y = itemListStartY + index * itemSpacing;
+					const item = sellItem.itemConfig;
+					const color = index === this.selectedItemIndex ? '#ffff00' : '#ffffff';
+					
+					let currentX = itemListStartX;
+					
+					if (index === this.selectedItemIndex) {
+						renderer.ctx.fillStyle = color;
+						renderer.ctx.fillText('>', currentX - 30, y);
+					}
+
+					if (item.iconImage) {
+						const itemIcon = this.engine.sprites.get(`item_${item.id}`);
+						if (itemIcon) {
+							const iconSize = 24;
+							renderer.drawImage(itemIcon, currentX, y - iconSize / 2, iconSize, iconSize);
+							currentX += iconSize + 10;
+						}
+					}
+
+					renderer.ctx.fillStyle = color;
+					renderer.ctx.fillText(item.name, currentX, y);
+					
+					const quantityText = `x${sellItem.quantity}`;
+					const quantityX = itemListStartX + 350;
+					renderer.ctx.fillStyle = color;
+					renderer.ctx.fillText(quantityText, quantityX, y);
+					
+					const priceText = SaveManager.formatLargeNumber(sellItem.sellPrice);
+					const priceTextWidth = renderer.ctx.measureText(priceText).width;
+					const priceX = itemListStartX + 480;
+					const coinSize = 20;
+					
+					renderer.ctx.fillStyle = '#ffffff';
+					renderer.ctx.fillText(priceText, priceX, y);
+					
+					const coinsImage = this.engine.sprites.get('coins');
+					if (coinsImage) {
+						renderer.drawImage(coinsImage, priceX + priceTextWidth + 5, y - coinSize / 2 + 2, coinSize, coinSize);
+					}
+				});
+			}
+
+			renderer.ctx.restore();
+
+			if (totalPages > 1) {
+				const pageText = `${this.currentPage + 1}/${totalPages}`;
+				const pageY = 720;
+				const pageX = 850;
+				
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.font = '18px Pokemon';
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.fillText(pageText, pageX, pageY);
+				renderer.ctx.restore();
+			}
+
+			const moneyX = 1000;
+			const moneyY = 815;
+			const moneyFontSize = '20px';
+			const coinSize = 24;
+			const money = Math.floor(this.engine.displayedMoney) || 0;
+			const moneyText = SaveManager.formatLargeNumber(money);
+
+			renderer.ctx.save();
+			renderer.ctx.font = `${moneyFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'middle';
+			const moneyTextWidth = renderer.ctx.measureText(moneyText).width;
+			renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
+			renderer.ctx.fillText(moneyText, moneyX, moneyY);
+			
+			const coinsImage = this.engine.sprites.get('coins');
+			if (coinsImage) {
+				renderer.drawImage(coinsImage, moneyX + moneyTextWidth + 5, moneyY - coinSize / 2, coinSize, coinSize);
+			}
+			renderer.ctx.restore();
+
+			const helperY = renderer.height - 100;
+			const helperFontSize = '25px';
+			
+			if (this.selectedItemIndex >= 0 && this.selectedItemIndex < itemsToShow.length) {
+				const sellItem = itemsToShow[this.selectedItemIndex];
+				const selectedItem = sellItem.itemConfig;
+				
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.font = `${helperFontSize} Pokemon`;
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.fillText(selectedItem.description, 70, helperY);
 				renderer.ctx.restore();
 			}
 		} else {

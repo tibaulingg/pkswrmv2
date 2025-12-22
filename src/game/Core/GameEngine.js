@@ -1,358 +1,235 @@
-import Renderer from './Renderer.js';
-import SceneManager from './SceneManager.js';
-import InputManager from './InputManager.js';
-import SpriteManager from '../Systems/SpriteManager.js';
-import GameManager from '../Systems/GameManager.js';
-import AudioManager from '../Systems/AudioManager.js';
-import { PokemonSprites } from '../Config/SpriteConfig.js';
-import { MapEnemies, EnemyTypes } from '../Config/EnemyConfig.js';
-import { ItemConfig } from '../Config/ItemConfig.js';
+import AudioManager from '../Systems/AudioManager.js'
+import GameManager from '../Systems/GameManager.js'
+import SpriteManager from '../Systems/SpriteManager.js'
+import { EnemyTypes, MapEnemies } from '../Config/EnemyConfig.js'
+import { ItemConfig } from '../Config/ItemConfig.js'
+import { PokemonSprites } from '../Config/SpriteConfig.js'
+import InputManager from './InputManager.js'
+import Renderer from './Renderer.js'
+import SceneManager from './SceneManager.js'
 
 export default class GameEngine {
 	constructor(canvas) {
-		this.canvas = canvas;
-		this.ctx = canvas.getContext('2d');
-		this.canvas.style.cursor = 'crosshair';
-		
-		this.renderer = new Renderer(this.ctx);
-		this.input = new InputManager();
-		this.input.setCanvas(canvas);
-		this.sprites = new SpriteManager();
-		this.audio = new AudioManager();
-		this.input.onFirstInteraction = () => {
-			this.audio.unlockAudio();
-		};
-		this.gameManager = new GameManager(this);
-		this.sceneManager = new SceneManager(this);
-		
-		this.lastTime = 0;
-		this.assetsLoaded = false;
-		this.money = 0;
-		this.displayedMoney = 0;
-		this.inventory = {};
-		for (let i = 1; i <= 25; i++) {
-			this.inventory[`test_item_${i}`] = 1;
-		}
-		this.inventory['apple'] = 5;
-		this.inventory['golden_apple'] = 2;
-		this.inventory['mystic_water'] = 3;
-		this.equippedItems = [];
-		this.assignedConsumable = null;
-		this.incubatingEgg = null;
-		this.eggProgress = {};
-		this.eggUniqueIds = {};
-		this.encounteredPokemons = new Set();
-		this.playedPokemons = new Set();
-		this.playedMaps = new Set();
-		this.defeatedPokemonCounts = {};
-		this.totalPlayTime = 0;
-		this.gamesPlayed = 0;
-		
+		this.canvas = canvas
+		this.ctx = canvas.getContext('2d')
+		this.canvas.style.cursor = 'crosshair'
+
+		this.renderer = new Renderer(this.ctx)
+		this.input = new InputManager()
+		this.input.setCanvas(canvas)
+
+		this.sprites = new SpriteManager()
+		this.audio = new AudioManager()
+
+		this.input.onFirstInteraction = () => this.audio.unlockAudio()
+
+		this.gameManager = new GameManager(this)
+		this.sceneManager = new SceneManager(this)
+
+		this.lastTime = 0
+		this.assetsLoaded = false
+
+		this.money = 0
+		this.displayedMoney = 0
+		this.inventory = {}
+		this.equippedItems = []
+		this.assignedConsumable = null
+		this.incubatingEgg = null
+		this.eggProgress = {}
+		this.eggUniqueIds = {}
+
+		this.encounteredPokemons = new Set()
+		this.playedPokemons = new Set()
+		this.playedMaps = new Set()
+
+		this.defeatedPokemonCounts = {}
+		this.totalPlayTime = 0
+		this.gamesPlayed = 0
+
 		this.settings = {
 			screenshakeEnabled: true,
 			soundEnabled: true,
 			musicEnabled: true
-		};
-		
-		this.loadSettings();
-		this.applySettings();
+		}
+
+		this.loadSettings()
+		this.applySettings()
 	}
 
 	async start() {
-		await this.loadAssets();
-		this.assetsLoaded = true;
-		this.sceneManager.pushScene('menu');
-		requestAnimationFrame(this.loop.bind(this));
+		await this.loadAssets()
+		this.assetsLoaded = true
+		this.sceneManager.pushScene('menu')
+		requestAnimationFrame(this.loop.bind(this))
 	}
 
 	async loadAssets() {
-		try {
-			await this.sprites.load('background_1', process.env.PUBLIC_URL + '/background_1.png');
-			await this.sprites.load('background_2', process.env.PUBLIC_URL + '/background_2.png');
-			await this.sprites.load('background_3', process.env.PUBLIC_URL + '/background_3.png');
-			await this.sprites.load('menu_empty', process.env.PUBLIC_URL + '/menu_empty.png');
-			await this.sprites.load('empty_continue_game', process.env.PUBLIC_URL + '/empty_continue_game.png');
-			await this.sprites.load('continue_menu_overlay', process.env.PUBLIC_URL + '/continue_menu_overlay.png');
-			await this.sprites.load('new_char_overlay', process.env.PUBLIC_URL + '/new_char_overlay.png');
-			await this.sprites.load('inventory_overlay', process.env.PUBLIC_URL + '/inventory_overlay.png');
-			await this.sprites.load('hub_pause', process.env.PUBLIC_URL + '/hub_pause.png');
-			await this.sprites.load('shop', process.env.PUBLIC_URL + '/shop.png');
-			await this.sprites.load('shop_long', process.env.PUBLIC_URL + '/shop_long.png');
-			await this.sprites.load('shop_overlay', process.env.PUBLIC_URL + '/shop_overlay.png');
-			await this.sprites.load('map_selection_screen', process.env.PUBLIC_URL + '/map_selection_screen.png');
-			await this.sprites.load('confirm_menu', process.env.PUBLIC_URL + '/confirm_menu.png');
-			await this.sprites.load('coins', process.env.PUBLIC_URL + '/coins.png');
-			const hubPath = process.env.PUBLIC_URL + '/hub.png';
-			const quaksireWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Walk-Anim.png';
-			const rattataWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Walk-Anim.png';
-			const quaksireHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Hurt-Anim.png';
-			const rattataHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Hurt-Anim.png';
-			const quaksireFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Faint-Anim.png';
-			const rattataFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/rattata/Faint-Anim.png';
-			const quaksireChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/quaksire/Charge-Anim.png';
-			const caterpieWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Walk-Anim.png';
-			const caterpieHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Hurt-Anim.png';
-			const caterpieFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Faint-Anim.png';
-			const caterpieShootPath = process.env.PUBLIC_URL + '/sprites/pokemon/caterpie/Shoot-Anim.png';
-			const pidgeyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Walk-Anim.png';
-			const pidgeyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Hurt-Anim.png';
-			const pidgeyFaintPath = process.env.PUBLIC_URL + '/sprites/pokemon/pidgey/Faint-Anim.png';
-			const rattataTailPath = process.env.PUBLIC_URL + '/sprites/items/rattata_tail.png';
-			const keyPath = process.env.PUBLIC_URL + '/sprites/items/key.png';
-			const bronzechestPath = process.env.PUBLIC_URL + '/sprites/items/bronze_chest.png';
-			const kecleonNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Normal.png';
-			const kecleonHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Happy.png';
-			const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
-			const kecleonHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Hurt-Anim.png';
-			const kecleonWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Walk-Anim.png';
-			const chanseyNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
-			const chanseyIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Idle-Anim.png';
-			const chanseyHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Hurt-Anim.png';
-			const chanseyWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Walk-Anim.png';
-			const garchompNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Normal.png';
-			const garchompHurtPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Hurt-Anim.png';
-			const garchompWalkPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Walk-Anim.png';
-			const garchompChargePath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Charge-Anim.png';
-			const garchompSleepPath = process.env.PUBLIC_URL + '/sprites/pokemon/garchomp/Sleep-Anim.png';
-			const goldenApplePath = process.env.PUBLIC_URL + '/sprites/items/golden_apple.png';
-			const mysticWaterPath = process.env.PUBLIC_URL + '/sprites/items/mystic_water.png';
-			const applePath = process.env.PUBLIC_URL + '/sprites/items/apple.png';
+		const base = process.env.PUBLIC_URL
 
-			await this.sprites.load('hub', hubPath);
-			await this.sprites.load('quaksire_walk', quaksireWalkPath);
-			await this.sprites.load('rattata_walk', rattataWalkPath);
-			await this.sprites.load('quaksire_hurt', quaksireHurtPath);
-			await this.sprites.load('rattata_hurt', rattataHurtPath);
-			await this.sprites.load('rattata_tail', rattataTailPath);
-			await this.sprites.load('golden_apple', goldenApplePath);
-			await this.sprites.load('mystic_water', mysticWaterPath);
-			await this.sprites.load('apple', applePath);
-			await this.sprites.load('key', keyPath);
-			await this.sprites.load('bronze_chest', bronzechestPath);	
-			await this.sprites.load('kecleon_normal', kecleonNormalPath);
-			await this.sprites.load('kecleon_happy', kecleonHappyPath);
-			await this.sprites.load('kecleon_idle', kecleonIdlePath);
-			await this.sprites.load('kecleon_hurt', kecleonHurtPath);
-			await this.sprites.load('kecleon_walk', kecleonWalkPath);
-			await this.sprites.load('chansey_idle', chanseyIdlePath);
-			await this.sprites.load('chansey_hurt', chanseyHurtPath);
-			await this.sprites.load('chansey_walk', chanseyWalkPath);
-			await this.sprites.load('garchomp_normal', garchompNormalPath);
-			await this.sprites.load('garchomp_hurt', garchompHurtPath);
-			await this.sprites.load('garchomp_walk', garchompWalkPath);
-			await this.sprites.load('garchomp_charge', garchompChargePath);
-			await this.sprites.load('garchomp_sleep', garchompSleepPath);
-
+		const loadSprite = (id, path) => this.sprites.load(id, `${base}${path}`)
+		const loadOptional = async (id, path) => {
 			try {
-				await this.sprites.load('quaksire_faint', quaksireFaintPath);
-			} catch (error) {
-				console.warn('Quaksire faint animation not found, skipping');
+				await loadSprite(id, path)
+			} catch {}
+		}
+
+		const staticSprites = {
+			background_1: '/background_1.png',
+			background_2: '/background_2.png',
+			background_3: '/background_3.png',
+			menu_empty: '/menu_empty.png',
+			empty_continue_game: '/empty_continue_game.png',
+			continue_menu_overlay: '/continue_menu_overlay.png',
+			new_char_overlay: '/new_char_overlay.png',
+			inventory_overlay: '/inventory_overlay.png',
+			hub_pause: '/hub_pause.png',
+			shop: '/shop.png',
+			shop_long: '/shop_long.png',
+			shop_overlay: '/shop_overlay.png',
+			map_selection_screen: '/map_selection_screen.png',
+			confirm_menu: '/confirm_menu.png',
+			hub: '/hub.png',
+			coins: '/coins.png',
+			stone: '/stone.png'
+		}
+
+		for (const [id, path] of Object.entries(staticSprites)) {
+			await loadSprite(id, path)
+		}
+
+		const items = {
+			apple: '/sprites/items/apple.png',
+			golden_apple: '/sprites/items/golden_apple.png',
+			mystic_water: '/sprites/items/mystic_water.png',
+			key: '/sprites/items/key.png',
+			bronze_chest: '/sprites/items/bronze_chest.png',
+			rattata_tail: '/sprites/items/rattata_tail.png',
+			no_egg: '/sprites/items/no_egg.png'
+		}
+
+		for (const [id, path] of Object.entries(items)) {
+			await loadSprite(id, path)
+		}
+
+		const pokemonSprites = [
+			['quaksire', ['walk', 'hurt', 'faint', 'charge']],
+			['rattata', ['walk', 'hurt', 'faint']],
+			['caterpie', ['walk', 'hurt', 'faint', 'shoot']],
+			['pidgey', ['walk', 'hurt', 'faint']],
+			['kecleon', ['normal', 'happy', 'idle', 'hurt', 'walk']],
+			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk']],
+			['garchomp', ['normal', 'hurt', 'walk', 'charge', 'sleep']],
+			['wooper', ['walk', 'hurt']],
+		]
+
+		for (const [name, states] of pokemonSprites) {
+			for (const state of states) {
+				const file =
+					state === 'normal' || state === 'happy'
+						? `${state[0].toUpperCase()}${state.slice(1)}.png`
+						: `${state[0].toUpperCase()}${state.slice(1)}-Anim.png`
+
+				await loadOptional(
+					`${name}_${state}`,
+					`/sprites/pokemon/${name}/${file}`
+				)
 			}
-			try {
-				await this.sprites.load('rattata_faint', rattataFaintPath);
-			} catch (error) {
-				console.warn('Rattata faint animation not found, skipping');
+		}
+
+		const maps = ['forest', 'mountain', 'cave', 'desert', 'volcano']
+		for (const map of maps) {
+			await loadOptional(`map_${map}`, `/maps/${map}.png`)
+			this.audio.loadMusic(`map_${map}`, `${base}/${map}.mp3`)
+		}
+
+		const sounds = {
+			orb: '/orb.wav',
+			coins: '/coins.wav',
+			hit: '/hit.wav',
+			ok: '/ok.wav',
+			victory: '/victory.mp3',
+			defeat: '/defeat.mp3'
+		}
+
+		for (const [id, path] of Object.entries(sounds)) {
+			this.audio.load(id, `${base}${path}`)
+		}
+
+		const musics = {
+			main_menu: '/main_menu.mp3',
+			hub: '/hub.mp3',
+			victory: '/victory.mp3',
+			defeat: '/defeat.mp3'
+		}
+
+		for (const [id, path] of Object.entries(musics)) {
+			this.audio.loadMusic(id, `${base}${path}`)
+		}
+
+		const pokemonSet = new Set([
+			...Object.keys(PokemonSprites),
+			...Object.values(MapEnemies)
+				.flat()
+				.map(e => EnemyTypes[e.type]?.pokemon)
+				.filter(Boolean)
+		])
+
+		for (const name of pokemonSet) {
+			await loadOptional(
+				`pokemon_${name}_normal`,
+				`/sprites/pokemon/${name}/Normal.png`
+			)
+		}
+
+		for (const [id, item] of Object.entries(ItemConfig)) {
+			if (item.iconImage) {
+				await loadOptional(`item_${id}`, item.iconImage)
 			}
-			await this.sprites.load('quaksire_charge', quaksireChargePath);
-			await this.sprites.load('caterpie_walk', caterpieWalkPath);
-			await this.sprites.load('caterpie_hurt', caterpieHurtPath);
-			try {
-				await this.sprites.load('caterpie_faint', caterpieFaintPath);
-			} catch (error) {
-				console.warn('Caterpie faint animation not found, skipping');
-			}
-			await this.sprites.load('caterpie_shoot', caterpieShootPath);
-			
-			await this.sprites.load('pidgey_walk', pidgeyWalkPath);
-			await this.sprites.load('pidgey_hurt', pidgeyHurtPath);
-			try {
-				await this.sprites.load('pidgey_faint', pidgeyFaintPath);
-			} catch (error) {
-				console.warn('Pidgey faint animation not found, skipping');
-			}
-			const coinsSpritePath = process.env.PUBLIC_URL + '/coins.png';
-			await this.sprites.load('coins', coinsSpritePath);
-
-			const stoneSpritePath = process.env.PUBLIC_URL + '/stone.png';
-			await this.sprites.load('stone', stoneSpritePath);
-
-			const mapBackgrounds = ['forest', 'mountain', 'cave', 'desert', 'volcano'];
-			for (const mapName of mapBackgrounds) {
-				try {
-					const mapPath = process.env.PUBLIC_URL + `/maps/${mapName}.png`;
-					await this.sprites.load(`map_${mapName}`, mapPath);
-				} catch (error) {
-					console.warn(`Map background ${mapName} not found, skipping`);
-				}
-			}
-
-			const orbSoundPath = process.env.PUBLIC_URL + '/orb.wav';
-			this.audio.load('orb', orbSoundPath);
-
-			const coinsSoundPath = process.env.PUBLIC_URL + '/coins.wav';
-			this.audio.load('coins', coinsSoundPath);
-
-			const hitSoundPath = process.env.PUBLIC_URL + '/hit.wav';
-			this.audio.load('hit', hitSoundPath);
-
-			const okSoundPath = process.env.PUBLIC_URL + '/ok.wav';
-			this.audio.load('ok', okSoundPath);
-
-			const victorySoundPath = process.env.PUBLIC_URL + '/victory.mp3';
-			this.audio.load('victory', victorySoundPath);
-
-			const defeatSoundPath = process.env.PUBLIC_URL + '/defeat.mp3';
-			this.audio.load('defeat', defeatSoundPath);
-
-			const mainMenuMusicPath = process.env.PUBLIC_URL + '/main_menu.mp3';
-			this.audio.loadMusic('main_menu', mainMenuMusicPath);
-
-			const hubMusicPath = process.env.PUBLIC_URL + '/hub.mp3';
-			this.audio.loadMusic('hub', hubMusicPath);
-
-			const victoryMusicPath = process.env.PUBLIC_URL + '/victory.mp3';
-			this.audio.loadMusic('victory', victoryMusicPath);
-
-			const defeatMusicPath = process.env.PUBLIC_URL + '/defeat.mp3';
-			this.audio.loadMusic('defeat', defeatMusicPath);
-
-			const mapMusics = ['forest', 'mountain', 'cave', 'desert', 'volcano'];
-			for (const mapName of mapMusics) {
-				try {
-					const mapMusicPath = process.env.PUBLIC_URL + `/${mapName}.mp3`;
-					this.audio.loadMusic(`map_${mapName}`, mapMusicPath);
-				} catch (error) {
-					console.warn(`Map music ${mapName} not found, skipping`);
-				}
-			}
-
-			// Load pokemon profile images (Normal.png)
-			const pokemonSet = new Set();
-			Object.keys(PokemonSprites).forEach(pokemonName => {
-				pokemonSet.add(pokemonName);
-			});
-			Object.keys(MapEnemies).forEach(mapId => {
-				const enemyPool = MapEnemies[mapId];
-				enemyPool.forEach(enemyData => {
-					const enemyType = EnemyTypes[enemyData.type];
-					if (enemyType && enemyType.pokemon) {
-						pokemonSet.add(enemyType.pokemon);
-					}
-				});
-			});
-
-			for (const pokemonName of pokemonSet) {
-				try {
-					const normalImagePath = process.env.PUBLIC_URL + `/sprites/pokemon/${pokemonName}/Normal.png`;
-					await this.sprites.load(`pokemon_${pokemonName}_normal`, normalImagePath);
-				} catch (error) {
-					console.warn(`Pokemon normal image for ${pokemonName} not found, skipping`);
-				}
-			}
-
-			try {
-				const kecleonNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Normal.png';
-				await this.sprites.load('kecleon_normal', kecleonNormalPath);
-			} catch (error) {
-				console.warn('Kecleon normal image not found, skipping');
-			}
-			try {
-				const kecleonHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Happy.png';
-				await this.sprites.load('kecleon_happy', kecleonHappyPath);
-			} catch (error) {
-				console.warn('Kecleon happy image not found, skipping');
-			}
-			try {
-				const kecleonIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/kecleon/Idle-Anim.png';
-				await this.sprites.load('kecleon_idle', kecleonIdlePath);
-			} catch (error) {
-				console.warn('Kecleon idle animation not found, skipping');
-			}
-			try {
-				const chanseyNormalPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
-				await this.sprites.load('chansey_normal', chanseyNormalPath);
-			} catch (error) {
-				console.warn('Chansey normal image not found, skipping');
-			}
-			try {
-				const chanseyHappyPath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Normal.png';
-				await this.sprites.load('chansey_happy', chanseyHappyPath);
-			} catch (error) {
-				console.warn('Chansey happy image not found, skipping');
-			}
-			try {
-				const chanseyIdlePath = process.env.PUBLIC_URL + '/sprites/pokemon/chansey/Idle-Anim.png';
-				await this.sprites.load('chansey_idle', chanseyIdlePath);
-			} catch (error) {
-				console.warn('Chansey idle animation not found, skipping');
-			}
-
-			for (const itemId of Object.keys(ItemConfig)) {
-				const item = ItemConfig[itemId];
-				if (item.iconImage) {
-					try {
-						const itemImagePath = process.env.PUBLIC_URL + item.iconImage;
-						await this.sprites.load(`item_${itemId}`, itemImagePath);
-					} catch (error) {
-						console.warn(`Item image for ${itemId} not found, skipping`);
-					}
-				}
-			}
-		} catch (error) {
-			console.error('Error loading assets:', error);
 		}
 	}
 
 	loop(timestamp) {
-		const deltaTime = timestamp - this.lastTime;
-		this.lastTime = timestamp;
-
-		this.update(deltaTime);
-		this.render();
-
-		requestAnimationFrame(this.loop.bind(this));
+		const deltaTime = timestamp - this.lastTime
+		this.lastTime = timestamp
+		this.update(deltaTime)
+		this.render()
+		requestAnimationFrame(this.loop.bind(this))
 	}
 
 	update(deltaTime) {
-		this.sceneManager.update(deltaTime);
+		this.sceneManager.update(deltaTime)
 	}
 
 	render() {
-		this.renderer.clear();
-		this.sceneManager.render(this.renderer);
+		this.renderer.clear()
+		this.sceneManager.render(this.renderer)
 	}
 
 	loadSettings() {
-		try {
-			const saved = localStorage.getItem('poksrm_settings');
-			if (saved) {
-				const parsed = JSON.parse(saved);
-				if (parsed.soundVolume !== undefined) {
-					parsed.soundEnabled = parsed.soundVolume > 0;
-					delete parsed.soundVolume;
-				}
-				if (parsed.musicVolume !== undefined) {
-					parsed.musicEnabled = parsed.musicVolume > 0;
-					delete parsed.musicVolume;
-				}
-				this.settings = { ...this.settings, ...parsed };
-			}
-		} catch (error) {
-			console.warn('Failed to load settings:', error);
+		const saved = localStorage.getItem('poksrm_settings')
+		if (!saved) return
+
+		const parsed = JSON.parse(saved)
+
+		if (parsed.soundVolume !== undefined) {
+			parsed.soundEnabled = parsed.soundVolume > 0
+			delete parsed.soundVolume
 		}
+
+		if (parsed.musicVolume !== undefined) {
+			parsed.musicEnabled = parsed.musicVolume > 0
+			delete parsed.musicVolume
+		}
+
+		this.settings = { ...this.settings, ...parsed }
 	}
 
 	saveSettings() {
-		try {
-			localStorage.setItem('poksrm_settings', JSON.stringify(this.settings));
-		} catch (error) {
-			console.warn('Failed to save settings:', error);
-		}
+		localStorage.setItem('poksrm_settings', JSON.stringify(this.settings))
 	}
 
 	applySettings() {
-		this.audio.setEnabled(this.settings.soundEnabled);
-		this.audio.setMusicEnabled(this.settings.musicEnabled);
+		this.audio.setEnabled(this.settings.soundEnabled)
+		this.audio.setMusicEnabled(this.settings.musicEnabled)
 	}
 }
-

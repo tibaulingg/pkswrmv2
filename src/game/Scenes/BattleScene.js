@@ -315,6 +315,13 @@ export default class BattleScene {
 			this.engine.sceneManager.pushScene('pause');
 			return;
 		}
+		if (key === 'KeyE' && !this.upgradeChoices) {
+			if (this.player) {
+				this.player.eggPressAnimation = BALANCE_CONFIG.ANIMATIONS.CONSUMABLE_PRESS_ANIMATION;
+			}
+			this.engine.sceneManager.pushScene('pause', { openEggsMenu: true });
+			return;
+		}
 		if (key === 'KeyC' && !this.upgradeChoices) {
 			this.debugCollisions = !this.debugCollisions;
 		}

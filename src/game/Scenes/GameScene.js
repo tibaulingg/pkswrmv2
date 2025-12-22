@@ -197,6 +197,10 @@ export default class GameScene {
 			this.engine.sceneManager.pushScene('pause');
 			return;
 		}
+		if (key === 'KeyE') {
+			this.engine.sceneManager.pushScene('pause', { openEggsMenu: true });
+			return;
+		}
 		if (key === 'KeyC') {
 			this.debugCollisions = !this.debugCollisions;
 		}

@@ -206,6 +206,31 @@ export const PokemonSprites = {
 			{ itemId: 'bronze_chest', chance: 0.05 },
 		]
 	},
+	wooper : {
+		name: 'wooper',
+		walk: {
+			frames: 8
+		},
+		hurt: {
+			frames: 2
+		},
+		charge: {
+			frames: 10
+		},
+		attackType: 'range',
+		type: 'water',
+		hp: 20,
+		speed: 3.5,
+		damage: 20,
+		attackSpeed: 2.5,
+		range: 200,
+		knockback: 5,
+		particleColor: '#4b2666',
+		projectileColor: '#ffffff',
+		projectileSize: 10,
+		projectileSpeed: 0.2,
+		spells: [],
+	},
 };
 
 export function getPokemonConfig(pokemonName) {

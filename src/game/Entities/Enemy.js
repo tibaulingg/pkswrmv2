@@ -38,7 +38,7 @@ export default class Enemy {
 		this.maxHp = this.hp;
 		this.displayedHp = this.hp;
 		this.lostHp = 0;
-		this.lostHpDecaySpeed = 0.5;
+		this.lostHpDecaySpeed = 0.2;
 		this.pokemonConfig = pokemonConfig;
 		this.speed = baseSpeed * speedMultiplier * (1 + (level - 1) * 0.05);
 		this.damage = Math.floor(baseDamage * damageMultiplier * damageLevelMultiplier);
@@ -199,7 +199,7 @@ export default class Enemy {
 
 		const hpDiff = this.displayedHp - this.hp;
 		if (hpDiff > 0.1) {
-			this.displayedHp -= hpDiff * 0.1;
+			this.displayedHp -= hpDiff * 0.03;
 		} else {
 			this.displayedHp = this.hp;
 		}
@@ -344,38 +344,30 @@ export default class Enemy {
 			}
 		}
 
-		if ((this.isBoss || this.maxHp >= 40) && !this.isBoss) {
-			const hpBarWidth = this.spriteWidth;
-			const hpBarHeight = 5;
-			const hpBarY = this.y - 10;
+		if (!this.isBoss && this.hp < this.maxHp) {
+			const hpBarWidth = 40;
+			const hpBarHeight = 8;
+			const hpBarX = this.x + (this.spriteWidth - hpBarWidth) / 2;
+			const hpBarY = this.y - 4;
 			
-			renderer.drawRect(this.x, hpBarY, hpBarWidth, hpBarHeight, '#333');
-			renderer.drawStrokeRect(this.x, hpBarY, hpBarWidth, hpBarHeight, '#000', 1);
+			renderer.drawRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight, '#333');
+			renderer.drawStrokeRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight, '#000', 0.5);
 			
 			const displayedHpPercent = this.displayedHp / this.maxHp;
 			if (this.lostHp > 0) {
 				renderer.ctx.fillStyle = '#ff6b6b';
-				renderer.ctx.fillRect(this.x + 1, hpBarY + 1, (hpBarWidth - 2) * displayedHpPercent, hpBarHeight - 2);
+				renderer.ctx.fillRect(hpBarX + 0.5, hpBarY + 0.5, (hpBarWidth - 1) * displayedHpPercent, hpBarHeight - 1);
 			}
 			
 			const hpPercent = this.hp / this.maxHp;
-			const hpGradient = renderer.ctx.createLinearGradient(this.x, 0, this.x + hpBarWidth * hpPercent, 0);
-			if (hpPercent > 0.6) {
-				hpGradient.addColorStop(0, '#4af626');
-				hpGradient.addColorStop(1, '#2ed616');
-			} else if (hpPercent > 0.3) {
-				hpGradient.addColorStop(0, '#ffcc00');
-				hpGradient.addColorStop(1, '#ff8800');
+			if (hpPercent > 0.5) {
+				renderer.ctx.fillStyle = '#30B72C';
+			} else if (hpPercent > 0.25) {
+				renderer.ctx.fillStyle = '#F9C152';
 			} else {
-				hpGradient.addColorStop(0, '#ff4444');
-				hpGradient.addColorStop(1, '#cc0000');
+				renderer.ctx.fillStyle = '#F74B33';
 			}
-			renderer.ctx.fillStyle = hpGradient;
-			renderer.ctx.fillRect(this.x + 1, hpBarY + 1, (hpBarWidth - 2) * hpPercent, hpBarHeight - 2);
-			
-			if (this.level > 1) {
-				renderer.drawText(`Lv.${this.level}`, this.x + hpBarWidth + 5, hpBarY + 4, '10px', '#ffd700', 'left');
-			}
+			renderer.ctx.fillRect(hpBarX + 0.5, hpBarY + 0.5, (hpBarWidth - 1) * hpPercent, hpBarHeight - 1);
 		}
 	}
 }

@@ -97,6 +97,7 @@ export default class BattlePlayer {
 		this.maxSpells = 3;
 		this.spellPressAnimations = {};
 		this.consumablePressAnimation = 0;
+		this.eggPressAnimation = 0;
 		this.statAnimations = {};
 		this.forcedDirection = null;
 		this.spellLevels = {};
@@ -251,6 +252,14 @@ export default class BattlePlayer {
 			this.consumablePressAnimation -= deltaTime;
 			if (this.consumablePressAnimation < 0) {
 				this.consumablePressAnimation = 0;
+			}
+		}
+
+		// Update egg press animation
+		if (this.eggPressAnimation > 0) {
+			this.eggPressAnimation -= deltaTime;
+			if (this.eggPressAnimation < 0) {
+				this.eggPressAnimation = 0;
 			}
 		}
 

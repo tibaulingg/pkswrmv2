@@ -16,50 +16,42 @@ export default class PauseScene {
 		this.keyRepeatTimers = {};
 		this.keyRepeatDelay = 300;
 		this.keyRepeatInterval = 50;
+		this.eggsOnlyMode = false;
 	}
 
-	init() {
+	init(data) {
 		this.selectedIndex = 0;
 		this.showInventory = false;
 		this.selectedCategoryIndex = 0;
 		this.selectedItemIndex = 0;
 		this.currentPage = 0;
+		this.eggsOnlyMode = false;
 		this.updateOptions();
+		
+		if (data && data.openEggsMenu) {
+			const eggsOptionIndex = this.options.findIndex(opt => opt.label === 'Oeufs');
+			if (eggsOptionIndex !== -1) {
+				this.selectedIndex = eggsOptionIndex;
+				this.selectOption();
+			}
+		}
 	}
 
 	updateOptions() {
-		const isInBattle = this.engine.sceneManager.stack.some(
-			scene => scene.constructor.name === 'BattleScene'
-		);
-
-		if (isInBattle) {
-			this.options = [
-				{
-					label: 'Reprendre'
-				},
-				{
-					label: 'Objets'
-				},
-				{
-					label: 'Equipe'
-				},
-				{
-					label: 'Quitter'
-				}
-			];
-		} else {
-			this.options = [
-				{
-					label: 'Objets'
-				},
-				{
-					label: 'Equipe'
-				},
-				{
-					label: 'Quitter'
-				}
-			];
-		}
+		this.options = [
+			{
+				label: 'Objets'
+			},
+			{
+				label: 'Oeufs'
+			},
+			{
+				label: 'Equipe'
+			},
+			{
+				label: 'Quitter'
+			}
+		];
 	}
 
 	update(deltaTime) {
@@ -92,6 +84,7 @@ export default class PauseScene {
 				this.selectedCategoryIndex = 0;
 				this.selectedItemIndex = 0;
 				this.currentPage = 0;
+				this.eggsOnlyMode = false;
 				this.keyRepeatTimers = {};
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else if (key === 'Enter') {
@@ -114,7 +107,7 @@ export default class PauseScene {
 	}
 
 	handleInventoryKey(key) {
-		if (key === 'ArrowLeft') {
+		if (key === 'ArrowLeft' && !this.eggsOnlyMode) {
 			const categories = this.getCategories();
 			this.selectedCategoryIndex = Math.max(0, this.selectedCategoryIndex - 1);
 			this.currentPage = 0;
@@ -122,7 +115,7 @@ export default class PauseScene {
 			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
 			this.selectedItemIndex = firstValidIndex;
 			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (key === 'ArrowRight') {
+		} else if (key === 'ArrowRight' && !this.eggsOnlyMode) {
 			const categories = this.getCategories();
 			this.selectedCategoryIndex = Math.min(categories.length - 1, this.selectedCategoryIndex + 1);
 			this.currentPage = 0;
@@ -415,12 +408,23 @@ export default class PauseScene {
 	selectOption() {
 		const option = this.options[this.selectedIndex];
 		
-		if (option.label === 'Reprendre') {
-			this.engine.sceneManager.popScene();
-			this.engine.audio.play('ok', 0.3, 0.1);
-		} else 		if (option.label === 'Objets') {
+		if (option.label === 'Objets') {
 			this.showInventory = true;
+			this.eggsOnlyMode = false;
 			this.selectedCategoryIndex = 0;
+			this.currentPage = 0;
+			const items = this.getCurrentCategoryItems();
+			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
+			this.selectedItemIndex = firstValidIndex;
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (option.label === 'Oeufs') {
+			this.showInventory = true;
+			this.eggsOnlyMode = true;
+			const categories = this.getCategories();
+			const eggCategoryIndex = categories.indexOf('egg');
+			if (eggCategoryIndex !== -1) {
+				this.selectedCategoryIndex = eggCategoryIndex;
+			}
 			this.currentPage = 0;
 			const items = this.getCurrentCategoryItems();
 			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
@@ -567,9 +571,10 @@ export default class PauseScene {
 			renderer.ctx.fillStyle = '#ffffff';
 			renderer.ctx.textAlign = 'left';
 			renderer.ctx.textBaseline = 'top';
-			renderer.ctx.fillText('Inventaire', titleX, titleY);
+			const titleText = this.eggsOnlyMode ? 'Oeufs' : 'Inventaire';
+			renderer.ctx.fillText(titleText, titleX, titleY);
 			
-			if (categoryName) {
+			if (categoryName && !this.eggsOnlyMode) {
 				renderer.ctx.font = '18px Pokemon';
 				renderer.ctx.fillStyle = '#cccccc';
 				renderer.ctx.textAlign = 'right';
@@ -647,6 +652,28 @@ export default class PauseScene {
 					const itemName = item.config ? item.config.name : item.id;
 					renderer.ctx.fillStyle = textColor;
 					renderer.ctx.fillText(itemName, currentX, y);
+					
+					if (item.config && item.config.category === 'consumable') {
+						const keyX = currentX + renderer.ctx.measureText(itemName).width + 8;
+						renderer.ctx.fillStyle = '#aaa';
+						renderer.ctx.font = '12px Pokemon';
+						renderer.ctx.textAlign = 'left';
+						renderer.ctx.strokeStyle = '#000000';
+						renderer.ctx.lineWidth = 2;
+						renderer.ctx.strokeText('[F]', keyX, y);
+						renderer.ctx.fillText('[F]', keyX, y);
+						renderer.ctx.font = `${itemFontSize} Pokemon`;
+					} else if (item.config && item.config.category === 'egg') {
+						const keyX = currentX + renderer.ctx.measureText(itemName).width + 8;
+						renderer.ctx.fillStyle = '#aaa';
+						renderer.ctx.font = '12px Pokemon';
+						renderer.ctx.textAlign = 'left';
+						renderer.ctx.strokeStyle = '#000000';
+						renderer.ctx.lineWidth = 2;
+						renderer.ctx.strokeText('[E]', keyX, y);
+						renderer.ctx.fillText('[E]', keyX, y);
+						renderer.ctx.font = `${itemFontSize} Pokemon`;
+					}
 					
 					let quantityX;
 					let displayText = '';
@@ -729,7 +756,7 @@ export default class PauseScene {
 		this.options.forEach((option, index) => {
 			let y = optionStartY + index * optionSpacing;
 			if (option.label === 'Quitter') {
-				y += this.options.length === 3 ? 190 : 150;
+				y += 150;
 			}
 			let color = index === this.selectedIndex ? '#ffff00' : '#ffffff';
 			if (option.label === 'Quitter') {

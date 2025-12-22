@@ -82,8 +82,8 @@ export default class HUDRenderer {
 		const strokeOffset = 1;
 		const strokeColor = '#000000';
 		const labelColor = '#E58E72';
-		const barGreen = '#61F959';
-		const barRed = '#FE8D65';
+		const barGreen = '#30B72C';
+		const barRed = '#F74B33';
 		const barXpBlue = '#87CEEB';
 		const barXpEmpty = '#4a5568';
 
@@ -206,11 +206,11 @@ export default class HUDRenderer {
 		if (selectedPokemon && engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		if (selectedPokemon && engine) {
+		totalWidth += iconSpacing + iconSize;
+		totalWidth += iconSpacing + iconSize;
+		if (engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		totalWidth += iconSpacing + iconSize;
-		totalWidth += iconSpacing + iconSize;
 		
 		const startX = (canvasWidth - totalWidth) / 2;
 		const spellY = canvasHeight - 100;
@@ -252,11 +252,11 @@ export default class HUDRenderer {
 		if (selectedPokemon && engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		if (selectedPokemon && engine) {
+		totalWidth += iconSpacing + iconSize;
+		totalWidth += iconSpacing + iconSize;
+		if (engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		totalWidth += iconSpacing + iconSize;
-		totalWidth += iconSpacing + iconSize;
 		
 		const startX = (canvasWidth - totalWidth) / 2;
 		const spellY = canvasHeight - 100;
@@ -276,81 +276,8 @@ export default class HUDRenderer {
 				renderer.ctx.lineWidth = 2;
 				renderer.ctx.strokeRect(pokemonIconX, pokemonIconY, iconSize, iconSize);
 				renderer.ctx.drawImage(pokemonSprite, pokemonIconX, pokemonIconY, iconSize, iconSize);
-				
-				renderer.ctx.fillStyle = '#ffffff';
-				renderer.ctx.font = 'bold 12px Pokemon';
-				renderer.ctx.textAlign = 'right';
-				renderer.ctx.textBaseline = 'bottom';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 3;
-				const levelText = `Lv.${player.level}`;
-				renderer.ctx.strokeText(levelText, pokemonIconX + iconSize - 2, pokemonIconY + iconSize - 2);
-				renderer.ctx.fillText(levelText, pokemonIconX + iconSize - 2, pokemonIconY + iconSize - 2);
 				renderer.ctx.restore();
 			}
-			
-			currentX += iconSize + iconSpacing;
-		}
-
-		if (selectedPokemon && engine) {
-			const attackIconX = currentX;
-			const attackIconY = spellY;
-			let attackTypeIcon = '';
-			let attackTypeLabel = '';
-			
-			if (player.attackType === 'range') {
-				attackTypeIcon = this.getProjectileTypeIcon(player);
-				if (player.hasAoE) {
-					attackTypeLabel = 'AOE';
-				} else if (player.hasPiercing) {
-					attackTypeLabel = 'PIER';
-				} else if (player.hasBounce) {
-					attackTypeLabel = 'BOUN';
-				} else {
-					attackTypeLabel = 'BASE';
-				}
-			} else {
-				attackTypeIcon = '⚔';
-				attackTypeLabel = 'MELE';
-			}
-			
-			renderer.ctx.save();
-			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-			renderer.ctx.fillRect(attackIconX, attackIconY, iconSize, iconSize);
-			renderer.ctx.strokeStyle = 'rgba(171, 71, 188, 0.5)';
-			renderer.ctx.lineWidth = 1;
-			renderer.ctx.strokeRect(attackIconX + 0.5, attackIconY + 0.5, iconSize - 1, iconSize - 1);
-			
-			const projectileColor = player.attackType === 'range' ? player.projectileColor : '#ab47bc';
-			renderer.ctx.fillStyle = projectileColor;
-			renderer.ctx.font = '32px Pokemon';
-			renderer.ctx.textAlign = 'center';
-			renderer.ctx.fillText(attackTypeIcon, attackIconX + iconSize / 2, attackIconY + iconSize / 2 + 10);
-			
-			renderer.ctx.fillStyle = '#ffffff';
-			renderer.ctx.font = '8px Pokemon';
-			renderer.ctx.textAlign = 'center';
-			renderer.ctx.textBaseline = 'top';
-			renderer.ctx.strokeStyle = '#000000';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.strokeText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
-			renderer.ctx.fillText(attackTypeLabel, attackIconX + iconSize / 2, attackIconY + iconSize - 8);
-			
-			if (player.attackType === 'range') {
-				const projectileLevel = player.getProjectileLevel();
-				if (projectileLevel > 0) {
-					renderer.ctx.fillStyle = '#ffff00';
-					renderer.ctx.font = 'bold 12px Pokemon';
-					renderer.ctx.textAlign = 'center';
-					renderer.ctx.textBaseline = 'top';
-					renderer.ctx.strokeStyle = '#000000';
-					renderer.ctx.lineWidth = 2;
-					renderer.ctx.strokeText(`Lv.${projectileLevel}`, attackIconX + iconSize / 2, attackIconY + iconSize - 20);
-					renderer.ctx.fillText(`Lv.${projectileLevel}`, attackIconX + iconSize / 2, attackIconY + iconSize - 20);
-				}
-			}
-			
-			renderer.ctx.restore();
 			
 			currentX += iconSize + iconSpacing;
 		}
@@ -388,11 +315,6 @@ export default class HUDRenderer {
 				renderer.ctx.setLineDash([5, 5]);
 				renderer.ctx.strokeRect(spellX + 0.5, spellY + 0.5, spellSize - 1, spellSize - 1);
 				renderer.ctx.setLineDash([]);
-
-				renderer.ctx.fillStyle = '#666';
-				renderer.ctx.font = '24px Pokemon';
-				renderer.ctx.textAlign = 'center';
-				renderer.ctx.fillText('?', spellX + spellSize / 2, spellY + spellSize / 2 + 8);
 			} else {
 				const isOnCooldown = spell.cooldown > 0;
 				const cooldownPercent = isOnCooldown ? spell.cooldown / spell.cooldownMax : 0;
@@ -491,8 +413,13 @@ export default class HUDRenderer {
 
 			const keyText = `${index + 1}`;
 			renderer.ctx.fillStyle = isEmpty ? '#555' : '#aaa';
-			renderer.ctx.font = '10px Pokemon';
-			renderer.ctx.fillText(keyText, spellX + spellSize - 8, spellY + 12);
+			renderer.ctx.font = 'bold 12px Pokemon';
+			renderer.ctx.textAlign = 'right';
+			renderer.ctx.textBaseline = 'bottom';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			renderer.ctx.strokeText(keyText, spellX + spellSize - 4, spellY + spellSize - 4);
+			renderer.ctx.fillText(keyText, spellX + spellSize - 4, spellY + spellSize - 4);
 
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
@@ -519,18 +446,20 @@ export default class HUDRenderer {
 			const itemIconOffset = (iconSize - itemIconSize) / 2;
 			
 			renderer.ctx.save();
-			renderer.ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
 			renderer.ctx.fillRect(itemIconX, itemIconY, iconSize, iconSize);
 			
 			if (equippedItem) {
 				const rarityColor = this.getItemRarityColor(equippedItem);
 				renderer.ctx.strokeStyle = rarityColor;
-				renderer.ctx.lineWidth = 3;
-				renderer.ctx.strokeRect(itemIconX, itemIconY, iconSize, iconSize);
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.strokeRect(itemIconX + 0.5, itemIconY + 0.5, iconSize - 1, iconSize - 1);
 			} else {
-				renderer.ctx.strokeStyle = '#ff8800';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeRect(itemIconX, itemIconY, iconSize, iconSize);
+				renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.setLineDash([5, 5]);
+				renderer.ctx.strokeRect(itemIconX + 0.5, itemIconY + 0.5, iconSize - 1, iconSize - 1);
+				renderer.ctx.setLineDash([]);
 			}
 			
 			if (equippedItem) {
@@ -540,17 +469,7 @@ export default class HUDRenderer {
 				}
 				if (itemSprite) {
 					renderer.ctx.drawImage(itemSprite, itemIconX + itemIconOffset, itemIconY + itemIconOffset, itemIconSize, itemIconSize);
-				} else {
-					renderer.ctx.fillStyle = '#ff8800';
-					renderer.ctx.font = '16px Pokemon';
-					renderer.ctx.textAlign = 'center';
-					renderer.ctx.fillText('?', itemIconX + iconSize / 2, itemIconY + iconSize / 2 + 6);
 				}
-			} else {
-				renderer.ctx.fillStyle = '#666';
-				renderer.ctx.font = '16px Pokemon';
-				renderer.ctx.textAlign = 'center';
-				renderer.ctx.fillText('?', itemIconX + iconSize / 2, itemIconY + iconSize / 2 + 6);
 			}
 			renderer.ctx.restore();
 			
@@ -582,18 +501,20 @@ export default class HUDRenderer {
 				renderer.ctx.shadowBlur = 20 * glowIntensity;
 			}
 			
-			renderer.ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
 			renderer.ctx.fillRect(consumableIconX, consumableIconY, iconSize, iconSize);
 			
 			if (consumableItem && consumableQuantity > 0) {
 				const rarityColor = this.getItemRarityColor(consumableItem);
 				renderer.ctx.strokeStyle = rarityColor;
-				renderer.ctx.lineWidth = 3;
-				renderer.ctx.strokeRect(consumableIconX, consumableIconY, iconSize, iconSize);
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.strokeRect(consumableIconX + 0.5, consumableIconY + 0.5, iconSize - 1, iconSize - 1);
 			} else {
-				renderer.ctx.strokeStyle = '#0088ff';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeRect(consumableIconX, consumableIconY, iconSize, iconSize);
+				renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.setLineDash([5, 5]);
+				renderer.ctx.strokeRect(consumableIconX + 0.5, consumableIconY + 0.5, iconSize - 1, iconSize - 1);
+				renderer.ctx.setLineDash([]);
 			}
 			
 			if (consumableItem && consumableQuantity > 0) {
@@ -614,21 +535,124 @@ export default class HUDRenderer {
 				const quantityText = `x${consumableQuantity}`;
 				renderer.ctx.strokeText(quantityText, consumableIconX + iconSize - 2, consumableIconY + iconSize - 2);
 				renderer.ctx.fillText(quantityText, consumableIconX + iconSize - 2, consumableIconY + iconSize - 2);
-				
-				renderer.ctx.fillStyle = '#aaa';
-				renderer.ctx.font = '8px Pokemon';
-				renderer.ctx.textAlign = 'left';
-				renderer.ctx.textBaseline = 'top';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 2;
-				renderer.ctx.strokeText('F', consumableIconX + iconSize - 8, consumableIconY + 12);
-				renderer.ctx.fillText('F', consumableIconX + iconSize - 8, consumableIconY + 12);
-			} else {
-				renderer.ctx.fillStyle = '#666';
-				renderer.ctx.font = '24px Pokemon';
-				renderer.ctx.textAlign = 'center';
-				renderer.ctx.fillText('?', consumableIconX + iconSize / 2, consumableIconY + iconSize / 2 + 8);
 			}
+			
+			renderer.ctx.fillStyle = '#aaa';
+			renderer.ctx.font = 'bold 12px Pokemon';
+			renderer.ctx.textAlign = 'right';
+			renderer.ctx.textBaseline = 'bottom';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			renderer.ctx.strokeText('F', consumableIconX + iconSize - 4, consumableIconY + iconSize - 4);
+			renderer.ctx.fillText('F', consumableIconX + iconSize - 4, consumableIconY + iconSize - 4);
+			
+			renderer.ctx.shadowBlur = 0;
+			renderer.ctx.restore();
+		}
+
+		if (engine) {
+			currentX += iconSize + iconSpacing;
+
+			const eggIconX = currentX;
+			const eggIconY = spellY;
+			const eggIconSize = iconSize / 2;
+			const eggIconOffset = (iconSize - eggIconSize) / 2;
+			const progressBarHeight = 4;
+			const progressBarPadding = 2;
+			const progressBarY = spellY + iconSize - progressBarHeight - progressBarPadding;
+			const progressBarWidth = iconSize - progressBarPadding * 2;
+			const progressBarX = eggIconX + progressBarPadding;
+			
+			const pressAnimation = player.eggPressAnimation || 0;
+			const pressProgress = Math.max(0, Math.min(1, pressAnimation / 200));
+			const scale = 1 - pressProgress * 0.15;
+			const glowIntensity = pressProgress > 0 ? (1 - pressProgress) * 0.8 : 0;
+			
+			renderer.ctx.save();
+			
+			const centerX = eggIconX + iconSize / 2;
+			const centerY = eggIconY + iconSize / 2;
+			renderer.ctx.translate(centerX, centerY);
+			renderer.ctx.scale(scale, scale);
+			renderer.ctx.translate(-centerX, -centerY);
+			
+			if (glowIntensity > 0) {
+				renderer.ctx.shadowColor = 'rgba(255, 255, 0, ' + glowIntensity + ')';
+				renderer.ctx.shadowBlur = 20 * glowIntensity;
+			}
+			
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+			renderer.ctx.fillRect(eggIconX, eggIconY, iconSize, iconSize);
+			
+			if (engine.incubatingEgg) {
+				const incubatingEgg = engine.incubatingEgg;
+				const eggConfig = ItemConfig[incubatingEgg.itemId];
+				
+				if (eggConfig) {
+					const rarityColor = this.getItemRarityColor(eggConfig);
+					renderer.ctx.strokeStyle = rarityColor;
+					renderer.ctx.lineWidth = 1;
+					renderer.ctx.strokeRect(eggIconX + 0.5, eggIconY + 0.5, iconSize - 1, iconSize - 1);
+					
+					const eggSprite = engine.sprites.get(`item_${incubatingEgg.itemId}`);
+					if (eggSprite) {
+						renderer.ctx.drawImage(eggSprite, eggIconX + eggIconOffset, eggIconY + eggIconOffset, eggIconSize, eggIconSize);
+					}
+				} else {
+					renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
+					renderer.ctx.lineWidth = 1;
+					renderer.ctx.setLineDash([5, 5]);
+					renderer.ctx.strokeRect(eggIconX + 0.5, eggIconY + 0.5, iconSize - 1, iconSize - 1);
+					renderer.ctx.setLineDash([]);
+				}
+				
+				const currentKills = incubatingEgg.currentKills || 0;
+				const requiredKills = incubatingEgg.requiredKills || 1;
+				const progress = Math.min(1, currentKills / requiredKills);
+				
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+				renderer.ctx.fillRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight);
+				
+				const progressGradient = renderer.ctx.createLinearGradient(progressBarX, 0, progressBarX + progressBarWidth * progress, 0);
+				if (eggConfig && eggConfig.rarity === 'legendary') {
+					progressGradient.addColorStop(0, '#ff9100');
+					progressGradient.addColorStop(1, '#ffaa44');
+				} else if (eggConfig && eggConfig.rarity === 'epic') {
+					progressGradient.addColorStop(0, '#ab47bc');
+					progressGradient.addColorStop(1, '#ce5fdf');
+				} else if (eggConfig && eggConfig.rarity === 'rare') {
+					progressGradient.addColorStop(0, '#4fc3f7');
+					progressGradient.addColorStop(1, '#81d4fa');
+				} else {
+					progressGradient.addColorStop(0, '#888888');
+					progressGradient.addColorStop(1, '#aaaaaa');
+				}
+				renderer.ctx.fillStyle = progressGradient;
+				renderer.ctx.fillRect(progressBarX, progressBarY, progressBarWidth * progress, progressBarHeight);
+			} else {
+				renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
+				renderer.ctx.lineWidth = 1;
+				renderer.ctx.setLineDash([5, 5]);
+				renderer.ctx.strokeRect(eggIconX + 0.5, eggIconY + 0.5, iconSize - 1, iconSize - 1);
+				renderer.ctx.setLineDash([]);
+				
+				const noEggSprite = engine.sprites.get('no_egg');
+				if (noEggSprite) {
+					renderer.ctx.drawImage(noEggSprite, eggIconX + eggIconOffset, eggIconY + eggIconOffset, eggIconSize, eggIconSize);
+				}
+				
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+				renderer.ctx.fillRect(eggIconX, eggIconY, iconSize, iconSize);
+			}
+			
+			renderer.ctx.fillStyle = '#aaa';
+			renderer.ctx.font = 'bold 12px Pokemon';
+			renderer.ctx.textAlign = 'right';
+			renderer.ctx.textBaseline = 'bottom';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 3;
+			renderer.ctx.strokeText('E', eggIconX + iconSize - 4, eggIconY + iconSize - 4);
+			renderer.ctx.fillText('E', eggIconX + iconSize - 4, eggIconY + iconSize - 4);
 			
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();
@@ -657,11 +681,11 @@ export default class HUDRenderer {
 		if (selectedPokemon && engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		if (selectedPokemon && engine) {
+		totalWidth += iconSpacing + iconSize;
+		totalWidth += iconSpacing + iconSize;
+		if (engine) {
 			totalWidth += iconSpacing + iconSize;
 		}
-		totalWidth += iconSpacing + iconSize;
-		totalWidth += iconSpacing + iconSize;
 		
 		const spellStartX = (canvasWidth - totalWidth) / 2;
 		const spellEndX = spellStartX + totalWidth;
@@ -702,10 +726,18 @@ export default class HUDRenderer {
 		const hpPercent = Math.max(0, Math.min(1, player.hp / player.maxHp));
 		const hpFilledWidth = hpBarWidth * hpPercent;
 
-		renderer.ctx.fillStyle = barRed;
+		renderer.ctx.fillStyle = '#F74B33';
 		renderer.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, barHeight);
 
-		renderer.ctx.fillStyle = barGreen;
+		let hpBarColor;
+		if (hpPercent > 0.5) {
+			hpBarColor = '#30B72C';
+		} else if (hpPercent > 0.25) {
+			hpBarColor = '#F9C152';
+		} else {
+			hpBarColor = '#F74B33';
+		}
+		renderer.ctx.fillStyle = hpBarColor;
 		renderer.ctx.fillRect(hpBarX, hpBarY, hpFilledWidth, barHeight);
 
 		renderer.ctx.strokeStyle = '#ffffff';
@@ -719,6 +751,16 @@ export default class HUDRenderer {
 		renderer.ctx.moveTo(hpBarX, hpBarY + barHeight);
 		renderer.ctx.lineTo(hpBarX + hpBarWidth, hpBarY + barHeight);
 		renderer.ctx.stroke();
+		
+		const hpText = `${Math.floor(player.hp)}/${Math.floor(player.maxHp)}`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.font = 'bold 14px Pokemon';
+		renderer.ctx.textAlign = 'center';
+		renderer.ctx.textBaseline = 'middle';
+		renderer.ctx.strokeStyle = '#000000';
+		renderer.ctx.lineWidth = 3;
+		renderer.ctx.strokeText(hpText, hpBarX + hpBarWidth / 2, hpBarY + barHeight / 2);
+		renderer.ctx.fillText(hpText, hpBarX + hpBarWidth / 2, hpBarY + barHeight / 2);
 		
 		renderer.ctx.strokeStyle = strokeColor;
 		renderer.ctx.lineWidth = 1;
@@ -761,18 +803,13 @@ export default class HUDRenderer {
 		}
 
 		const hpPercent = boss.hp / boss.maxHp;
-		const hpGradient = renderer.ctx.createLinearGradient(barX, 0, barX + barWidth * hpPercent, 0);
-		if (hpPercent > 0.6) {
-			hpGradient.addColorStop(0, '#4af626');
-			hpGradient.addColorStop(1, '#2ed616');
-		} else if (hpPercent > 0.3) {
-			hpGradient.addColorStop(0, '#ffcc00');
-			hpGradient.addColorStop(1, '#ff8800');
+		if (hpPercent > 0.5) {
+			renderer.ctx.fillStyle = '#30B72C';
+		} else if (hpPercent > 0.25) {
+			renderer.ctx.fillStyle = '#F9C152';
 		} else {
-			hpGradient.addColorStop(0, '#ff4444');
-			hpGradient.addColorStop(1, '#cc0000');
+			renderer.ctx.fillStyle = '#F74B33';
 		}
-		renderer.ctx.fillStyle = hpGradient;
 		renderer.ctx.fillRect(barX + padding, barY + padding, (barWidth - padding * 2) * hpPercent, barHeight - padding * 2);
 
 		renderer.ctx.restore();

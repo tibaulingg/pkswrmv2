@@ -23,6 +23,11 @@ export const ShopConfig = {
 				buyPrice: 300,
 				sellPrice: 300,
 			},
+			{
+				itemId: 'rattata_tail',
+				buyPrice: 0,
+				sellPrice: 50,
+			},
 		]
 	},
 	chansey: {

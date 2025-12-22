@@ -73,14 +73,6 @@ export default class SaveManager {
 			engine.money = saveData.money || 0;
 			engine.displayedMoney = saveData.displayedMoney || engine.money;
 			engine.inventory = saveData.inventory || {};
-			for (let i = 1; i <= 25; i++) {
-				if (!engine.inventory[`test_item_${i}`]) {
-					engine.inventory[`test_item_${i}`] = 1;
-				}
-			}
-			if (!engine.inventory['apple']) engine.inventory['apple'] = 5;
-			if (!engine.inventory['golden_apple']) engine.inventory['golden_apple'] = 2;
-			engine.inventory['mystic_water'] = 3;
 			engine.equippedItems = saveData.equippedItems || [];
 			engine.assignedConsumable = saveData.assignedConsumable || null;
 			engine.incubatingEgg = saveData.incubatingEgg || null;
