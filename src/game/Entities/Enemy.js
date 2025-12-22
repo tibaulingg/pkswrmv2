@@ -22,8 +22,10 @@ export default class Enemy {
 			this.spriteHeight = 32;
 		}
 		
+		const BASE_SPEED = 2;
+		
 		const baseHp = pokemonConfig?.hp || 20;
-		const baseSpeed = pokemonConfig?.speed || 1.5;
+		const pokemonSpeedMultiplier = pokemonConfig?.enemySpeedMultiplier ?? pokemonConfig?.speedMultiplier ?? 1;
 		const baseDamage = pokemonConfig?.damage || 5;
 		const baseProjectileSpeed = pokemonConfig?.projectileSpeed || 0.4;
 		
@@ -40,7 +42,7 @@ export default class Enemy {
 		this.lostHp = 0;
 		this.lostHpDecaySpeed = 0.2;
 		this.pokemonConfig = pokemonConfig;
-		this.speed = baseSpeed * speedMultiplier * (1 + (level - 1) * 0.05);
+		this.speed = BASE_SPEED * pokemonSpeedMultiplier * speedMultiplier * (1 + (level - 1) * 0.05);
 		this.damage = Math.floor(baseDamage * damageMultiplier * damageLevelMultiplier);
 		
 		this.attackType = pokemonConfig?.attackType || 'melee';

@@ -44,15 +44,31 @@ class ItemDrop {
 					this.velocityY = 0;
 				}
 			} else {
-				if (distance < this.size) {
-					if (playerInventory && playerInventory['key'] > 0) {
-						console.log('coffre openned');
-						playerInventory['key']--;
-						if (playerInventory['key'] <= 0) {
-							delete playerInventory['key'];
-						}
-						this.isActive = false;
+				if (distance <= fetchRange) {
+					this.isBeingPulled = true;
+					const pullStrength = 0.5;
+					const acceleration = pullStrength * (1 - distance / fetchRange);
+					
+					this.velocityX += (dx / distance) * acceleration * deltaTime * 0.01;
+					this.velocityY += (dy / distance) * acceleration * deltaTime * 0.01;
+					
+					const maxSpeed = 0.8;
+					const speed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+					if (speed > maxSpeed) {
+						this.velocityX = (this.velocityX / speed) * maxSpeed;
+						this.velocityY = (this.velocityY / speed) * maxSpeed;
 					}
+				}
+
+				this.x += this.velocityX * deltaTime;
+				this.y += this.velocityY * deltaTime;
+
+				this.velocityX *= 0.98;
+				this.velocityY *= 0.98;
+
+				if (distance < this.size / 2) {
+					this.justCollected = true;
+					this.isActive = false;
 				}
 			}
 		} else {

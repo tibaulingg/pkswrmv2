@@ -53,7 +53,31 @@ export default class ChestSystem {
 		this.isShaking = false;
 		this.shakeAnimationTimer = 0;
 		
-		this.rewardItemId = 'apple';
+		const chestItemId = chest?.itemId || 'bronze_chest';
+		const chestConfig = ItemConfig[chestItemId];
+		
+		if (chestConfig && chestConfig.lootTable && chestConfig.lootTable.length > 0) {
+			const random = Math.random();
+			let cumulativeChance = 0;
+			let selectedItem = null;
+			
+			for (const loot of chestConfig.lootTable) {
+				cumulativeChance += loot.chance;
+				if (random <= cumulativeChance) {
+					selectedItem = loot;
+					break;
+				}
+			}
+			
+			if (!selectedItem) {
+				selectedItem = chestConfig.lootTable[0];
+			}
+			
+			this.rewardItemId = selectedItem.itemId;
+		} else {
+			this.rewardItemId = 'apple';
+		}
+		
 		this.rewardItemConfig = ItemConfig[this.rewardItemId];
 		this.rewardItemImage = this.engine.sprites.get(`item_${this.rewardItemId}`);
 		this.rewardQuantity = Math.floor(Math.random() * 3) + 1;
@@ -158,11 +182,35 @@ export default class ChestSystem {
 	completeOpening() {
 		if (this.activeChest && this.engine.sceneManager) {
 			const battleScene = this.engine.sceneManager.scenes.battle;
-			if (battleScene && battleScene.itemDropSystem) {
-				const chestX = this.activeChest.x;
-				const chestY = this.activeChest.y;
-				const dropScale = this.rewardItemConfig.dropScale !== undefined ? this.rewardItemConfig.dropScale : 1.0;
-				battleScene.itemDropSystem.spawnItem(chestX, chestY, this.rewardItemId, this.rewardItemImage, dropScale);
+			if (battleScene && this.rewardItemId && this.rewardQuantity > 0) {
+				const itemConfig = ItemConfig[this.rewardItemId];
+				if (itemConfig) {
+					for (let i = 0; i < this.rewardQuantity; i++) {
+						if (itemConfig.category === 'egg') {
+							if (!battleScene.sessionEggs[this.rewardItemId]) {
+								battleScene.sessionEggs[this.rewardItemId] = [];
+							}
+							const uniqueId = `${this.rewardItemId}_${Date.now()}_${Math.random()}_${i}`;
+							battleScene.sessionEggs[this.rewardItemId].push(uniqueId);
+							
+							if (!battleScene.sessionInventory[this.rewardItemId]) {
+								battleScene.sessionInventory[this.rewardItemId] = 0;
+							}
+							battleScene.sessionInventory[this.rewardItemId]++;
+						} else if (itemConfig.category === 'equipable') {
+							if (!battleScene.sessionInventory[this.rewardItemId]) {
+								battleScene.sessionInventory[this.rewardItemId] = 0;
+							}
+							battleScene.sessionInventory[this.rewardItemId]++;
+						} else {
+							if (!battleScene.sessionInventory[this.rewardItemId]) {
+								battleScene.sessionInventory[this.rewardItemId] = 0;
+							}
+							battleScene.sessionInventory[this.rewardItemId]++;
+						}
+					}
+					this.engine.audio.play('ok', 0.3, 0.2);
+				}
 			}
 		}
 		
@@ -229,19 +277,6 @@ export default class ChestSystem {
 				renderer.ctx.strokeRect(chestX, chestY, chestSize, chestSize);
 			}
 			
-			if (this.phase === 'shaking') {
-				renderer.ctx.globalAlpha = 1;
-				renderer.ctx.fillStyle = '#ffffff';
-				renderer.ctx.font = 'bold 20px Pokemon';
-				renderer.ctx.textAlign = 'center';
-				renderer.ctx.textBaseline = 'middle';
-				renderer.ctx.strokeStyle = '#000000';
-				renderer.ctx.lineWidth = 3;
-				
-				const shakeText = `${this.shakeCount}/${this.shakesRequired}`;
-				renderer.ctx.strokeText(shakeText, centerX, chestY + chestSize + 30);
-				renderer.ctx.fillText(shakeText, centerX, chestY + chestSize + 30);
-			}
 		}
 		
 		if (this.phase === 'itemAppearing' || this.phase === 'showingMessage') {

@@ -60,7 +60,7 @@ export default class PauseScene {
 		
 		this.options = [
 			{
-				label: 'Objets'
+				label: 'Inventaire'
 			},
 			{
 				label: 'Oeufs'
@@ -186,23 +186,7 @@ export default class PauseScene {
 	}
 
 	handleInventoryKey(key) {
-		if (key === 'ArrowLeft' && !this.eggsOnlyMode) {
-			const categories = this.getCategories();
-			this.selectedCategoryIndex = Math.max(0, this.selectedCategoryIndex - 1);
-			this.currentPage = 0;
-			const items = this.getCurrentCategoryItems();
-			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
-			this.selectedItemIndex = firstValidIndex;
-			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (key === 'ArrowRight' && !this.eggsOnlyMode) {
-			const categories = this.getCategories();
-			this.selectedCategoryIndex = Math.min(categories.length - 1, this.selectedCategoryIndex + 1);
-			this.currentPage = 0;
-			const items = this.getCurrentCategoryItems();
-			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
-			this.selectedItemIndex = firstValidIndex;
-			this.engine.audio.play('ok', 0.3, 0.1);
-		} else if (key === 'ArrowUp') {
+		if (key === 'ArrowUp') {
 			const items = this.getCurrentCategoryItems();
 			const totalPages = Math.ceil(items.length / this.itemsPerPage);
 			
@@ -270,12 +254,11 @@ export default class PauseScene {
 
 	getCurrentCategoryItems() {
 		const allItems = [];
-		const categories = this.getCategories();
-		const currentCategory = categories[this.selectedCategoryIndex];
 		
-		if (!currentCategory) return [];
-		
-		if (currentCategory === 'egg') {
+		if (this.eggsOnlyMode) {
+			const categories = this.getCategories();
+			const eggCategoryIndex = categories.indexOf('egg');
+			if (eggCategoryIndex === -1) return [];
 			if (!this.engine.eggProgress) {
 				this.engine.eggProgress = {};
 			}
@@ -334,7 +317,8 @@ export default class PauseScene {
 		} else {
 			Object.entries(this.engine.inventory || {}).forEach(([itemId, quantity]) => {
 				const item = ItemConfig[itemId];
-				if (!item || quantity <= 0 || item.category !== currentCategory) return;
+				if (!item || quantity <= 0) return;
+				if (item.category === 'egg') return;
 				
 				if (item.category === 'equipable') {
 					for (let i = 0; i < quantity; i++) {
@@ -356,7 +340,7 @@ export default class PauseScene {
 			});
 		}
 		
-		if (currentCategory !== 'egg') {
+		if (!this.eggsOnlyMode) {
 			return allItems.sort((a, b) => {
 				const nameA = a.config ? a.config.name : a.id;
 				const nameB = b.config ? b.config.name : b.id;
@@ -496,10 +480,9 @@ export default class PauseScene {
 			return;
 		}
 		
-		if (option.label === 'Objets') {
+		if (option.label === 'Inventaire') {
 			this.showInventory = true;
 			this.eggsOnlyMode = false;
-			this.selectedCategoryIndex = 0;
 			this.currentPage = 0;
 			const items = this.getCurrentCategoryItems();
 			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
@@ -508,11 +491,6 @@ export default class PauseScene {
 		} else if (option.label === 'Oeufs') {
 			this.showInventory = true;
 			this.eggsOnlyMode = true;
-			const categories = this.getCategories();
-			const eggCategoryIndex = categories.indexOf('egg');
-			if (eggCategoryIndex !== -1) {
-				this.selectedCategoryIndex = eggCategoryIndex;
-			}
 			this.currentPage = 0;
 			const items = this.getCurrentCategoryItems();
 			const firstValidIndex = this.getFirstValidItemIndex(items.slice(0, this.itemsPerPage));
@@ -709,23 +687,6 @@ export default class PauseScene {
 			renderer.ctx.textBaseline = 'top';
 			const titleText = this.eggsOnlyMode ? 'Oeufs' : 'Inventaire';
 			renderer.ctx.fillText(titleText, titleX, titleY);
-			
-			if (categoryName && !this.eggsOnlyMode) {
-				renderer.ctx.font = '18px Pokemon';
-				renderer.ctx.fillStyle = '#cccccc';
-				renderer.ctx.textAlign = 'right';
-				const categoryTextX = titleX + 600;
-				let categoryDisplayText = categoryName;
-				
-				if (this.selectedCategoryIndex > 0) {
-					categoryDisplayText = '◄ ' + categoryDisplayText;
-				}
-				if (this.selectedCategoryIndex < categories.length - 1) {
-					categoryDisplayText = categoryDisplayText + ' ►';
-				}
-				
-				renderer.ctx.fillText(categoryDisplayText, categoryTextX, titleY);
-			}
 			
 			renderer.ctx.strokeStyle = '#888888';
 			renderer.ctx.lineWidth = 2;
@@ -1047,6 +1008,21 @@ export default class PauseScene {
 				renderer.ctx.fillStyle = textColor;
 				renderer.ctx.fillText(pokemonName, currentX, y);
 				
+				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[pokemonId] ? this.engine.pokemonIVs[pokemonId] : null;
+				if (ivs) {
+					const totalIV = ivs.hp + ivs.damage + ivs.speed + ivs.attackSpeed + ivs.range + ivs.knockback;
+					const maxIV = 31 * 6;
+					const averageIV = totalIV / 6;
+					const starRating = Math.round((averageIV / 31) * 10) / 2;
+					
+					const starX = itemStartX + 400;
+					renderer.ctx.fillStyle = '#ffd700';
+					renderer.ctx.font = '16px Pokemon';
+					renderer.ctx.textAlign = 'left';
+					const starText = '★'.repeat(Math.floor(starRating)) + (starRating % 1 >= 0.5 ? '½' : '');
+					renderer.ctx.fillText(starText, starX, y);
+				}
+				
 				if (isCurrent) {
 					const statusX = itemStartX + 500;
 					renderer.ctx.fillStyle = '#00ff00';
@@ -1080,20 +1056,42 @@ export default class PauseScene {
 					renderer.ctx.restore();
 				}
 				
-				if (pokemonConfig) {
+				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[selectedPokemonId] ? this.engine.pokemonIVs[selectedPokemonId] : null;
+				if (ivs) {
 					renderer.ctx.save();
-					renderer.ctx.fillStyle = '#cccccc';
-					renderer.ctx.font = `${descriptionFontSize} Pokemon`;
+					const ivY = descriptionY;
+					const ivFontSize = '14px';
+					renderer.ctx.font = `bold ${ivFontSize} Pokemon`;
 					renderer.ctx.textAlign = 'left';
 					renderer.ctx.textBaseline = 'top';
 					
-					const pokemonName = pokemonConfig.name || selectedPokemonId;
-					const descriptionText = pokemonConfig.description || `Pokémon: ${pokemonName}`;
+					const getIVColor = (iv) => iv === 31 ? 'rgb(43, 231, 216)' : '#ffffff';
 					
-					const maxWidth = renderer.width - 1010;
-					const lines = this.wrapText(renderer.ctx, descriptionText, maxWidth);
-					lines.forEach((line, lineIndex) => {
-						renderer.ctx.fillText(line, itemStartX, descriptionY + lineIndex * 25);
+					const ivParts = [
+						{ label: 'HP', value: ivs.hp },
+						{ label: 'ATK', value: ivs.damage },
+						{ label: 'SPD', value: ivs.speed },
+						{ label: 'ASP', value: ivs.attackSpeed },
+						{ label: 'RNG', value: ivs.range },
+						{ label: 'KNOC', value: ivs.knockback }
+					];
+					
+					let currentX = itemStartX - 30;
+					ivParts.forEach((part, index) => {
+						renderer.ctx.font = `bold ${ivFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#ffff00';
+						renderer.ctx.fillText(`${part.label}:`, currentX, ivY);
+						
+						const labelWidth = renderer.ctx.measureText(`${part.label}:`).width;
+						renderer.ctx.font = `${ivFontSize} Pokemon`;
+						renderer.ctx.fillStyle = getIVColor(part.value);
+						renderer.ctx.fillText(part.value.toString(), currentX + labelWidth + 5, ivY);
+						
+						if (index < ivParts.length - 1) {
+							renderer.ctx.fillStyle = '#888888';
+							renderer.ctx.fillText(' | ', currentX + labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width, ivY);
+							currentX += labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width + renderer.ctx.measureText(' | ').width;
+						}
 					});
 					
 					renderer.ctx.restore();

@@ -42,6 +42,8 @@ export default class GameEngine {
 		this.playedPokemons = new Set()
 		this.playedMaps = new Set()
 
+		this.pokemonIVs = {}
+
 		this.defeatedPokemonCounts = {}
 		this.totalPlayTime = 0
 		this.gamesPlayed = 0

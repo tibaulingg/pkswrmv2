@@ -20,6 +20,10 @@ export const ItemConfig = {
 		icon: '',
 		iconImage: '/sprites/items/bronze_chest.png',
 		description: 'Coffre en Bronze, peut contenir des objets',
+		lootTable: [
+			{ itemId: 'golden_apple', chance: 0.7 },
+			{ itemId: 'mystic_water', chance: 0.3 },
+		],
 	},
 	apple: {
 		id: 'apple',

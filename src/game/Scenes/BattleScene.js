@@ -40,7 +40,8 @@ const BALANCE_CONFIG = {
 		KNOCKBACK_PROJECTILE_MULTIPLIER: 0.5,
 		KNOCKBACK_BOSS_MULTIPLIER: 0.2,
 		KNOCKBACK_HYDROCANON_MULTIPLIER: 0.3,
-		EXPLOSION_PARTICLES_BASE: 15,
+		EXPLOSION_PARTICLES_BASE: 3,
+		EXPLOSION_PARTICLES_ENEMY_DEATH: 60,
 		EXPLOSION_PARTICLES_AOE_DIVISOR: 2,
 		PROJECTILE_BOUNCE_SPEED_FALLBACK: 0.6,
 	},
@@ -216,7 +217,8 @@ export default class BattleScene {
 			
 			this.loadMapBackground(mapData.image);
 			
-			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
+			const pokemonIVs = this.engine.pokemonIVs && this.engine.pokemonIVs[selectedPokemon] ? this.engine.pokemonIVs[selectedPokemon] : null;
+			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig, pokemonIVs);
 			this.player.money = this.initialMoney;
 			this.player.displayedMoney = this.initialDisplayedMoney;
 	
@@ -301,11 +303,7 @@ export default class BattleScene {
 		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
 		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
 		
-		if (isPauseOpen || isConfirmMenuOpen || this.chestSystem.isOpening) {
-			if (this.chestSystem.isOpening) {
-				this.chestSystem.update(deltaTime);
-				this.chestSystem.handleInput(this.engine.input);
-			}
+		if (isPauseOpen || isConfirmMenuOpen) {
 			return;
 		}
 		
@@ -435,12 +433,6 @@ export default class BattleScene {
 		return distance > 0 ? { x: dx / distance, y: dy / distance } : { x: 0, y: 0 };
 	}
 
-	applyLifeSteal(damage) {
-		if (this.player.lifeSteal > 0) {
-			const healAmount = damage * this.player.lifeSteal;
-			this.player.hp = Math.min(this.player.hp + healAmount, this.player.maxHp);
-		}
-	}
 
 	calculateFinalDamage(baseDamage, isCrit = false) {
 		return isCrit ? baseDamage * this.player.critDamage : baseDamage;
@@ -450,7 +442,7 @@ export default class BattleScene {
 		const enemyCenterX = enemy.getCenterX();
 		const enemyCenterY = enemy.getCenterY();
 		
-		this.particleSystem.createExplosion(enemyCenterX, enemyCenterY, enemy.particleColor, BALANCE_CONFIG.COMBAT.EXPLOSION_PARTICLES_BASE);
+		this.particleSystem.createExplosion(enemyCenterX, enemyCenterY, enemy.particleColor, BALANCE_CONFIG.COMBAT.EXPLOSION_PARTICLES_ENEMY_DEATH);
 		
 		const xpReward = enemy.level * (BALANCE_CONFIG.XP.BASE_XP_PER_LEVEL + Math.floor(Math.random() * BALANCE_CONFIG.XP.RANDOM_XP_PER_LEVEL));
 		this.xpOrbSystem.spawnOrb(enemyCenterX, enemyCenterY, xpReward);
@@ -663,13 +655,6 @@ export default class BattleScene {
 			});
 		}
 		
-		if (!this.chestSystem.isOpening) {
-			this.checkChestInteraction();
-		}
-		
-		if (this.chestSystem.isOpening) {
-			this.chestSystem.update(deltaTime);
-		}
 	}
 
 	updateEnemyAttacks() {
@@ -770,7 +755,6 @@ export default class BattleScene {
 				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 				const died = directHitEnemy.takeDamage(projectile.damage, knockbackX, knockbackY, projectile.isCrit);
 				
-				this.applyLifeSteal(projectile.damage);
 				
 				if (died) {
 					this.handleEnemyDeath(directHitEnemy);
@@ -804,7 +788,6 @@ export default class BattleScene {
 					this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
 					
-							this.applyLifeSteal(damageToDeal);
 					
 					if (died) {
 						this.handleEnemyDeath(enemy);
@@ -1005,7 +988,6 @@ export default class BattleScene {
 							this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 							const died = enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
-							this.applyLifeSteal(finalDamage);
 
 							if (died) {
 								this.handleEnemyDeath(enemy);
@@ -1094,7 +1076,6 @@ export default class BattleScene {
 						this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 						const died = enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
-						this.applyLifeSteal(finalDamage);
 
 						if (died) {
 							this.handleEnemyDeath(enemy);
@@ -1233,7 +1214,6 @@ export default class BattleScene {
 				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 				const died = enemy.takeDamage(attackData.damage, knockbackX, knockbackY, attackData.isCrit);
 				
-				this.applyLifeSteal(attackData.damage);
 				
 				if (died) {
 					this.handleEnemyDeath(enemy);
@@ -1405,7 +1385,6 @@ export default class BattleScene {
 						this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 						const died = enemy.takeDamage(strike.damage, knockbackX, knockbackY, strike.isCrit);
 						
-						this.applyLifeSteal(strike.damage);
 						
 						if (died) {
 							this.handleEnemyDeath(enemy);
@@ -1525,9 +1504,6 @@ export default class BattleScene {
 				this.applyGrayscaleFilter(renderer);
 			}
 			
-			if (this.chestSystem.isOpening) {
-				this.chestSystem.render(renderer);
-			}
 		}
 
 		if (this.upgradeChoices) {
@@ -2039,7 +2015,6 @@ export default class BattleScene {
 					this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
 					const died = hit.enemy.takeDamage(finalDamage, knockbackX, knockbackY, damageCalc.isCrit);
 
-					this.applyLifeSteal(finalDamage);
 
 					if (died) {
 						this.handleEnemyDeath(hit.enemy);
@@ -2149,26 +2124,5 @@ export default class BattleScene {
 		renderer.ctx.restore();
 	}
 	
-	checkChestInteraction() {
-		if (!this.itemDropSystem || !this.player) return;
-		
-		const playerCenterX = this.player.getCenterX();
-		const playerCenterY = this.player.getCenterY();
-		const chestInteractionRange = 50;
-		
-		for (const item of this.itemDropSystem.items) {
-			if (!item.isActive || !item.isChest || !item.hasLanded) continue;
-			
-			const dx = playerCenterX - item.x;
-			const dy = playerCenterY - item.y;
-			const distance = Math.sqrt(dx * dx + dy * dy);
-			
-			if (distance < chestInteractionRange) {
-				this.chestSystem.startOpening(item);
-				item.isActive = false;
-				break;
-			}
-		}
-	}
 }
 

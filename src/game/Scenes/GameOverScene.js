@@ -198,59 +198,16 @@ export default class GameOverScene {
 		
 		currentY += lineHeight + 30;
 
-		const moneyAnim = this.itemAnimations['money'] || { original: 0, target: 0, current: 0 };
-		const coinSprite = this.engine.sprites.get('coins');
-		
-		if (coinSprite) {
-			renderer.ctx.drawImage(coinSprite, startX, currentY - iconSize / 2, iconSize, iconSize);
-		}
-		
-		renderer.ctx.textAlign = 'left';
-		renderer.ctx.textBaseline = 'middle';
-		renderer.ctx.font = `${fontSize}px Pokemon`;
-		
-		const currentText = `${moneyAnim.current}`;
-		const originalText = `${moneyAnim.original}`;
-		const textY = currentY;
-		const textX = startX + iconSize + spacing;
-		
-		renderer.ctx.fillStyle = '#ffffff';
-		renderer.ctx.strokeStyle = '#000000';
-		renderer.ctx.lineWidth = 2;
-		renderer.ctx.strokeText(currentText, textX, textY);
-		renderer.ctx.fillText(currentText, textX, textY);
-		
-		if (this.isDefeat && moneyAnim.original !== moneyAnim.target) {
-			const currentWidth = renderer.ctx.measureText(currentText).width;
-			const originalX = textX + currentWidth + spacing;
-			
-			renderer.ctx.fillStyle = '#888888';
-			renderer.ctx.strokeStyle = '#000000';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.strokeText(`(${originalText}`, originalX, textY);
-			renderer.ctx.fillText(`(${originalText}`, originalX, textY);
-			
-			const originalWidth = renderer.ctx.measureText(`(${originalText}`).width;
-			
-			renderer.ctx.strokeStyle = '#ff0000';
-			renderer.ctx.lineWidth = 3;
-			renderer.ctx.beginPath();
-			renderer.ctx.moveTo(originalX, textY);
-			renderer.ctx.lineTo(originalX + originalWidth, textY);
-			renderer.ctx.stroke();
-			
-			renderer.ctx.fillStyle = '#888888';
-			renderer.ctx.strokeStyle = '#000000';
-			renderer.ctx.lineWidth = 2;
-			renderer.ctx.strokeText(')', originalX + originalWidth, textY);
-			renderer.ctx.fillText(')', originalX + originalWidth, textY);
-		}
-		
-		currentY += lineHeight;
-
 		const sessionInventory = this.battleScene.sessionInventory || {};
-		const itemsPerColumn = 3;
+		const itemsPerColumn = 4;
 		const columnWidth = 250;
+		
+		const allItems = [];
+		
+		const moneyAnim = this.itemAnimations['money'];
+		if (moneyAnim && moneyAnim.original > 0) {
+			allItems.push({ itemId: 'money', isMoney: true });
+		}
 		
 		const validItems = Object.entries(sessionInventory)
 			.filter(([itemId, quantity]) => {
@@ -259,20 +216,29 @@ export default class GameOverScene {
 				if (!itemConfig) return false;
 				if (!this.itemAnimations[itemId]) return false;
 				return true;
-			});
+			})
+			.map(([itemId]) => ({ itemId, isMoney: false }));
 		
-		const totalItems = validItems.length;
+		allItems.push(...validItems);
+		
+		const totalItems = allItems.length;
 		const itemsStartY = currentY;
 		
 		if (totalItems > 0) {
-			validItems.forEach(([itemId, quantity], index) => {
+			allItems.forEach((item, index) => {
 				const columnIndex = Math.floor(index / itemsPerColumn);
 				const rowIndex = index % itemsPerColumn;
 				const itemX = startX + (columnIndex * columnWidth);
 				const itemY = itemsStartY + (rowIndex * lineHeight);
 			
-				const anim = this.itemAnimations[itemId];
-				const itemSprite = this.engine.sprites.get(`item_${itemId}`);
+				const anim = this.itemAnimations[item.itemId];
+				let itemSprite = null;
+				
+				if (item.isMoney) {
+					itemSprite = this.engine.sprites.get('coins');
+				} else {
+					itemSprite = this.engine.sprites.get(`item_${item.itemId}`);
+				}
 				
 				if (itemSprite) {
 					renderer.ctx.drawImage(itemSprite, itemX, itemY - iconSize / 2, iconSize, iconSize);

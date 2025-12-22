@@ -49,7 +49,8 @@ export default class SaveManager {
 			playedMaps: Array.from(engine.playedMaps || []),
 			defeatedPokemonCounts: engine.defeatedPokemonCounts || {},
 			totalPlayTime: engine.totalPlayTime || 0,
-			gamesPlayed: engine.gamesPlayed || 0
+			gamesPlayed: engine.gamesPlayed || 0,
+			pokemonIVs: engine.pokemonIVs || {}
 		};
 
 		try {
@@ -98,6 +99,11 @@ export default class SaveManager {
 			}
 			if (saveData.gamesPlayed !== undefined) {
 				engine.gamesPlayed = saveData.gamesPlayed || 0;
+			}
+			if (saveData.pokemonIVs) {
+				engine.pokemonIVs = saveData.pokemonIVs;
+			} else {
+				engine.pokemonIVs = {};
 			}
 
 			return saveData;

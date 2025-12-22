@@ -3,6 +3,7 @@ import { ItemConfig, getItemsByCategory } from '../Config/ItemConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
 import AnimationSystem from '../Systems/AnimationSystem.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
+import { generateIVs, mergeIVs } from '../Systems/IVSystem.js';
 
 export default class ShopScene {
 	constructor(engine) {
@@ -488,6 +489,18 @@ export default class ShopScene {
 			this.engine.encounteredPokemons = new Set();
 		}
 		
+		if (!this.engine.pokemonIVs) {
+			this.engine.pokemonIVs = {};
+		}
+		
+		const newIVs = generateIVs();
+		
+		if (this.engine.pokemonIVs[hatchedPokemon]) {
+			this.engine.pokemonIVs[hatchedPokemon] = mergeIVs(this.engine.pokemonIVs[hatchedPokemon], newIVs);
+		} else {
+			this.engine.pokemonIVs[hatchedPokemon] = newIVs;
+		}
+		
 		this.engine.encounteredPokemons.add(hatchedPokemon);
 		
 		delete this.engine.eggProgress[egg.uniqueId];
@@ -733,16 +746,18 @@ export default class ShopScene {
 				} else {
 					priceText = SaveManager.formatLargeNumber(shopItem.buyPrice);
 				}
-				const priceTextWidth = renderer.ctx.measureText(priceText).width;
-				const priceX = itemListStartX + 600;
 				const coinSize = 20;
+				const coinX = itemListStartX + 700;
+				const spacing = 5;
 				
+				renderer.ctx.textAlign = 'right';
 				renderer.ctx.fillStyle = canAfford ? '#ffffff' : '#ff0000';
-				renderer.ctx.fillText(priceText, priceX, y);
+				renderer.ctx.fillText(priceText, coinX - spacing, y);
+				renderer.ctx.textAlign = 'left';
 				
 				const coinsImage = this.engine.sprites.get('coins');
 				if (coinsImage) {
-					renderer.drawImage(coinsImage, priceX + priceTextWidth + 5, y - coinSize / 2 + 2, coinSize, coinSize);
+					renderer.drawImage(coinsImage, coinX, y - coinSize / 2 + 2, coinSize, coinSize);
 				}
 			});
 
@@ -767,24 +782,24 @@ export default class ShopScene {
 				const selectedShopItem = this.shopItems[globalIndex];
 				const selectedItem = selectedShopItem.itemConfig;
 				
-				const moneyX = 1100;
 				const moneyY = 815;
 				const moneyFontSize = '20px';
 				const coinSize = 24;
+				const coinX = 1200;
+				const spacing = 5;
 				const money = Math.floor(this.engine.displayedMoney) || 0;
 				const moneyText = SaveManager.formatLargeNumber(money);
 
 				renderer.ctx.save();
 				renderer.ctx.font = `${moneyFontSize} Pokemon`;
-				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textAlign = 'right';
 				renderer.ctx.textBaseline = 'middle';
-				const moneyTextWidth = renderer.ctx.measureText(moneyText).width;
 				renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
-				renderer.ctx.fillText(moneyText, moneyX, moneyY);
+				renderer.ctx.fillText(moneyText, coinX - spacing, moneyY);
 				
 				const coinsImage = this.engine.sprites.get('coins');
 				if (coinsImage) {
-					renderer.drawImage(coinsImage, moneyX + moneyTextWidth + 5, moneyY - coinSize / 2, coinSize, coinSize);
+					renderer.drawImage(coinsImage, coinX, moneyY - coinSize / 2, coinSize, coinSize);
 				}
 				
 				const priceX = itemListStartX + 570;
@@ -963,16 +978,18 @@ export default class ShopScene {
 					} else {
 						priceText = SaveManager.formatLargeNumber(sellItem.sellPrice);
 					}
-					const priceTextWidth = renderer.ctx.measureText(priceText).width;
-					const priceX = itemListStartX + 570;
 					const coinSize = 20;
+					const coinX = itemListStartX + 670;
+					const spacing = 5;
 					
+					renderer.ctx.textAlign = 'right';
 					renderer.ctx.fillStyle = '#ffffff';
-					renderer.ctx.fillText(priceText, priceX, y);
+					renderer.ctx.fillText(priceText, coinX - spacing, y);
+					renderer.ctx.textAlign = 'left';
 					
 					const coinsImage = this.engine.sprites.get('coins');
 					if (coinsImage) {
-						renderer.drawImage(coinsImage, priceX + priceTextWidth + 5, y - coinSize / 2 + 2, coinSize, coinSize);
+						renderer.drawImage(coinsImage, coinX, y - coinSize / 2 + 2, coinSize, coinSize);
 					}
 				});
 			}
@@ -992,24 +1009,24 @@ export default class ShopScene {
 				renderer.ctx.restore();
 			}
 
-			const moneyX = 1100;
 			const moneyY = 815;
 			const moneyFontSize = '20px';
 			const coinSize = 24;
+			const coinX = 1200;
+			const spacing = 5;
 			const money = Math.floor(this.engine.displayedMoney) || 0;
 			const moneyText = SaveManager.formatLargeNumber(money);
 
 			renderer.ctx.save();
 			renderer.ctx.font = `${moneyFontSize} Pokemon`;
-			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textAlign = 'right';
 			renderer.ctx.textBaseline = 'middle';
-			const moneyTextWidth = renderer.ctx.measureText(moneyText).width;
 			renderer.ctx.fillStyle = 'rgb(43, 231, 216)';
-			renderer.ctx.fillText(moneyText, moneyX, moneyY);
+			renderer.ctx.fillText(moneyText, coinX - spacing, moneyY);
 			
 			const coinsImage = this.engine.sprites.get('coins');
 			if (coinsImage) {
-				renderer.drawImage(coinsImage, moneyX + moneyTextWidth + 5, moneyY - coinSize / 2, coinSize, coinSize);
+				renderer.drawImage(coinsImage, coinX, moneyY - coinSize / 2, coinSize, coinSize);
 			}
 			
 			if (this.selectedItemIndex >= 0 && this.selectedItemIndex < itemsToShow.length) {

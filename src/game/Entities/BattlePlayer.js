@@ -1,7 +1,10 @@
 import { getSpellConfig } from '../Config/SpellConfig.js';
+import { calculateStatWithIV } from '../Systems/IVSystem.js';
+
+const BASE_SPEED = 2;
 
 export default class BattlePlayer {
-	constructor(x, y, animationSystem = null, pokemonConfig = null) {
+	constructor(x, y, animationSystem = null, pokemonConfig = null, ivs = null) {
 		this.x = x;
 		this.y = y;
 		this.animationSystem = animationSystem;
@@ -21,14 +24,16 @@ export default class BattlePlayer {
 			this.height = 32;
 		}
 		
-		this.speed = pokemonConfig?.speed || 3;
+		const baseSpeed = BASE_SPEED * (pokemonConfig?.speedMultiplier || 1);
+		this.speed = calculateStatWithIV(baseSpeed, ivs?.speed, 'speed');
 		this.directionX = 0;
 		this.directionY = 0;
 		this.velocityX = 0;
 		this.velocityY = 0;
 		
-		this.hp = pokemonConfig?.hp || 100;
-		this.maxHp = this.hp;
+		const baseHp = pokemonConfig?.hp || 100;
+		this.maxHp = calculateStatWithIV(baseHp, ivs?.hp, 'hp');
+		this.hp = this.maxHp;
 		this.displayedHp = this.hp;
 		this.lostHp = 0;
 		this.lostHpDecaySpeed = 0.8;
@@ -45,10 +50,14 @@ export default class BattlePlayer {
 		
 		this.attackType = pokemonConfig?.attackType || 'melee';
 		this.type = pokemonConfig?.type || 'normal';
-		this.damage = pokemonConfig?.damage || 10;
-		this.attackSpeed = pokemonConfig?.attackSpeed || 1.0;
-		this.range = pokemonConfig?.range || 80;
-		this.knockback = pokemonConfig?.knockback || 30;
+		const baseDamage = pokemonConfig?.damage || 10;
+		this.damage = calculateStatWithIV(baseDamage, ivs?.damage, 'damage');
+		const baseAttackSpeed = pokemonConfig?.attackSpeed || 1.0;
+		this.attackSpeed = calculateStatWithIV(baseAttackSpeed, ivs?.attackSpeed, 'attackSpeed');
+		const baseRange = pokemonConfig?.range || 80;
+		this.range = calculateStatWithIV(baseRange, ivs?.range, 'range');
+		const baseKnockback = pokemonConfig?.knockback || 30;
+		this.knockback = calculateStatWithIV(baseKnockback, ivs?.knockback, 'knockback');
 		this.projectileColor = pokemonConfig?.projectileColor || '#ffff00';
 		this.projectileSize = pokemonConfig?.projectileSize || 8;
 		this.attackCooldown = 0;
@@ -88,7 +97,6 @@ export default class BattlePlayer {
 		this.aoeRadiusMultiplier = 1;
 		this.piercingCount = 0;
 		this.bounceRange = 600;
-		this.lifeSteal = 0;
 		this.xpGainMultiplier = 1;
 		this.moneyGainMultiplier = 1;
 		this.duration = 1;
@@ -421,8 +429,9 @@ export default class BattlePlayer {
 			case 'maxHp':
 				const oldMaxHp = this.maxHp;
 				this.maxHp += upgrade.value;
-				this.hp += upgrade.value;
-				this.displayedHp += upgrade.value;
+				const hpRatio = this.hp / oldMaxHp;
+				this.hp = this.maxHp * hpRatio;
+				this.displayedHp = this.hp;
 				this.triggerStatAnimation('maxHp', oldMaxHp, this.maxHp);
 				break;
 			case 'hpRegen':
@@ -480,11 +489,6 @@ export default class BattlePlayer {
 				const oldCritDamage = this.critDamage;
 				this.critDamage += upgrade.value;
 				this.triggerStatAnimation('critDamage', oldCritDamage, this.critDamage);
-				break;
-			case 'lifeSteal':
-				const oldLifeSteal = this.lifeSteal;
-				this.lifeSteal += upgrade.value;
-				this.triggerStatAnimation('lifeSteal', oldLifeSteal, this.lifeSteal);
 				break;
 			case 'xpGain':
 				this.xpGainMultiplier *= upgrade.value;

@@ -42,18 +42,18 @@ export default class GameScene {
 		this.eventSystem = new EventSystem(HubEvents);
 		this.eventHandler = new EventHandler(this.engine);
 		
-		const selectedPokemon = data?.selectedPokemon || this.engine.selectedPokemon || 'quaksire';
+		const selectedPokemon = data?.selectedPokemon || this.engine.selectedPokemon || 'quagsire';
 		const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
 		const pokemonConfig = getPokemonConfig(selectedPokemon);
 		const animationSystem = pokemonConfig && pokemonWalkSprite ? new AnimationSystem(pokemonConfig, pokemonWalkSprite) : null;
 		
-		const spawnX = 360;
+		const spawnX = 385;
 		const spawnY = 550;
 		
 		if (!animationSystem) {
-			const quaksireWalkSprite = this.engine.sprites.get('quaksire_walk');
-			const quaksireConfig = getPokemonConfig('quaksire');
-			const fallbackAnimationSystem = new AnimationSystem(quaksireConfig, quaksireWalkSprite);
+			const quagsireWalkSprite = this.engine.sprites.get('quagsire_walk');
+			const quagsireConfig = getPokemonConfig('quagsire');
+			const fallbackAnimationSystem = new AnimationSystem(quagsireConfig, quagsireWalkSprite);
 			this.player = new Player(spawnX, spawnY, fallbackAnimationSystem);
 		} else {
 			this.player = new Player(spawnX, spawnY, animationSystem);
@@ -296,6 +296,10 @@ export default class GameScene {
 				if (progress >= 1) {
 					this.player.y = this.targetSpawnY;
 					this.isEntering = false;
+					if (this.player.animationSystem) {
+						this.player.animationSystem.currentDirection = 'down';
+						this.player.animationSystem.forcedDirection = null;
+					}
 				}
 			}
 			

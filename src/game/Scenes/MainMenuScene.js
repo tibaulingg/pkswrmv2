@@ -1,6 +1,7 @@
 import SaveManager from '../Systems/SaveManager.js';
 import RankManager from '../Systems/RankManager.js';
 import { PokemonSprites } from '../Config/SpriteConfig.js';
+import { generateStarterIVs } from '../Systems/IVSystem.js';
 
 export default class MainMenuScene {
 	constructor(engine) {
@@ -44,7 +45,6 @@ export default class MainMenuScene {
 				label: 'Continuer',
 				description: 'Reprenez votre aventure à partir de votre dernière sauvegarde'
 			});
-			this.showContinueMenu = true;
 			this.selectedContinueChoice = 0;
 			this.saveData = SaveManager.getSaveData();
 		}
@@ -217,6 +217,13 @@ export default class MainMenuScene {
 		this.engine.eggUniqueIds = {};
 		this.engine.totalPlayTime = 0;
 		this.engine.gamesPlayed = 0;
+		this.engine.pokemonIVs = {};
+		
+		if (selectedPokemon) {
+			this.engine.pokemonIVs[selectedPokemon] = generateStarterIVs();
+			this.engine.encounteredPokemons.add(selectedPokemon);
+			this.engine.playedPokemons.add(selectedPokemon);
+		}
 		
 		SaveManager.saveGame(this.engine, true);
 		
@@ -233,7 +240,7 @@ export default class MainMenuScene {
 			if (loadedData) {
 				SaveManager.saveGame(this.engine, false);
 				this.engine.sceneManager.changeScene('game', {
-					selectedPokemon: loadedData.selectedPokemon || 'quaksire',
+					selectedPokemon: loadedData.selectedPokemon || 'quagsire',
 					playerName: loadedData.playerName || 'Trainer',
 					enteringFromTop: false
 				});

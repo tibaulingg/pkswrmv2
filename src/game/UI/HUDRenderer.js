@@ -142,7 +142,6 @@ export default class HUDRenderer {
 				case 'range': return Math.floor(player.range).toString();
 				case 'critChance': return (player.critChance * 100).toFixed(1) + '%';
 				case 'critDamage': return (player.critDamage * 100).toFixed(0) + '%';
-				case 'lifeSteal': return (player.lifeSteal * 100).toFixed(1) + '%';
 				case 'hpRegen': return player.hpRegen.toFixed(1) + '/s';
 				case 'knockback': return player.knockback.toFixed(1);
 				case 'maxHp': return `${Math.floor(player.hp)}/${Math.floor(player.maxHp)}`;
@@ -157,7 +156,6 @@ export default class HUDRenderer {
 			{ label: 'RNG', key: 'range' },
 			{ label: 'CRIT', key: 'critChance' },
 			{ label: 'CDMG', key: 'critDamage' },
-			{ label: 'LIFE', key: 'lifeSteal' },
 			{ label: 'REG', key: 'hpRegen' },
 			{ label: 'KNOC', key: 'knockback' },
 		];

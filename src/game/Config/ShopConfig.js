@@ -4,11 +4,6 @@ export const ShopConfig = {
 		name: 'Magasin Kecleon',
 		items: [
 			{
-				itemId: 'key',
-				buyPrice: 1500,
-				sellPrice: 1500,
-			},
-			{
 				itemId: 'apple',
 				buyPrice: 100,
 				sellPrice: 100,
@@ -25,7 +20,7 @@ export const ShopConfig = {
 			},
 			{
 				itemId: 'rattata_tail',
-				buyPrice: 0,
+				buyPrice: 1,
 				sellPrice: 50,
 			},
 		]
