@@ -166,7 +166,7 @@ export default class AnimationSystem {
 		}
 	}
 
-	render(renderer, x, y, scale = 1, drawShadow = true) {
+	render(renderer, x, y, scale = 1, drawShadow = true, isPlayer = false) {
 		const spriteImage = this.getCurrentSpriteImage();
 		if (!spriteImage) return;
 
@@ -186,10 +186,20 @@ export default class AnimationSystem {
 			const shadowX = x + (this.frameWidth * scale - shadowWidth) / 2;
 			const shadowY = y + this.frameHeight * scale - shadowHeight - 25;
 			
-			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-			renderer.ctx.beginPath();
-			renderer.ctx.ellipse(shadowX + shadowWidth / 2, shadowY + shadowHeight / 2, shadowWidth / 2, shadowHeight / 2, 0, 0, Math.PI * 2);
-			renderer.ctx.fill();
+			if (isPlayer) {
+				renderer.ctx.fillStyle = 'rgba(255, 255, 0, 1)';
+				renderer.ctx.beginPath();
+				renderer.ctx.ellipse(shadowX + shadowWidth / 2, shadowY + shadowHeight / 2, shadowWidth / 2, shadowHeight / 2, 0, 0, Math.PI * 2);
+				renderer.ctx.fill();
+				renderer.ctx.strokeStyle = 'rgba(200, 150, 0, 1)';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.stroke();
+			} else {
+				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+				renderer.ctx.beginPath();
+				renderer.ctx.ellipse(shadowX + shadowWidth / 2, shadowY + shadowHeight / 2, shadowWidth / 2, shadowHeight / 2, 0, 0, Math.PI * 2);
+				renderer.ctx.fill();
+			}
 		}
 		
 		renderer.ctx.imageSmoothingEnabled = false;

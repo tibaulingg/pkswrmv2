@@ -79,35 +79,11 @@ export function tilesToCollisionRects(tiles, tileSize = TILE_SIZE) {
 
 export const MapTileCollisions = {
 	forest: [
-		{ fromX: 0, fromY: 0, toX: 16, toY: 7 },
-		{ fromX: 0, fromY: 6, toX: 14, toY: 9 },
-		{ fromX: 0, fromY: 8, toX: 10, toY: 11 },
-		{ fromX: 0, fromY: 10, toX: 8, toY: 15 },
-		{ fromX: 0, fromY: 15, toX: 6, toY: 17 },
-		{ fromX: 0, fromY: 17, toX: 4, toY: 64 },
-		{ fromX: 4, fromY: 26, toX: 6, toY: 33 },
-		{ fromX: 4, fromY: 44, toX: 6, toY: 64 },
-		{ fromX: 4, fromY: 47, toX: 8, toY: 64 },
-		{ fromX: 4, fromY: 49, toX: 10, toY: 64 },
-		{ fromX: 4, fromY: 51, toX: 12, toY: 64 },
-		{ fromX: 4, fromY: 51, toX: 14, toY: 64 },
-		{ fromX: 4, fromY: 53, toX: 16, toY: 64 },
-		{ fromX: 17, fromY: 61, toX: 64, toY: 64 },
-		{ fromX: 57, fromY: 51, toX: 64, toY: 64 },
-		{ fromX: 59, fromY: 45, toX: 64, toY: 50 },
-		{ fromX: 61, fromY: 0, toX: 64, toY: 44 },
-		{ fromX: 16, fromY: 0, toX: 64, toY: 3 },
-		{ fromX: 16, fromY: 3, toX: 40, toY: 5 },
-		{ fromX: 19, fromY: 5, toX: 34, toY: 7 },
-		{ fromX: 21, fromY: 7, toX: 32, toY: 9 },
-		{ fromX: 53, fromY: 3, toX: 60, toY: 5 },
-		{ fromX: 55, fromY: 5, toX: 61, toY: 19 },
-		
-		{ fromX: 57, fromY: 20, toX: 60, toY: 21 },
-		{ fromX: 59, fromY: 22, toX: 60, toY: 23 },
-	
-		{ fromX: 17, fromY: 53, toX: 57, toY: 64 },
-		
+		//3 tiles width on each side
+		{ fromX: 0, fromY: 0, toX: 3, toY: 64 },
+		{ fromX: 0, fromY: 0, toX: 64, toY: 3 },
+		{ fromX: 62, fromY: 0, toX: 64, toY: 64 },
+		{ fromX: 0, fromY: 62, toX: 64, toY: 64 },
 	],
 	mountain: [],
 	cave: [],

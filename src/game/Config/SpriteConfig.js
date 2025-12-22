@@ -53,7 +53,7 @@ export const PokemonSprites = {
 		},
 		attackType: 'melee',
 		type: 'dragon',
-		hp: 100,
+		hp: 1,
 		speed: 4,
 		damage: 30,
 		attackSpeed: 2,
@@ -115,8 +115,8 @@ export const PokemonSprites = {
 		projectileSpeed: 0.6,
 		spells: [],
 		lootTable: [
-			{ itemId: 'rattata_tail', chance: 0.1, },
-			{ itemId: 'bronze_chest', chance: 0.05, },
+			{ itemId: 'rattata_tail', chance: 1, },
+			{  },
 		]
 	},
 	caterpie: {
@@ -147,7 +147,7 @@ export const PokemonSprites = {
 		projectileSpeed: 0.2,
 		spells: [],
 		lootTable: [
-			{ itemId: 'bronze_chest', chance: 0.05, },
+			{  },
 		]
 	},
 	pidgey: {
@@ -175,7 +175,7 @@ export const PokemonSprites = {
 		projectileSpeed: 0.2,
 		spells: [],
 		lootTable: [
-			{ itemId: 'bronze_chest', chance: 0.05, },
+			{ },
 		]
 	},
 	chansey : {
@@ -203,7 +203,7 @@ export const PokemonSprites = {
 		projectileSpeed: 0.2,
 		spells: [],
 		lootTable: [
-			{ itemId: 'bronze_chest', chance: 0.05 },
+			{ },
 		]
 	},
 	wooper : {

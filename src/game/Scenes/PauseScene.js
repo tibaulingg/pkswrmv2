@@ -17,6 +17,7 @@ export default class PauseScene {
 		this.keyRepeatDelay = 300;
 		this.keyRepeatInterval = 50;
 		this.eggsOnlyMode = false;
+		this.originalMusicVolume = null;
 	}
 
 	init(data) {
@@ -27,6 +28,11 @@ export default class PauseScene {
 		this.currentPage = 0;
 		this.eggsOnlyMode = false;
 		this.updateOptions();
+		
+		if (this.engine.audio.currentMusic) {
+			this.originalMusicVolume = this.engine.audio.currentMusic.volume;
+			this.engine.audio.currentMusic.volume = this.originalMusicVolume * 0.3;
+		}
 		
 		if (data && data.openEggsMenu) {
 			const eggsOptionIndex = this.options.findIndex(opt => opt.label === 'Oeufs');
@@ -100,6 +106,9 @@ export default class PauseScene {
 			} else if (key === 'Enter') {
 				this.selectOption();
 			} else if (key === 'Escape') {
+				if (this.engine.audio.currentMusic && this.originalMusicVolume !== null) {
+					this.engine.audio.currentMusic.volume = this.originalMusicVolume;
+				}
 				this.engine.sceneManager.popScene();
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}
@@ -438,6 +447,9 @@ export default class PauseScene {
 	}
 
 	openConfirmQuitMenu() {
+		if (this.engine.audio.currentMusic && this.originalMusicVolume !== null) {
+			this.engine.audio.currentMusic.volume = this.originalMusicVolume;
+		}
 		this.engine.sceneManager.popScene();
 		
 		const battleScene = this.engine.sceneManager.stack.find(
@@ -445,13 +457,23 @@ export default class PauseScene {
 		);
 		
 		const isInBattle = battleScene !== undefined;
-		const message = isInBattle ? 'Quitter la partie ?' : 'Retour au menu principal ?';
+		const message = isInBattle ? 'Quitter la partie et abandonner le butin ?' : 'Retour au menu principal ?';
 		
 		const onYes = (engine) => {
 			if (battleScene && battleScene.survivalTime) {
 				engine.totalPlayTime = (engine.totalPlayTime || 0) + battleScene.survivalTime;
-				SaveManager.saveGame(engine, false);
-				engine.sceneManager.changeScene('game');
+				if (battleScene.bossDefeated) {
+					SaveManager.saveGame(engine, false);
+				} else {
+					const savedMoney = engine.money;
+					const savedDisplayedMoney = engine.displayedMoney;
+					const savedInventory = { ...engine.inventory };
+					SaveManager.saveGame(engine, false);
+					engine.money = savedMoney;
+					engine.displayedMoney = savedDisplayedMoney;
+					engine.inventory = savedInventory;
+				}
+				engine.sceneManager.changeScene('game', { enteringFromTop: true });
 			} else {
 				engine.sceneManager.changeScene('menu');
 			}
@@ -472,6 +494,14 @@ export default class PauseScene {
 	}
 
 	render(renderer) {
+		const battleScene = this.engine.sceneManager.stack.find(
+			scene => scene.constructor.name === 'BattleScene'
+		);
+		
+		if (battleScene) {
+			this.applyGrayscaleFilter(renderer);
+		}
+		
 		const pauseImage = this.engine.sprites.get('hub_pause');
 		if (pauseImage) {
 			renderer.drawImage(pauseImage, 0, 0, renderer.width, renderer.height);
@@ -653,28 +683,7 @@ export default class PauseScene {
 					renderer.ctx.fillStyle = textColor;
 					renderer.ctx.fillText(itemName, currentX, y);
 					
-					if (item.config && item.config.category === 'consumable') {
-						const keyX = currentX + renderer.ctx.measureText(itemName).width + 8;
-						renderer.ctx.fillStyle = '#aaa';
-						renderer.ctx.font = '12px Pokemon';
-						renderer.ctx.textAlign = 'left';
-						renderer.ctx.strokeStyle = '#000000';
-						renderer.ctx.lineWidth = 2;
-						renderer.ctx.strokeText('[F]', keyX, y);
-						renderer.ctx.fillText('[F]', keyX, y);
-						renderer.ctx.font = `${itemFontSize} Pokemon`;
-					} else if (item.config && item.config.category === 'egg') {
-						const keyX = currentX + renderer.ctx.measureText(itemName).width + 8;
-						renderer.ctx.fillStyle = '#aaa';
-						renderer.ctx.font = '12px Pokemon';
-						renderer.ctx.textAlign = 'left';
-						renderer.ctx.strokeStyle = '#000000';
-						renderer.ctx.lineWidth = 2;
-						renderer.ctx.strokeText('[E]', keyX, y);
-						renderer.ctx.fillText('[E]', keyX, y);
-						renderer.ctx.font = `${itemFontSize} Pokemon`;
-					}
-					
+		
 					let quantityX;
 					let displayText = '';
 					
@@ -770,6 +779,13 @@ export default class PauseScene {
 				renderer.drawText('>', optionStartX - 20, cursorY, fontSize, color, 'left');
 			}
 		});
+	}
+
+	applyGrayscaleFilter(renderer) {
+		renderer.ctx.save();
+		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+		renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
+		renderer.ctx.restore();
 	}
 }
 

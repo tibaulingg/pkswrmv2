@@ -90,7 +90,8 @@ export default class GameEngine {
 			confirm_menu: '/confirm_menu.png',
 			hub: '/hub.png',
 			coins: '/coins.png',
-			stone: '/stone.png'
+			stone: '/stone.png',
+			game_over: '/game_over.png'
 		}
 
 		for (const [id, path] of Object.entries(staticSprites)) {

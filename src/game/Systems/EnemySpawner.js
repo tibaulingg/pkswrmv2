@@ -19,7 +19,7 @@ export default class EnemySpawner {
 		this.maxEnemies = 9999999;
 		this.enemyPool = MapEnemies[mapId] || [];
 		this.gameTime = 0;
-		this.spawnCount = 2;
+		this.spawnCount = 1;
 		this.difficultyUpdateTimer = 0;
 		this.difficultyUpdateInterval = 10000;
 		this.bossTimer = bossTimer;

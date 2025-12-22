@@ -894,7 +894,7 @@ export default class BattlePlayer {
 		
 		if (!isBlinking) {
 			if (this.animationSystem) {
-				this.animationSystem.render(renderer, this.x, this.y, this.scale);
+				this.animationSystem.render(renderer, this.x, this.y, this.scale, true, true);
 			} else {
 				renderer.drawRect(this.x, this.y, this.width, this.height, '#4a90e2');
 			}

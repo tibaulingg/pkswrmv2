@@ -16,6 +16,7 @@ import { getPokemonConfig, PokemonSprites } from '../Config/SpriteConfig.js';
 import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType,  } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
+import SaveManager from '../Systems/SaveManager.js';
 
 const TILE_SIZE = 32;
 
@@ -174,6 +175,10 @@ export default class BattleScene {
 		this.killerEnemy = null;
 		this.collisionSystem = null;
 		this.debugCollisions = false;
+		this.initialMoney = 0;
+		this.initialDisplayedMoney = 0;
+		this.sessionInventory = {};
+		this.bossDefeated = false;
 	}
 
 		init(mapData) {
@@ -185,6 +190,10 @@ export default class BattleScene {
 			this.deathAnimationComplete = false;
 			this.deathZoomProgress = 0;
 			this.killerEnemy = null;
+			this.initialMoney = this.engine.money || 0;
+			this.initialDisplayedMoney = this.engine.displayedMoney || 0;
+			this.sessionInventory = {};
+			this.bossDefeated = false;
 			
 			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
 			const pokemonConfig = getPokemonConfig(selectedPokemon);
@@ -204,8 +213,8 @@ export default class BattleScene {
 			this.loadMapBackground(mapData.image);
 			
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig);
-			this.player.money = this.engine.money;
-			this.player.displayedMoney = this.engine.displayedMoney;
+			this.player.money = this.initialMoney;
+			this.player.displayedMoney = this.initialDisplayedMoney;
 	
 			if (this.engine.equippedItems) {
 				this.engine.equippedItems.forEach(uniqueId => {
@@ -450,10 +459,28 @@ export default class BattleScene {
 		if (this.engine.incubatingEgg) {
 			if (this.engine.incubatingEgg.currentKills < this.engine.incubatingEgg.requiredKills) {
 				this.engine.incubatingEgg.currentKills++;
+				
+				if (this.engine.incubatingEgg.currentKills >= this.engine.incubatingEgg.requiredKills) {
+					if (!this.engine.eggProgress) {
+						this.engine.eggProgress = {};
+					}
+					this.engine.eggProgress[this.engine.incubatingEgg.uniqueId] = {
+						currentKills: this.engine.incubatingEgg.currentKills,
+						requiredKills: this.engine.incubatingEgg.requiredKills
+					};
+					const itemId = this.engine.incubatingEgg.itemId;
+					if (!this.engine.inventory[itemId]) {
+						this.engine.inventory[itemId] = 0;
+					}
+					this.engine.inventory[itemId]++;
+					this.engine.incubatingEgg = null;
+					SaveManager.saveGame(this.engine, false);
+				}
 			}
 		}
 
 		if (enemy.isBoss) {
+			this.transferSessionRewardsToEngine();
 			this.showVictoryScreen();
 		}
 	}
@@ -579,25 +606,23 @@ export default class BattleScene {
 				this.engine.audio.play('coins', BALANCE_CONFIG.AUDIO.COINS_VOLUME, BALANCE_CONFIG.AUDIO.COINS_PITCH);
 				const multipliedAmount = collectedCoins * this.player.moneyGainMultiplier;
 				this.player.addMoney(multipliedAmount);
-				this.engine.money = this.player.money;
-				this.engine.displayedMoney = this.player.displayedMoney;
 			}
 		}
 
-		const collectedItems = this.itemDropSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange, this.engine.inventory);
+		const collectedItems = this.itemDropSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange, this.getSessionInventory());
 		if (collectedItems.length > 0) {
 			collectedItems.forEach(itemId => {
 				const itemConfig = ItemConfig[itemId];
 				if (itemConfig && itemConfig.category === 'equipable') {
-					if (!this.engine.inventory[itemId]) {
-						this.engine.inventory[itemId] = 0;
+					if (!this.sessionInventory[itemId]) {
+						this.sessionInventory[itemId] = 0;
 					}
-					this.engine.inventory[itemId]++;
+					this.sessionInventory[itemId]++;
 				} else {
-					if (!this.engine.inventory[itemId]) {
-						this.engine.inventory[itemId] = 0;
+					if (!this.sessionInventory[itemId]) {
+						this.sessionInventory[itemId] = 0;
 					}
-					this.engine.inventory[itemId]++;
+					this.sessionInventory[itemId]++;
 				}
 				this.engine.audio.play('ok', BALANCE_CONFIG.AUDIO.OK_VOLUME, BALANCE_CONFIG.AUDIO.OK_PITCH);
 			});
@@ -1108,7 +1133,8 @@ export default class BattleScene {
 		
 		if (!itemConfig || !itemConfig.effect) return;
 		
-		const currentQuantity = this.engine.inventory[itemId] || 0;
+		const sessionInventory = this.getSessionInventory();
+		const currentQuantity = sessionInventory[itemId] || 0;
 		if (currentQuantity <= 0) return;
 		
 		if (itemConfig.effect.type === 'heal') {
@@ -1118,12 +1144,24 @@ export default class BattleScene {
 			this.player.hp = Math.min(this.player.hp + healAmount, this.player.maxHp);
 			this.player.displayedHp = this.player.hp;
 			
-			const newQuantity = currentQuantity - 1;
-			if (newQuantity <= 0) {
-				delete this.engine.inventory[itemId];
-				this.engine.assignedConsumable = null;
-			} else {
-				this.engine.inventory[itemId] = newQuantity;
+			if (this.engine.inventory[itemId] && this.engine.inventory[itemId] > 0) {
+				const newQuantity = this.engine.inventory[itemId] - 1;
+				if (newQuantity <= 0) {
+					delete this.engine.inventory[itemId];
+					this.engine.assignedConsumable = null;
+				} else {
+					this.engine.inventory[itemId] = newQuantity;
+				}
+			} else if (this.sessionInventory[itemId] && this.sessionInventory[itemId] > 0) {
+				const newQuantity = this.sessionInventory[itemId] - 1;
+				if (newQuantity <= 0) {
+					delete this.sessionInventory[itemId];
+					if (!this.engine.inventory[itemId] || this.engine.inventory[itemId] <= 0) {
+						this.engine.assignedConsumable = null;
+					}
+				} else {
+					this.sessionInventory[itemId] = newQuantity;
+				}
 			}
 			
 			this.player.consumablePressAnimation = BALANCE_CONFIG.ANIMATIONS.CONSUMABLE_PRESS_ANIMATION;
@@ -1419,12 +1457,17 @@ export default class BattleScene {
 				{
 					label: 'Retour au Hub',
 					action: (engine) => {
-						if (this.player) {
-							engine.money = this.player.money;
-							engine.displayedMoney = this.player.displayedMoney;
+						if (this.bossDefeated && this.player) {
+							if (this.transferSessionRewardsToEngine) {
+								this.transferSessionRewardsToEngine();
+							} else {
+								engine.money = this.player.money;
+								engine.displayedMoney = this.player.displayedMoney;
+							}
+							SaveManager.saveGame(engine, false);
 						}
-						engine.menuManager.closeMenu();
-						engine.sceneManager.changeScene('game');
+					engine.menuManager.closeMenu();
+					engine.sceneManager.changeScene('game', { enteringFromTop: true });
 					}
 				}
 			]
@@ -1547,7 +1590,7 @@ export default class BattleScene {
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
 			const bossDefeated = this.enemySpawner ? (this.enemySpawner.bossSpawned && (!currentBoss || !currentBoss.isAlive)) : false;
 			const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
-			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData, bossDefeated);
+			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData, bossDefeated, this);
 		}
 
 		this.renderMinimap(renderer);
@@ -1968,6 +2011,34 @@ export default class BattleScene {
 				}, spellEffect.duration || 600);
 			}
 		}
+	}
+
+	getSessionInventory() {
+		const combinedInventory = { ...this.engine.inventory };
+		for (const itemId in this.sessionInventory) {
+			if (!combinedInventory[itemId]) {
+				combinedInventory[itemId] = 0;
+			}
+			combinedInventory[itemId] += this.sessionInventory[itemId];
+		}
+		return combinedInventory;
+	}
+
+	transferSessionRewardsToEngine() {
+		const moneyGained = this.player.money - this.initialMoney;
+		const displayedMoneyGained = this.player.displayedMoney - this.initialDisplayedMoney;
+		
+		this.engine.money += moneyGained;
+		this.engine.displayedMoney += displayedMoneyGained;
+		
+		for (const itemId in this.sessionInventory) {
+			if (!this.engine.inventory[itemId]) {
+				this.engine.inventory[itemId] = 0;
+			}
+			this.engine.inventory[itemId] += this.sessionInventory[itemId];
+		}
+		
+		this.bossDefeated = true;
 	}
 
 	showVictoryScreen() {

@@ -16,9 +16,13 @@ export default class GameManager {
 	}
 
 	endGame(result, battleScene = null) {
-		if (battleScene && battleScene.player) {
-			this.engine.money = battleScene.player.money;
-			this.engine.displayedMoney = battleScene.player.displayedMoney;
+		if (battleScene && battleScene.player && result === 'victory') {
+			if (battleScene.transferSessionRewardsToEngine) {
+				battleScene.transferSessionRewardsToEngine();
+			} else {
+				this.engine.money = battleScene.player.money;
+				this.engine.displayedMoney = battleScene.player.displayedMoney;
+			}
 		}
 		
 		if (battleScene && battleScene.survivalTime) {
@@ -29,9 +33,31 @@ export default class GameManager {
 			this.engine.gamesPlayed = (this.engine.gamesPlayed || 0) + 1;
 		}
 		
+		if (result === 'defeat') {
+			const moneyGained = battleScene.player.money - (battleScene.initialMoney || 0);
+			const moneyKept = Math.floor(moneyGained / 2);
+			this.engine.money += moneyKept;
+			this.engine.displayedMoney += moneyKept;
+			
+			const sessionInventory = battleScene.sessionInventory || {};
+			for (const [itemId, quantity] of Object.entries(sessionInventory)) {
+				const keptQuantity = Math.floor(quantity / 2);
+				if (keptQuantity > 0) {
+					if (!this.engine.inventory[itemId]) {
+						this.engine.inventory[itemId] = 0;
+					}
+					this.engine.inventory[itemId] += keptQuantity;
+				}
+			}
+		}
+		
 		SaveManager.saveGame(this.engine, false);
 		
-		this.showEndGameMenu(result, battleScene);
+		if (result === 'defeat') {
+			this.engine.sceneManager.pushScene('gameOver', { battleScene: battleScene });
+		} else {
+			this.showEndGameMenu(result, battleScene);
+		}
 	}
 
 	showEndGameMenu(result, battleScene = null) {
@@ -90,7 +116,7 @@ export default class GameManager {
 				}
 				engine.menuManager.closeMenu();
 				this.currentMap = null;
-				engine.sceneManager.changeScene('game');
+				engine.sceneManager.changeScene('game', { enteringFromTop: true });
 			}
 		});
 

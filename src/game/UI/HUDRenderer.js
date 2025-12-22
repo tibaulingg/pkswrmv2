@@ -7,7 +7,7 @@ export default class HUDRenderer {
 		this.lineHeight = 25;
 	}
 
-	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null, mapData = null, bossDefeated = false) {
+	render(renderer, player, canvasWidth, canvasHeight, survivalTime, bossTimer = null, maxBossTimer = null, selectedPokemon = null, engine = null, currentBoss = null, mapData = null, bossDefeated = false, battleScene = null) {
 		if (!player) return;
 
 		if (currentBoss && currentBoss.isAlive) {
@@ -23,28 +23,59 @@ export default class HUDRenderer {
 
 		this.renderHUDBackground(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine);
 		this.renderHPXP(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
-		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
+		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss, battleScene);
 		this.renderSpells(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine);
 	}
 
-	renderStatLine(renderer, x, y, label, value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth, spacing = 2, animation = null) {
+	renderStatLine(renderer, x, y, label, value, fontSize, strokeOffset, strokeColor, labelColor, labelWidth, spacing = 2, animation = null, valueX = null) {
+		const isAnimated = animation && animation.timer > 0;
+		const animationProgress = isAnimated ? Math.max(0, Math.min(1, animation.timer / 500)) : 0;
+		const growthProgress = isAnimated ? Math.sin(animationProgress * Math.PI) : 0;
+		const scale = 1 + growthProgress * 0.15;
+		const glowIntensity = isAnimated ? (1 - animationProgress) * 0.8 : 0;
+		
+		const labelCenterX = x + labelWidth / 2;
+		const labelCenterY = y + fontSize / 2;
+		const finalValueX = valueX !== null ? valueX : (x + labelWidth + spacing);
+		const valueCenterY = y + fontSize / 2;
+		
+		renderer.ctx.save();
+		
+		if (isAnimated) {
+			renderer.ctx.translate(labelCenterX, labelCenterY);
+			renderer.ctx.scale(scale, scale);
+			renderer.ctx.translate(-labelCenterX, -labelCenterY);
+		}
+		
+		if (glowIntensity > 0) {
+			renderer.ctx.shadowColor = 'rgba(255, 255, 0, ' + glowIntensity + ')';
+			renderer.ctx.shadowBlur = 10 * glowIntensity;
+		}
+		
 		renderer.ctx.textAlign = 'left';
 		renderer.ctx.textBaseline = 'top';
-		
-		const isAnimated = animation && animation.timer > 0;
-		const pressProgress = isAnimated ? Math.max(0, Math.min(1, animation.timer / 200)) : 0;
-		const glowIntensity = pressProgress > 0 ? (1 - pressProgress) * 0.8 : 0;
-		
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		renderer.ctx.fillStyle = labelColor;
+		
+		if (isAnimated) {
+			renderer.ctx.fillStyle = '#ffff00';
+		} else {
+			renderer.ctx.fillStyle = labelColor;
+		}
+		
 		renderer.ctx.strokeStyle = strokeColor;
 		renderer.ctx.lineWidth = 1;
 		renderer.ctx.strokeText(label, x + strokeOffset, y + strokeOffset);
 		renderer.ctx.fillText(label, x, y);
 		
-		const valueX = x + labelWidth + spacing;
-
+		renderer.ctx.restore();
+		
 		renderer.ctx.save();
+		
+		if (isAnimated) {
+			renderer.ctx.translate(finalValueX, valueCenterY);
+			renderer.ctx.scale(scale, scale);
+			renderer.ctx.translate(-finalValueX, -valueCenterY);
+		}
 		
 		if (glowIntensity > 0) {
 			renderer.ctx.shadowColor = 'rgba(255, 255, 0, ' + glowIntensity + ')';
@@ -61,14 +92,22 @@ export default class HUDRenderer {
 		
 		renderer.ctx.strokeStyle = strokeColor;
 		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeText(value, valueX + strokeOffset, y + strokeOffset);
-		renderer.ctx.fillText(value, valueX, y);
+		
+		if (valueX !== null) {
+			renderer.ctx.textAlign = 'right';
+			renderer.ctx.strokeText(value, finalValueX - strokeOffset, y + strokeOffset);
+			renderer.ctx.fillText(value, finalValueX, y);
+		} else {
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.strokeText(value, finalValueX + strokeOffset, y + strokeOffset);
+			renderer.ctx.fillText(value, finalValueX, y);
+		}
 		
 		renderer.ctx.shadowBlur = 0;
 		renderer.ctx.restore();
 	}
 
-	renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon = null, engine = null, bossTimer = null, maxBossTimer = null, currentBoss = null) {
+	renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon = null, engine = null, bossTimer = null, maxBossTimer = null, currentBoss = null, battleScene = null) {
 		const minimapSize = 180;
 		const minimapX = canvasWidth - minimapSize - 10;
 		const minimapY = 10;
@@ -121,11 +160,8 @@ export default class HUDRenderer {
 			{ label: 'LIFE', key: 'lifeSteal' },
 			{ label: 'REG', key: 'hpRegen' },
 			{ label: 'KNOC', key: 'knockback' },
-			{ label: 'HP', key: 'maxHp' },
-			{ label: 'XP', key: 'xp' },
 		];
 
-		// Calculate max label width for stats alignment (max 4 chars)
 		let maxLabelWidth = 0;
 		stats.forEach((stat) => {
 			renderer.ctx.font = `bold ${fontSize}px Pokemon`;
@@ -136,24 +172,121 @@ export default class HUDRenderer {
 		});
 		const labelWidth = maxLabelWidth;
 
-		// Render stats line by line under minimap
-		const statsX = minimapX;
-		const statsY = statsStartY;
-		
-		stats.forEach((stat, index) => {
-			let value, animation = null;
-			
+		renderer.ctx.font = `${statsFontSize}px Pokemon`;
+		let maxValueWidth = 0;
+		stats.forEach((stat) => {
+			let value;
 			if (stat.key === 'xp') {
 				value = `${Math.floor(player.displayedXp)}/${Math.floor(player.xpToNextLevel)}`;
 			} else {
 				value = getStatValue(stat.key);
-				animation = player.statAnimations && player.statAnimations[stat.key];
 			}
-			
-			this.renderStatLine(renderer, statsX, statsY + index * statsLineHeight, stat.label, value, statsFontSize, strokeOffset, strokeColor, labelColor, labelWidth, 2, animation);
+			const width = renderer.ctx.measureText(value).width;
+			if (width > maxValueWidth) {
+				maxValueWidth = width;
+			}
 		});
 
+		const statsX = minimapX;
+		const statsY = statsStartY;
+		const valueX = statsX + labelWidth + 2 + maxValueWidth;
+		
+		stats.forEach((stat, index) => {
+			let value, animation = null;
+			
+			value = getStatValue(stat.key);
+			animation = player.statAnimations && player.statAnimations[stat.key];
+			
+			this.renderStatLine(renderer, statsX, statsY + index * statsLineHeight, stat.label, value, statsFontSize, strokeOffset, strokeColor, labelColor, labelWidth, 2, animation, valueX);
+		});
+
+		if (battleScene) {
+			const separatorY = statsY + stats.length * statsLineHeight + 8;
+			const separatorStartX = statsX;
+			const separatorEndX = valueX;
+			
+			renderer.ctx.strokeStyle = '#ffffff';
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(separatorStartX, separatorY);
+			renderer.ctx.lineTo(separatorEndX, separatorY);
+			renderer.ctx.stroke();
+			
+			const rewardsY = statsY + stats.length * statsLineHeight + 15;
+			this.renderSessionRewards(renderer, battleScene, engine, statsX, rewardsY, statsFontSize, strokeOffset, strokeColor);
+		}
+
 		renderer.ctx.restore();
+	}
+
+	getSessionRewardsHeight(battleScene) {
+		if (!battleScene) return 0;
+		
+		const iconSize = 24;
+		const lineHeight = iconSize + 4;
+		let height = 0;
+		
+		height += lineHeight;
+		
+		const sessionInventory = battleScene.sessionInventory || {};
+		const itemEntries = Object.entries(sessionInventory).filter(([itemId, quantity]) => quantity > 0);
+		height += itemEntries.length * lineHeight;
+		
+		return height;
+	}
+
+	renderSessionRewards(renderer, battleScene, engine, startX, startY, fontSize, strokeOffset, strokeColor) {
+		if (!battleScene || !engine) return;
+
+		const iconSize = 24;
+		const spacing = 8;
+		const lineHeight = iconSize + 4;
+		let currentY = startY;
+
+		const moneyGained = battleScene.player.money - (battleScene.initialMoney || 0);
+		const coinSprite = engine.sprites.get('coins');
+		if (coinSprite) {
+			renderer.ctx.drawImage(coinSprite, startX, currentY, iconSize, iconSize);
+		}
+		
+		const moneyText = Math.floor(moneyGained).toString();
+		renderer.ctx.font = `${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textBaseline = 'middle';
+		renderer.ctx.strokeStyle = strokeColor;
+		renderer.ctx.lineWidth = 1;
+		const textX = startX + iconSize + spacing;
+		renderer.ctx.strokeText(moneyText, textX + strokeOffset, currentY + iconSize / 2 + strokeOffset);
+		renderer.ctx.fillText(moneyText, textX, currentY + iconSize / 2);
+		currentY += lineHeight;
+
+		const sessionInventory = battleScene.sessionInventory || {};
+		const itemEntries = Object.entries(sessionInventory).filter(([itemId, quantity]) => quantity > 0);
+		
+		if (itemEntries.length > 0) {
+			itemEntries.forEach(([itemId, quantity]) => {
+				const itemConfig = ItemConfig[itemId];
+				if (!itemConfig) return;
+
+				const itemSprite = engine.sprites.get(`item_${itemId}`);
+				if (itemSprite) {
+					renderer.ctx.drawImage(itemSprite, startX, currentY, iconSize, iconSize);
+				}
+				
+				const quantityText = `x${quantity}`;
+				renderer.ctx.font = `${fontSize}px Pokemon`;
+				renderer.ctx.fillStyle = '#ffffff';
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textBaseline = 'middle';
+				renderer.ctx.strokeStyle = strokeColor;
+				renderer.ctx.lineWidth = 1;
+				const textX = startX + iconSize + spacing;
+				renderer.ctx.strokeText(quantityText, textX + strokeOffset, currentY + iconSize / 2 + strokeOffset);
+				renderer.ctx.fillText(quantityText, textX, currentY + iconSize / 2);
+				currentY += lineHeight;
+			});
+		}
 	}
 
 	getSpellEmoji(spellId) {
@@ -272,9 +405,12 @@ export default class HUDRenderer {
 				renderer.ctx.save();
 				renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
 				renderer.ctx.fillRect(pokemonIconX, pokemonIconY, iconSize, iconSize);
-				renderer.ctx.strokeStyle = '#ffffff';
+				renderer.ctx.strokeStyle = '#ffff00';
 				renderer.ctx.lineWidth = 2;
 				renderer.ctx.strokeRect(pokemonIconX, pokemonIconY, iconSize, iconSize);
+				renderer.ctx.strokeStyle = 'rgba(200, 150, 0, 1)';
+				renderer.ctx.lineWidth = 2;
+				renderer.ctx.strokeRect(pokemonIconX + 1, pokemonIconY + 1, iconSize - 2, iconSize - 2);
 				renderer.ctx.drawImage(pokemonSprite, pokemonIconX, pokemonIconY, iconSize, iconSize);
 				renderer.ctx.restore();
 			}

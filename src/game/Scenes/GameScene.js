@@ -25,6 +25,7 @@ export default class GameScene {
 		this.enteringAnimationTimer = 0;
 		this.enteringAnimationDuration = 1000;
 		this.targetSpawnY = 550;
+		this.enteringFromTop = false;
 	}
 
 	init(data) {
@@ -59,9 +60,14 @@ export default class GameScene {
 		this.isEntering = true;
 		this.enteringAnimationTimer = 0;
 		this.enteringAnimationDuration = 1000;
+		this.enteringFromTop = data?.enteringFromTop || false;
 		
 		if (this.player) {
-			this.player.y = this.map.height;
+			if (this.enteringFromTop) {
+				this.player.y = -this.player.height;
+			} else {
+				this.player.y = this.map.height;
+			}
 		}
 		
 		this.camera = new Camera(1920, 1080, this.map.width, this.map.height, 2.5);
@@ -174,11 +180,21 @@ export default class GameScene {
 			
 			if (this.player) {
 				const progress = Math.min(this.enteringAnimationTimer / this.enteringAnimationDuration, 1);
-				const startY = this.map.height;
-				this.player.y = startY - (startY - this.targetSpawnY) * progress;
+				let startY;
+				let directionY;
+				
+				if (this.enteringFromTop) {
+					startY = -this.player.height;
+					directionY = 1;
+					this.player.y = startY + (this.targetSpawnY - startY) * progress;
+				} else {
+					startY = this.map.height;
+					directionY = -1;
+					this.player.y = startY - (startY - this.targetSpawnY) * progress;
+				}
 				
 				if (this.player.animationSystem) {
-					this.player.animationSystem.update(deltaTime, true, 0, -1);
+					this.player.animationSystem.update(deltaTime, true, 0, directionY);
 				}
 				
 				this.camera.follow(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2);
