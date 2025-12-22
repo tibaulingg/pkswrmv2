@@ -1,6 +1,8 @@
 import { getShopItems, getShopConfig, ShopConfig } from '../Config/ShopConfig.js';
 import { ItemConfig, getItemsByCategory } from '../Config/ItemConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
+import AnimationSystem from '../Systems/AnimationSystem.js';
+import { getPokemonConfig } from '../Config/SpriteConfig.js';
 
 export default class ShopScene {
 	constructor(engine) {
@@ -57,6 +59,7 @@ export default class ShopScene {
 				this.happyTimer = 0;
 			}
 		}
+		
 		
 		const moneyDiff = this.engine.money - this.engine.displayedMoney;
 		if (Math.abs(moneyDiff) > 0.5) {
@@ -339,8 +342,27 @@ export default class ShopScene {
 		
 		SaveManager.saveGame(this.engine, false);
 		this.engine.audio.play('ok', 0.5, 0.2);
-		this.showNpcHappy = true;
-		this.happyTimer = 0;
+		
+		const gameScene = this.engine.sceneManager.stack.find(
+			scene => scene.constructor.name === 'GameScene'
+		);
+		if (gameScene) {
+			const chanseyNpc = gameScene.npcs.find(npc => npc.id === 'chansey');
+			if (chanseyNpc) {
+				const pokemonConfig = getPokemonConfig('chansey');
+				const chargeSprite = this.engine.sprites.get('chansey_charge');
+				const idleSprite = this.engine.sprites.get('chansey_idle');
+				if (pokemonConfig && chargeSprite && idleSprite) {
+					chanseyNpc.animationSystem = new AnimationSystem(pokemonConfig, { idle: idleSprite, charge: chargeSprite });
+					chanseyNpc.animationSystem.setAnimation('charge', 5000);
+					chanseyNpc.animationSystem.setDirection('down');
+					
+					gameScene.startEggHatchingAnimation(chanseyNpc, egg.id, hatchedPokemon);
+				}
+			}
+		}
+		
+		this.engine.sceneManager.popScene();
 	}
 
 	confirmPurchase() {

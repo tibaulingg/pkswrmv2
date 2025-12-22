@@ -118,7 +118,7 @@ export default class GameEngine {
 			['caterpie', ['walk', 'hurt', 'faint', 'shoot']],
 			['pidgey', ['walk', 'hurt', 'faint']],
 			['kecleon', ['normal', 'happy', 'idle', 'hurt', 'walk']],
-			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk']],
+			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk', 'charge']],
 			['garchomp', ['normal', 'hurt', 'walk', 'charge', 'sleep']],
 			['wooper', ['walk', 'hurt']],
 		]

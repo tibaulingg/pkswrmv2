@@ -189,6 +189,9 @@ export const PokemonSprites = {
 		hurt: {
 			frames: 2
 		},
+		charge: {
+			frames: 10
+		},
 		attackType: 'range',
 		type: 'normal',
 		hp: 20,

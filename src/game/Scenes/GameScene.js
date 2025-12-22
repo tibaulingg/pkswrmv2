@@ -8,6 +8,8 @@ import AnimationSystem from '../Systems/AnimationSystem.js';
 import { HubMenuConfig, ShopMenuConfig } from '../Config/MenuConfig.js';
 import { HubCollisions, HubEvents, MapTileCollisions, tilesToCollisionRects } from '../Config/CollisionConfig.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
+import { ItemConfig } from '../Config/ItemConfig.js';
+import SaveManager from '../Systems/SaveManager.js';
 
 export default class GameScene {
 	constructor(engine) {
@@ -26,6 +28,7 @@ export default class GameScene {
 		this.enteringAnimationDuration = 1000;
 		this.targetSpawnY = 550;
 		this.enteringFromTop = false;
+		this.eggHatchingAnimation = null;
 	}
 
 	init(data) {
@@ -75,7 +78,44 @@ export default class GameScene {
 		
 		this.initNPCs();
 		
+		this.initReadyEggs();
+		
 		this.engine.audio.playMusic('hub');
+	}
+
+	initReadyEggs() {
+		if (!this.engine.eggProgress) {
+			this.engine.eggProgress = {};
+		}
+		if (!this.engine.eggUniqueIds) {
+			this.engine.eggUniqueIds = {};
+		}
+		
+		const eggTypes = ['egg_common', 'egg_rare', 'egg_epic', 'egg_legendary'];
+		const eggsPerType = 25;
+		
+		eggTypes.forEach(eggId => {
+			if (!this.engine.eggUniqueIds[eggId]) {
+				this.engine.eggUniqueIds[eggId] = [];
+			}
+			
+			const eggConfig = ItemConfig[eggId];
+			if (!eggConfig) return;
+			
+			const existingCount = this.engine.eggUniqueIds[eggId].length;
+			const neededCount = eggsPerType - existingCount;
+			
+			if (neededCount > 0) {
+				for (let i = 0; i < neededCount; i++) {
+					const uniqueId = `${eggId}_${Date.now()}_${i}_${Math.random()}`;
+					this.engine.eggUniqueIds[eggId].push(uniqueId);
+					this.engine.eggProgress[uniqueId] = {
+						currentKills: eggConfig.requiredKills,
+						requiredKills: eggConfig.requiredKills
+					};
+				}
+			}
+		});
 	}
 
 	initNPCs() {
@@ -154,17 +194,108 @@ export default class GameScene {
 		const isTransitionOpen = currentScene && (currentScene.constructor.name === 'TransitionScene' || currentScene === this.engine.sceneManager.scenes.transition);
 		const isShopOpen = currentScene && (currentScene.constructor.name === 'ShopScene' || currentScene === this.engine.sceneManager.scenes.shop);
 		
-		this.npcs.forEach(npc => {
-			if (npc.animationSystem) {
-				if (!npc.animationSystem.isPlayingIdle) {
-					npc.idleTimer += deltaTime;
-					if (npc.idleTimer >= npc.animationSystem.idleInterval) {
-						npc.animationSystem.setAnimation('idle', npc.fasterIdleDuration);
-						npc.idleTimer = 0;
+		if (this.eggHatchingAnimation) {
+			this.eggHatchingAnimation.timer += deltaTime;
+			
+			const chanseyNpc = this.npcs.find(npc => npc.id === 'chansey');
+			
+			if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.eggShowDuration && !this.eggHatchingAnimation.chanseyReturnedToIdle) {
+				if (chanseyNpc) {
+					const pokemonConfig = getPokemonConfig('chansey');
+					const idleSprite = this.engine.sprites.get('chansey_idle');
+					if (pokemonConfig && idleSprite) {
+						chanseyNpc.animationSystem = new AnimationSystem(pokemonConfig, { idle: idleSprite });
+						const baseIdleDuration = pokemonConfig.animations.idle?.duration || null;
+						chanseyNpc.fasterIdleDuration = baseIdleDuration ? baseIdleDuration * 0.5 : null;
+						chanseyNpc.animationSystem.setIdleInterval(700);
+						chanseyNpc.animationSystem.setDirection('down');
+						chanseyNpc.animationSystem.currentAnimation = 'idle';
+						chanseyNpc.animationSystem.currentFrame = 0;
+						chanseyNpc.animationSystem.calculateFrameDimensions();
+						chanseyNpc.idleTimer = 700;
+						chanseyNpc.animationSystem.setAnimation('idle', chanseyNpc.fasterIdleDuration);
+						this.eggHatchingAnimation.chanseyReturnedToIdle = true;
 					}
 				}
-				if (npc.animationSystem.currentAnimation === 'idle') {
+			}
+			
+			if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.eggShowDuration && !this.eggHatchingAnimation.confirmMenuShown) {
+				this.showHatchConfirmMenu();
+				this.eggHatchingAnimation.confirmMenuShown = true;
+			}
+			
+			if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.totalDuration && !this.eggHatchingAnimation.confirmMenuShown) {
+				this.eggHatchingAnimation = null;
+			}
+			
+			if (this.eggHatchingAnimation) {
+				if (chanseyNpc && chanseyNpc.animationSystem && !this.eggHatchingAnimation.chanseyReturnedToIdle) {
+					chanseyNpc.animationSystem.update(deltaTime, false, 0, 0);
+				} else if (chanseyNpc && chanseyNpc.animationSystem && this.eggHatchingAnimation.chanseyReturnedToIdle) {
+					if (!chanseyNpc.animationSystem.isPlayingIdle) {
+						chanseyNpc.idleTimer += deltaTime;
+						if (chanseyNpc.idleTimer >= chanseyNpc.animationSystem.idleInterval) {
+							chanseyNpc.animationSystem.setAnimation('idle', chanseyNpc.fasterIdleDuration);
+							chanseyNpc.idleTimer = 0;
+						}
+					}
+					if (chanseyNpc.animationSystem.currentAnimation === 'idle') {
+						chanseyNpc.animationSystem.update(deltaTime, false, 0, 0);
+					}
+				}
+				
+				if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.eggShowDuration) {
+					if (!this.eggHatchingAnimation.pokemonAnimationSystem) {
+						const pokemonWalkSprite = this.engine.sprites.get(`${this.eggHatchingAnimation.hatchedPokemon}_walk`);
+						if (pokemonWalkSprite) {
+							const pokemonConfig = getPokemonConfig(this.eggHatchingAnimation.hatchedPokemon);
+							if (pokemonConfig) {
+								this.eggHatchingAnimation.pokemonAnimationSystem = new AnimationSystem(pokemonConfig, pokemonWalkSprite);
+								this.eggHatchingAnimation.pokemonAnimationSystem.setDirection('down');
+							}
+						}
+					}
+					if (this.eggHatchingAnimation.pokemonAnimationSystem) {
+						this.eggHatchingAnimation.pokemonAnimationSystem.update(deltaTime, true, 0, 1);
+					}
+				}
+			}
+		}
+		
+		this.npcs.forEach(npc => {
+			if (npc.animationSystem && (!this.eggHatchingAnimation || npc.id !== 'chansey')) {
+				if (npc.animationSystem.currentAnimation === 'charge') {
 					npc.animationSystem.update(deltaTime, false, 0, 0);
+					
+					if (npc.chargeStartTime && Date.now() - npc.chargeStartTime >= npc.chargeDuration) {
+						const pokemonConfig = getPokemonConfig(npc.id);
+						const idleSprite = this.engine.sprites.get(`${npc.id}_idle`);
+						if (pokemonConfig && idleSprite) {
+							npc.animationSystem = new AnimationSystem(pokemonConfig, { idle: idleSprite });
+							const baseIdleDuration = pokemonConfig.animations.idle?.duration || null;
+							npc.fasterIdleDuration = baseIdleDuration ? baseIdleDuration * 0.5 : null;
+							npc.animationSystem.setIdleInterval(700);
+							npc.animationSystem.setDirection('down');
+							npc.animationSystem.currentAnimation = 'idle';
+							npc.animationSystem.currentFrame = 0;
+							npc.animationSystem.calculateFrameDimensions();
+							npc.idleTimer = 700;
+							npc.animationSystem.setAnimation('idle', npc.fasterIdleDuration);
+							npc.chargeStartTime = null;
+							npc.chargeDuration = null;
+						}
+					}
+				} else {
+					if (!npc.animationSystem.isPlayingIdle) {
+						npc.idleTimer += deltaTime;
+						if (npc.idleTimer >= npc.animationSystem.idleInterval) {
+							npc.animationSystem.setAnimation('idle', npc.fasterIdleDuration);
+							npc.idleTimer = 0;
+						}
+					}
+					if (npc.animationSystem.currentAnimation === 'idle') {
+						npc.animationSystem.update(deltaTime, false, 0, 0);
+					}
 				}
 			}
 		});
@@ -224,6 +355,10 @@ export default class GameScene {
 			this.debugEvents = !this.debugEvents;
 		}
 		if (key === 'Enter') {
+			if (this.eggHatchingAnimation) {
+				return;
+			}
+			
 			const playerCenterX = this.player.x + this.player.width / 2;
 			const playerCenterY = this.player.y + this.player.height / 2;
 			
@@ -279,11 +414,91 @@ export default class GameScene {
 			}
 		});
 		
+		if (this.eggHatchingAnimation) {
+			const chanseyNpc = this.npcs.find(npc => npc.id === 'chansey');
+			if (chanseyNpc) {
+				const eggX = chanseyNpc.x + chanseyNpc.width / 2;
+				const eggY = chanseyNpc.y + chanseyNpc.height - 25;
+				const eggSize = 20;
+				
+				if (this.eggHatchingAnimation.timer >= 0 && 
+					this.eggHatchingAnimation.timer < this.eggHatchingAnimation.eggShowDuration) {
+					const eggSprite = this.engine.sprites.get(`item_${this.eggHatchingAnimation.eggId}`);
+					if (eggSprite) {
+						renderer.ctx.save();
+						renderer.ctx.drawImage(eggSprite, eggX - eggSize / 2, eggY - eggSize / 2, eggSize, eggSize);
+						renderer.ctx.restore();
+					}
+				} else if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.eggShowDuration) {
+					if (!this.eggHatchingAnimation.hitSoundPlayed) {
+						this.engine.audio.play('hit', 0.5, 0.1);
+						this.eggHatchingAnimation.hitSoundPlayed = true;
+					}
+					
+					if (this.eggHatchingAnimation.pokemonAnimationSystem) {
+						const pokemonSize = 32;
+						const pokemonX = eggX - pokemonSize / 2 + 40;
+						const pokemonY = eggY - pokemonSize / 2 - 20;
+						renderer.ctx.save();
+						this.eggHatchingAnimation.pokemonAnimationSystem.render(renderer, pokemonX, pokemonY, 1, false);
+						renderer.ctx.restore();
+					}
+				}
+			}
+		}
+		
 		if (this.player) {
 			this.player.render(renderer);
 		}
 		
 		this.camera.restore(renderer.ctx);
+	}
+
+	startEggHatchingAnimation(chanseyNpc, eggId, hatchedPokemon) {
+		this.eggHatchingAnimation = {
+			eggId: eggId,
+			hatchedPokemon: hatchedPokemon,
+			timer: 0,
+			chargeDuration: 1000,
+			eggShowDuration: 2000,
+			hatchDuration: 2000,
+			totalDuration: 5000,
+			hitSoundPlayed: false,
+			confirmMenuShown: false
+		};
+	}
+
+	showHatchConfirmMenu() {
+		const pokemonConfig = getPokemonConfig(this.eggHatchingAnimation.hatchedPokemon);
+		const pokemonName = pokemonConfig ? pokemonConfig.name : this.eggHatchingAnimation.hatchedPokemon;
+		const message = `Accueillir ${pokemonName} ?`;
+		
+		const onYes = (engine) => {
+			if (!engine.encounteredPokemons) {
+				engine.encounteredPokemons = new Set();
+			}
+			if (!engine.playedPokemons) {
+				engine.playedPokemons = new Set();
+			}
+			engine.encounteredPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
+			engine.playedPokemons.add(this.eggHatchingAnimation.hatchedPokemon);
+			SaveManager.saveGame(engine, false);
+			engine.sceneManager.popScene();
+			this.eggHatchingAnimation = null;
+		};
+		
+		const onNo = (engine) => {
+			engine.sceneManager.popScene();
+			this.eggHatchingAnimation = null;
+		};
+		
+		this.engine.sceneManager.pushScene('confirmMenu', {
+			message: message,
+			onYes: onYes,
+			onNo: onNo
+		});
+		
+		this.engine.audio.play('ok', 0.3, 0.1);
 	}
 }
 
