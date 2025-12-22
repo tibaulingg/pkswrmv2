@@ -2,6 +2,8 @@ import SaveManager from '../Systems/SaveManager.js';
 import RankManager from '../Systems/RankManager.js';
 import { getMapConfig } from '../Config/MapConfig.js';
 import { ItemConfig, getCategoryName, getItemsByCategory } from '../Config/ItemConfig.js';
+import { getPokemonConfig } from '../Config/SpriteConfig.js';
+import AnimationSystem from '../Systems/AnimationSystem.js';
 
 export default class PauseScene {
 	constructor(engine) {
@@ -18,6 +20,10 @@ export default class PauseScene {
 		this.keyRepeatInterval = 50;
 		this.eggsOnlyMode = false;
 		this.originalMusicVolume = null;
+		this.showTeam = false;
+		this.selectedTeamPokemonIndex = 0;
+		this.teamCurrentPage = 0;
+		this.teamItemsPerPage = 13;
 	}
 
 	init(data) {
@@ -27,6 +33,9 @@ export default class PauseScene {
 		this.selectedItemIndex = 0;
 		this.currentPage = 0;
 		this.eggsOnlyMode = false;
+		this.showTeam = false;
+		this.selectedTeamPokemonIndex = 0;
+		this.teamCurrentPage = 0;
 		this.updateOptions();
 		
 		if (this.engine.audio.currentMusic) {
@@ -63,7 +72,38 @@ export default class PauseScene {
 	update(deltaTime) {
 		const key = this.engine.input.consumeLastKey();
 		
-		if (this.showInventory) {
+		if (this.showTeam) {
+			const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+			
+			arrowKeys.forEach(arrowKey => {
+				if (this.engine.input.isKeyDown(arrowKey)) {
+					if (!this.keyRepeatTimers[arrowKey]) {
+						this.keyRepeatTimers[arrowKey] = this.keyRepeatDelay;
+						this.handleTeamKey(arrowKey);
+					} else {
+						this.keyRepeatTimers[arrowKey] -= deltaTime;
+						if (this.keyRepeatTimers[arrowKey] <= 0) {
+							this.keyRepeatTimers[arrowKey] = this.keyRepeatInterval;
+							this.handleTeamKey(arrowKey);
+						}
+					}
+				} else {
+					if (this.keyRepeatTimers[arrowKey]) {
+						delete this.keyRepeatTimers[arrowKey];
+					}
+				}
+			});
+			
+			if (key === 'Escape') {
+				this.showTeam = false;
+				this.selectedTeamPokemonIndex = 0;
+				this.teamCurrentPage = 0;
+				this.keyRepeatTimers = {};
+				this.engine.audio.play('ok', 0.3, 0.1);
+			} else if (key === 'Enter') {
+				this.handleTeamPokemonSelection();
+			}
+		} else if (this.showInventory) {
 			const arrowKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
 			
 			arrowKeys.forEach(arrowKey => {
@@ -440,6 +480,9 @@ export default class PauseScene {
 			this.selectedItemIndex = firstValidIndex;
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (option.label === 'Equipe') {
+			this.showTeam = true;
+			this.selectedTeamPokemonIndex = 0;
+			this.teamCurrentPage = 0;
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (option.label === 'Quitter') {
 			this.openConfirmQuitMenu();
@@ -513,6 +556,13 @@ export default class PauseScene {
 				renderer.drawImage(inventoryOverlay, 0, 0, renderer.width, renderer.height);
 			}
 		}
+		
+		if (this.showTeam) {
+			const inventoryOverlay = this.engine.sprites.get('inventory_overlay');
+			if (inventoryOverlay) {
+				renderer.drawImage(inventoryOverlay, 0, 0, renderer.width, renderer.height);
+			}
+		}
 
 		const infoX = 50;
 		const infoY = 50;
@@ -577,6 +627,10 @@ export default class PauseScene {
 		}
 
 		renderer.ctx.restore();
+
+		if (this.showTeam) {
+			this.renderTeamMenu(renderer);
+		}
 
 		if (this.showInventory) {
 			const items = this.getCurrentCategoryItems();
@@ -779,6 +833,224 @@ export default class PauseScene {
 				renderer.drawText('>', optionStartX - 20, cursorY, fontSize, color, 'left');
 			}
 		});
+	}
+
+	getAvailablePokemons() {
+		if (!this.engine.playedPokemons || this.engine.playedPokemons.size === 0) {
+			return [];
+		}
+		return Array.from(this.engine.playedPokemons).sort();
+	}
+
+	handleTeamKey(key) {
+		const availablePokemons = this.getAvailablePokemons();
+		if (availablePokemons.length === 0) return;
+
+		const totalPages = Math.ceil(availablePokemons.length / this.teamItemsPerPage);
+		const startIndex = this.teamCurrentPage * this.teamItemsPerPage;
+		const endIndex = Math.min(startIndex + this.teamItemsPerPage, availablePokemons.length);
+		const maxIndex = endIndex - startIndex - 1;
+		
+		if (key === 'ArrowUp') {
+			if (this.selectedTeamPokemonIndex > 0) {
+				this.selectedTeamPokemonIndex--;
+			} else if (this.teamCurrentPage > 0) {
+				this.teamCurrentPage--;
+				this.selectedTeamPokemonIndex = Math.min(this.teamItemsPerPage - 1, availablePokemons.length - this.teamCurrentPage * this.teamItemsPerPage - 1);
+			}
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (key === 'ArrowDown') {
+			if (this.selectedTeamPokemonIndex < maxIndex) {
+				this.selectedTeamPokemonIndex++;
+			} else if (this.teamCurrentPage < totalPages - 1) {
+				this.teamCurrentPage++;
+				this.selectedTeamPokemonIndex = 0;
+			}
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (key === 'ArrowLeft' && this.teamCurrentPage > 0) {
+			this.teamCurrentPage--;
+			this.selectedTeamPokemonIndex = 0;
+			this.engine.audio.play('ok', 0.3, 0.1);
+		} else if (key === 'ArrowRight' && this.teamCurrentPage < totalPages - 1) {
+			this.teamCurrentPage++;
+			this.selectedTeamPokemonIndex = 0;
+			this.engine.audio.play('ok', 0.3, 0.1);
+		}
+	}
+
+	handleTeamPokemonSelection() {
+		const availablePokemons = this.getAvailablePokemons();
+		if (availablePokemons.length === 0) return;
+
+		const currentPageStart = this.teamCurrentPage * this.teamItemsPerPage;
+		const selectedPokemon = availablePokemons[currentPageStart + this.selectedTeamPokemonIndex];
+		
+		if (selectedPokemon && selectedPokemon !== this.engine.selectedPokemon) {
+			this.engine.selectedPokemon = selectedPokemon;
+			SaveManager.saveGame(this.engine, false);
+			
+			const gameScene = this.engine.sceneManager.stack.find(
+				scene => scene.constructor.name === 'GameScene'
+			);
+			
+			if (gameScene && gameScene.player) {
+				const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
+				const pokemonConfig = getPokemonConfig(selectedPokemon);
+				if (pokemonConfig && pokemonWalkSprite) {
+					const oldDirection = gameScene.player.animationSystem?.currentDirection || 'down';
+					gameScene.player.animationSystem = new AnimationSystem(pokemonConfig, pokemonWalkSprite);
+					gameScene.player.animationSystem.currentDirection = oldDirection;
+					gameScene.player.animationSystem.forcedDirection = null;
+					gameScene.player.animationSystem.setAnimation('walk', null);
+				}
+			}
+			
+			this.engine.audio.play('ok', 0.3, 0.1);
+		}
+	}
+
+	renderTeamMenu(renderer) {
+		const availablePokemons = this.getAvailablePokemons();
+		const selectedPokemon = this.engine.selectedPokemon || 'quaksire';
+		
+		const titleX = 300;
+		const titleY = 200;
+		const titleFontSize = '24px';
+		const separatorY = titleY + 35;
+		const itemStartX = 335;
+		const itemStartY = separatorY + 35;
+		const itemSpacing = 35;
+		const itemFontSize = '18px';
+		const startIndex = this.teamCurrentPage * this.teamItemsPerPage;
+		const endIndex = Math.min(startIndex + this.teamItemsPerPage, availablePokemons.length);
+		const pokemonsToShow = availablePokemons.slice(startIndex, endIndex);
+
+		renderer.ctx.save();
+		renderer.ctx.font = `${titleFontSize} Pokemon`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textBaseline = 'top';
+		renderer.ctx.fillText('Équipe', titleX, titleY);
+		
+		renderer.ctx.strokeStyle = '#888888';
+		renderer.ctx.lineWidth = 2;
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(titleX, separatorY);
+		renderer.ctx.lineTo(titleX + 600, separatorY);
+		renderer.ctx.stroke();
+		renderer.ctx.restore();
+
+		if (pokemonsToShow.length === 0) {
+			renderer.ctx.save();
+			renderer.ctx.fillStyle = '#ffffff';
+			renderer.ctx.font = `${itemFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			renderer.ctx.fillText('Aucun Pokémon disponible', itemStartX, itemStartY);
+			renderer.ctx.restore();
+		} else {
+			renderer.ctx.save();
+			renderer.ctx.font = `${itemFontSize} Pokemon`;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.textBaseline = 'top';
+			
+			pokemonsToShow.forEach((pokemonId, index) => {
+				const y = itemStartY + index * itemSpacing;
+				const isSelected = index === this.selectedTeamPokemonIndex;
+				const isCurrent = pokemonId === selectedPokemon;
+				const textColor = isSelected ? '#ffff00' : '#ffffff';
+				
+				if (isSelected) {
+					renderer.ctx.fillStyle = textColor;
+					renderer.ctx.fillText('>', itemStartX - 30, y);
+				}
+
+				let currentX = itemStartX;
+				
+				const pokemonSprite = this.engine.sprites.get(`pokemon_${pokemonId}_normal`);
+				if (pokemonSprite) {
+					const iconSize = 24;
+					renderer.drawImage(pokemonSprite, currentX, y - 2, iconSize, iconSize);
+					currentX += iconSize + 10;
+				}
+				
+				const pokemonConfig = getPokemonConfig(pokemonId);
+				const pokemonName = pokemonConfig ? pokemonConfig.name : pokemonId;
+				renderer.ctx.fillStyle = textColor;
+				renderer.ctx.fillText(pokemonName, currentX, y);
+				
+				if (isCurrent) {
+					const statusX = itemStartX + 500;
+					renderer.ctx.fillStyle = '#00ff00';
+					renderer.ctx.font = '20px Pokemon';
+					renderer.ctx.textAlign = 'left';
+					renderer.ctx.fillText('✓', statusX, y);
+					renderer.ctx.font = `${itemFontSize} Pokemon`;
+				}
+			});
+			
+			renderer.ctx.restore();
+
+			if (this.selectedTeamPokemonIndex >= 0 && this.selectedTeamPokemonIndex < pokemonsToShow.length) {
+				const selectedPokemonId = pokemonsToShow[this.selectedTeamPokemonIndex];
+				const pokemonConfig = getPokemonConfig(selectedPokemonId);
+				const descriptionY = renderer.height - 310;
+				const descriptionFontSize = '16px';
+				
+				const totalPages = Math.ceil(availablePokemons.length / this.teamItemsPerPage);
+				if (totalPages > 1) {
+					const pageText = `${this.teamCurrentPage + 1}/${totalPages}`;
+					const pageY = descriptionY - 50;
+					const pageX = renderer.width - 1010;
+					
+					renderer.ctx.save();
+					renderer.ctx.fillStyle = '#aaaaaa';
+					renderer.ctx.font = '14px Pokemon';
+					renderer.ctx.textAlign = 'right';
+					renderer.ctx.textBaseline = 'top';
+					renderer.ctx.fillText(pageText, pageX, pageY);
+					renderer.ctx.restore();
+				}
+				
+				if (pokemonConfig) {
+					renderer.ctx.save();
+					renderer.ctx.fillStyle = '#cccccc';
+					renderer.ctx.font = `${descriptionFontSize} Pokemon`;
+					renderer.ctx.textAlign = 'left';
+					renderer.ctx.textBaseline = 'top';
+					
+					const pokemonName = pokemonConfig.name || selectedPokemonId;
+					const descriptionText = pokemonConfig.description || `Pokémon: ${pokemonName}`;
+					
+					const maxWidth = renderer.width - 1010;
+					const lines = this.wrapText(renderer.ctx, descriptionText, maxWidth);
+					lines.forEach((line, lineIndex) => {
+						renderer.ctx.fillText(line, itemStartX, descriptionY + lineIndex * 25);
+					});
+					
+					renderer.ctx.restore();
+				}
+			}
+		}
+	}
+	
+	wrapText(ctx, text, maxWidth) {
+		const words = text.split(' ');
+		const lines = [];
+		let currentLine = words[0];
+
+		for (let i = 1; i < words.length; i++) {
+			const word = words[i];
+			const width = ctx.measureText(currentLine + ' ' + word).width;
+			if (width < maxWidth) {
+				currentLine += ' ' + word;
+			} else {
+				lines.push(currentLine);
+				currentLine = word;
+			}
+		}
+		lines.push(currentLine);
+		return lines;
 	}
 
 	applyGrayscaleFilter(renderer) {
