@@ -50,7 +50,7 @@ export default class BattlePlayer {
 		
 		this.attackType = pokemonConfig?.attackType || 'melee';
 		this.type = pokemonConfig?.type || 'normal';
-		const baseDamage = pokemonConfig?.damage || 10;
+		const baseDamage = pokemonConfig?.damage;
 		this.damage = calculateStatWithIV(baseDamage, ivs?.damage, 'damage');
 		const baseAttackSpeed = pokemonConfig?.attackSpeed || 1.0;
 		this.attackSpeed = calculateStatWithIV(baseAttackSpeed, ivs?.attackSpeed, 'attackSpeed');
@@ -115,7 +115,7 @@ export default class BattlePlayer {
 		this.waterDamageMultiplier = 1.0;
 		
 		this.enemyRepulsionRadius = 80;
-		this.enemyRepulsionStrength = 0.4;
+		this.enemyRepulsionStrength = 0.0;
 	}
 
 	applyEquippedItem(itemId, itemConfig) {

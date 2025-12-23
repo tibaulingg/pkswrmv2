@@ -118,7 +118,12 @@ export default class Enemy {
 		const dy = playerY - this.getCenterY();
 		const distance = Math.sqrt(dx * dx + dy * dy);
 		
-		const minDistance = (Math.max(this.width, this.height) + Math.max(playerWidth, playerHeight)) / 2 - 5;
+		let minDistance;
+		if (this.attackType === 'melee') {
+			minDistance = Math.max(0, this.attackRange - 5);
+		} else {
+			minDistance = (Math.max(this.width, this.height) + Math.max(playerWidth, playerHeight)) / 2 + 10;
+		}
 
 		const separationMoveX = separationForce.x * deltaTime / 16;
 		const separationMoveY = separationForce.y * deltaTime / 16;
@@ -133,17 +138,24 @@ export default class Enemy {
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
 				
-				if (collisionSystem) {
-					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				if (!this.collidesWithPlayer(newX, this.y, playerX, playerY, playerWidth, playerHeight)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+							this.x = newX;
+						}
+					} else {
 						this.x = newX;
 					}
-					
-					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+				}
+				
+				if (!this.collidesWithPlayer(this.x, newY, playerX, playerY, playerWidth, playerHeight)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+							this.y = newY;
+						}
+					} else {
 						this.y = newY;
 					}
-				} else {
-					this.x = newX;
-					this.y = newY;
 				}
 			} else if (distance > 0) {
 				this.directionX = dx / distance;
@@ -154,17 +166,24 @@ export default class Enemy {
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
 				
-				if (collisionSystem) {
-					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				if (!this.collidesWithPlayer(newX, this.y, playerX, playerY, playerWidth, playerHeight)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+							this.x = newX;
+						}
+					} else {
 						this.x = newX;
 					}
-					
-					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+				}
+				
+				if (!this.collidesWithPlayer(this.x, newY, playerX, playerY, playerWidth, playerHeight)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+							this.y = newY;
+						}
+					} else {
 						this.y = newY;
 					}
-				} else {
-					this.x = newX;
-					this.y = newY;
 				}
 			}
 		} else {
@@ -182,34 +201,68 @@ export default class Enemy {
 				const newDy = playerY - (newY + hitboxOffsetY + this.height / 2);
 				const newDistance = Math.sqrt(newDx * newDx + newDy * newDy);
 				
-				if (newDistance >= minDistance) {
-					if (collisionSystem) {
-						if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				if (newDistance >= this.attackRange && !this.collidesWithPlayer(newX, newY, playerX, playerY, playerWidth, playerHeight, true)) {
+					if (!this.collidesWithPlayer(newX, this.y, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+								this.x = newX;
+							}
+						} else {
 							this.x = newX;
 						}
-						
-						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+					}
+					
+					if (!this.collidesWithPlayer(this.x, newY, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+								this.y = newY;
+							}
+						} else {
 							this.y = newY;
 						}
-					} else {
-						this.x = newX;
-						this.y = newY;
+					}
+				} else if (newDistance < this.attackRange) {
+					if (!this.collidesWithPlayer(newX, this.y, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+								this.x = newX;
+							}
+						} else {
+							this.x = newX;
+						}
+					}
+					
+					if (!this.collidesWithPlayer(this.x, newY, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+								this.y = newY;
+							}
+						} else {
+							this.y = newY;
+						}
 					}
 				} else {
 					const separationOnlyX = this.x + separationMoveX;
 					const separationOnlyY = this.y + separationMoveY;
 					
-					if (collisionSystem) {
-						if (collisionSystem.canMoveTo(separationOnlyX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+					if (!this.collidesWithPlayer(separationOnlyX, this.y, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(separationOnlyX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+								this.x = separationOnlyX;
+							}
+						} else {
 							this.x = separationOnlyX;
 						}
-						
-						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, separationOnlyY + hitboxOffsetY, this.width, this.height)) {
+					}
+					
+					if (!this.collidesWithPlayer(this.x, separationOnlyY, playerX, playerY, playerWidth, playerHeight, true)) {
+						if (collisionSystem) {
+							if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, separationOnlyY + hitboxOffsetY, this.width, this.height)) {
+								this.y = separationOnlyY;
+							}
+						} else {
 							this.y = separationOnlyY;
 						}
-					} else {
-						this.x = separationOnlyX;
-						this.y = separationOnlyY;
 					}
 				}
 			} else if (distance > 0) {
@@ -221,17 +274,24 @@ export default class Enemy {
 				const newX = this.x + moveX;
 				const newY = this.y + moveY;
 				
-				if (collisionSystem) {
-					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+				if (!this.collidesWithPlayer(newX, this.y, playerX, playerY, playerWidth, playerHeight, true)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+							this.x = newX;
+						}
+					} else {
 						this.x = newX;
 					}
-					
-					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+				}
+				
+				if (!this.collidesWithPlayer(this.x, newY, playerX, playerY, playerWidth, playerHeight, true)) {
+					if (collisionSystem) {
+						if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+							this.y = newY;
+						}
+					} else {
 						this.y = newY;
 					}
-				} else {
-					this.x = newX;
-					this.y = newY;
 				}
 			}
 		}
@@ -353,6 +413,32 @@ export default class Enemy {
 			   hitboxX + this.width > x &&
 			   hitboxY < y + height &&
 			   hitboxY + this.height > y;
+	}
+
+	collidesWithPlayer(newX, newY, playerX, playerY, playerWidth, playerHeight, allowPenetration = false) {
+		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
+		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+		const enemyHitboxX = newX + hitboxOffsetX;
+		const enemyHitboxY = newY + hitboxOffsetY;
+		
+		const playerHitboxX = playerX - playerWidth / 2;
+		const playerHitboxY = playerY - playerHeight / 2;
+		
+		const collides = enemyHitboxX < playerHitboxX + playerWidth &&
+			   enemyHitboxX + this.width > playerHitboxX &&
+			   enemyHitboxY < playerHitboxY + playerHeight &&
+			   enemyHitboxY + this.height > playerHitboxY;
+		
+		if (!collides) return false;
+		
+		if (allowPenetration) {
+			const overlapX = Math.min(enemyHitboxX + this.width - playerHitboxX, playerHitboxX + playerWidth - enemyHitboxX);
+			const overlapY = Math.min(enemyHitboxY + this.height - playerHitboxY, playerHitboxY + playerHeight - enemyHitboxY);
+			const maxOverlap = Math.max(overlapX, overlapY);
+			return maxOverlap > 8;
+		}
+		
+		return true;
 	}
 
 	getCenterX() {
