@@ -31,7 +31,7 @@ export default class SpellSystem {
 
 	buildSpellData(spell, player) {
 		const baseRadius = spell.radius ?? 100;
-		const multiplier = player.projectileSize * player.projectileSpeedMultiplier || 1;
+		const multiplier = player.projectileSpeedMultiplier || 1;
 
 		const playerDamage = player.damage || 0;
 		const damage = spell.damage ?? playerDamage * (spell.damageMultiplier ?? 1);

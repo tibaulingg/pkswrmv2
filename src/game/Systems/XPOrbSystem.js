@@ -3,7 +3,9 @@ class XPOrb {
 		this.x = x;
 		this.y = y;
 		this.xpAmount = xpAmount;
-		this.size = 2.5 + Math.random() * 1.5;
+		const baseSize = 2;
+		const sizeMultiplier = Math.min(1 + (xpAmount / 100), 1.8);
+		this.size = baseSize * sizeMultiplier;
 		this.isActive = true;
 		this.lifetime = 0;
 		this.maxLifetime = Infinity;
@@ -128,6 +130,33 @@ export default class XPOrbSystem {
 	}
 
 	spawnOrb(x, y, xpAmount) {
+		const MERGE_DISTANCE = 30;
+		
+		for (let i = 0; i < this.orbs.length; i++) {
+			const existingOrb = this.orbs[i];
+			if (!existingOrb.isActive) continue;
+			
+			const dx = x - existingOrb.x;
+			const dy = y - existingOrb.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			if (distance <= MERGE_DISTANCE) {
+				const totalXP = existingOrb.xpAmount + xpAmount;
+				const weight1 = existingOrb.xpAmount / totalXP;
+				const weight2 = xpAmount / totalXP;
+				
+				existingOrb.x = existingOrb.x * weight1 + x * weight2;
+				existingOrb.y = existingOrb.y * weight1 + y * weight2;
+				existingOrb.xpAmount = totalXP;
+				
+				const baseSize = 2;
+				const sizeMultiplier = Math.min(1 + (totalXP / 100), 1.8);
+				existingOrb.size = baseSize * sizeMultiplier;
+				
+				return;
+			}
+		}
+		
 		const orb = new XPOrb(x, y, xpAmount);
 		this.orbs.push(orb);
 	}

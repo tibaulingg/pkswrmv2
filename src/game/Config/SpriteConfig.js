@@ -34,8 +34,8 @@ export const PokemonSprites = {
 		type: 'water',
 		hp: 30,
 		speedMultiplier: 1.17,
-		damage: 20,
-		attackSpeed: 2.5,
+		damage: 15,
+		attackSpeed: 2,
 		range: 200,
 		knockback: 5,
 		projectileColor: '#4FC3F7',
@@ -81,7 +81,7 @@ export const PokemonSprites = {
 		hp: 30,
 		speedMultiplier: 1.17,
 		damage: 20,
-		attackSpeed: 2.5,
+		attackSpeed: 2,
 		range: 200,
 		knockback: 5,
 		projectileColor: '#689F38',
@@ -128,11 +128,11 @@ export const PokemonSprites = {
 		charge: {
 			frames: 10
 		},
-		attackType: 'melee',
+		attackType: 'range',
 		type: 'dragon',
 		hp: 1,
 		speedMultiplier: 1.33,
-		damage: 30,
+		damage: 35,
 		attackSpeed: 2,
 		range: 150,
 		knockback: 5,
@@ -141,7 +141,7 @@ export const PokemonSprites = {
 		projectileSize: 6,
 		projectileSpeed: 0.6,
 		spells: [],
-		meleeAttackColor: '#8B4513'
+		rangeAttackColor: '#8B4513'
 	},
 	kecleon: {
 		name: 'kecleon',
@@ -155,7 +155,7 @@ export const PokemonSprites = {
 		hurt: {
 			frames: 2
 		},
-		attackType: 'melee',
+		attackType: 'range',
 		type: 'normal',
 		hp: 20,
 		speedMultiplier: 1.0,
@@ -178,7 +178,7 @@ export const PokemonSprites = {
 		faint: {
 			frames: 4
 		},
-		attackType: 'melee',
+		attackType: 'range',
 		type: 'normal',
 		hp: 20,
 		speedMultiplier: 1,
@@ -236,7 +236,7 @@ export const PokemonSprites = {
 		faint: {
 			frames: 4
 		},
-		attackType: 'melee',
+		attackType: 'range',
 		type: 'normal',
 		
 		hp: 20,
@@ -371,7 +371,7 @@ export function getPokemonConfig(pokemonName) {
 		projectileColor: pokemon.projectileColor,
 		projectileSize: pokemon.projectileSize,
 		projectileSpeed: pokemon.projectileSpeed,
-		meleeAttackColor: pokemon.meleeAttackColor || null,
+		rangeAttackColor: pokemon.rangeAttackColor || null,
 		lootTable: getPokemonLootTable(pokemonName),
 	};
 }

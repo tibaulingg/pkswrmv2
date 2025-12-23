@@ -845,8 +845,8 @@ export default class ShopScene {
 			renderer.ctx.fillStyle = '#ffffff';
 			renderer.ctx.strokeStyle = '#000000';
 			renderer.ctx.lineWidth = 3;
-			const titleText = 'NEURSEURUIE LEVAINARD';
-			renderer.ctx.strokeText(titleText, itemListStartX, itemListStartY - 50);
+			const titleText = 'NEURSEURIE LEVAINARD';
+			renderer.ctx.strokeText(titleText, itemListStartX - 50, itemListStartY - 50);
 			renderer.ctx.fillText(titleText, itemListStartX, itemListStartY - 50);
 			renderer.ctx.restore();
 

@@ -1,7 +1,8 @@
 export default class Projectile {
-	constructor(x, y, targetX, targetY, damage, speed = 0.6, maxDistance = 600, color = '#ffff00', size = 8, playerVelocityX = 0, playerVelocityY = 0, isCrit = false, aoeRadius = 0, isEnemy = false, hasPiercing = false, hasBounce = false, bounceCount = 0, piercingCount = 0, bounceRange = 300, type = 'normal') {
+	constructor(x, y, targetX, targetY, damage, speed = 0.6, maxDistance = 600, color = '#ffff00', size = 8, playerVelocityX = 0, playerVelocityY = 0, isCrit = false, aoeRadius = 0, isEnemy = false, hasPiercing = false, hasBounce = false, bounceCount = 0, piercingCount = 0, bounceRange = 300, type = 'normal', piercingDamageReduction = 0.2) {
 		this.x = x;
 		this.y = y;
+		this.baseDamage = damage;
 		this.damage = damage;
 		this.color = color;
 		this.size = size;
@@ -17,6 +18,7 @@ export default class Projectile {
 		this.currentBounces = 0;
 		this.piercingCount = piercingCount;
 		this.bounceRange = bounceRange;
+		this.piercingDamageReduction = piercingDamageReduction;
 		this.hitEnemies = new Set();
 		this.isEnemy = isEnemy;
 		this.exploded = false;
@@ -91,8 +93,20 @@ export default class Projectile {
 		return distance <= this.aoeRadius;
 	}
 
-	render(renderer) {
+	render(renderer, debug = false) {
 		if (!this.isActive) return;
+		
+		if (this.hasAoE && debug) {
+			renderer.ctx.save();
+			renderer.ctx.strokeStyle = 'rgba(255, 255, 0, 0.6)';
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.setLineDash([5, 5]);
+			renderer.ctx.beginPath();
+			renderer.ctx.arc(this.x, this.y, this.aoeRadius, 0, Math.PI * 2);
+			renderer.ctx.stroke();
+			renderer.ctx.setLineDash([]);
+			renderer.ctx.restore();
+		}
 		
 		if (this.isEnemy) {
 			renderer.ctx.save();

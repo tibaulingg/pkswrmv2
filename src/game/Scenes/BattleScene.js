@@ -13,7 +13,7 @@ import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
 import { Spells } from '../Config/SpellConfig.js';
 import { getPokemonConfig, PokemonSprites, getPokemonLootTable } from '../Config/SpriteConfig.js';
-import { getRandomUpgrades, RarityColors, RarityGlowColors, UpgradeIcons, UpgradeType,  } from '../Config/UpgradeConfig.js';
+import { getRandomUpgrades, RarityColors, RarityGlowColors, RarityBackgroundColors, UpgradeIcons, UpgradeType, UpgradeRarity } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
@@ -23,8 +23,8 @@ const TILE_SIZE = 32;
 
 const BALANCE_CONFIG = {
 	XP: {
-		BASE_XP_PER_LEVEL: 5,
-		RANDOM_XP_PER_LEVEL: 5,
+		BASE_XP_PER_LEVEL: 15,
+		RANDOM_XP_PER_LEVEL: 10,
 	},
 	MONEY: {
 		BASE_MONEY_PER_LEVEL: 5,
@@ -48,7 +48,7 @@ const BALANCE_CONFIG = {
 	PROJECTILES: {
 		BASE_SPEED_MULTIPLIER: 0.6,
 		BASE_SIZE: 8,
-		AOE_RADIUS_MULTIPLIER: 2,
+		BASE_AOE_RADIUS: 80,
 		BASE_RANGE: 600,
 		MAX_LIFETIME: 600,
 	},
@@ -366,6 +366,17 @@ export default class BattleScene {
 		}
 		if (key === 'KeyF' && !this.upgradeChoices) {
 			this.useAssignedConsumable();
+		}
+		if (key === 'Space' && !this.upgradeChoices && this.player && this.player.attackType === 'range') {
+			console.log('Space key pressed', {
+				upgradeChoices: this.upgradeChoices,
+				hasPlayer: !!this.player,
+				attackType: this.player?.attackType,
+				currentAutoShoot: this.player?.autoShoot
+			});
+			console.log('Toggling autoShoot from', this.player.autoShoot, 'to', !this.player.autoShoot);
+			this.player.toggleAutoShoot();
+			console.log('After toggle, autoShoot is', this.player.autoShoot);
 		}
 
 		if (this.player && this.player.isAlive) {
@@ -758,14 +769,23 @@ export default class BattleScene {
 					return;
 				}
 				
+				let damageToDeal = projectile.damage;
+				if (projectile.hasPiercing) {
+					const pierceCount = projectile.hitEnemies.size;
+					const damageReduction = projectile.piercingDamageReduction || 0.2;
+					const damageMultiplier = Math.max(0.2, 1 - (pierceCount * damageReduction));
+					damageToDeal = Math.floor(projectile.baseDamage * damageMultiplier);
+					projectile.damage = damageToDeal;
+				}
+				
 				const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, directHitEnemy.getCenterX(), directHitEnemy.getCenterY());
 				const knockbackStrength = this.player.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_PROJECTILE_MULTIPLIER * (directHitEnemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1);
 				const knockbackX = knockbackDir.x * knockbackStrength;
 				const knockbackY = knockbackDir.y * knockbackStrength;
 				
-				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, projectile.damage, false, projectile.isCrit);
+				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, projectile.isCrit);
 				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
-				const died = directHitEnemy.takeDamage(projectile.damage, knockbackX, knockbackY, projectile.isCrit);
+				const died = directHitEnemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
 				
 				
 				if (died) {
@@ -812,8 +832,8 @@ export default class BattleScene {
 				
 				if (projectile.hasPiercing) {
 					projectile.hitEnemies.add(directHitEnemy);
-					const maxPierced = projectile.piercingCount + 1;
-					if (projectile.hitEnemies.size > maxPierced) {
+					// piercingMaxCount = 0 signifie illimité
+					if (projectile.piercingCount > 0 && projectile.hitEnemies.size > projectile.piercingCount) {
 						projectile.isActive = false;
 					}
 				} else if (projectile.hasBounce) {
@@ -1275,7 +1295,7 @@ export default class BattleScene {
 		
 		let aoeRadius = 0;
 		if (this.player.hasAoE) {
-			aoeRadius = (attackData.projectileSize || BALANCE_CONFIG.PROJECTILES.BASE_SIZE) * BALANCE_CONFIG.PROJECTILES.AOE_RADIUS_MULTIPLIER * this.player.aoeRadiusMultiplier;
+			aoeRadius = BALANCE_CONFIG.PROJECTILES.BASE_AOE_RADIUS * this.player.aoeRadiusMultiplier;
 		}
 		
 		const projectile = new Projectile(
@@ -1287,7 +1307,7 @@ export default class BattleScene {
 			BALANCE_CONFIG.PROJECTILES.BASE_SPEED_MULTIPLIER * (attackData.projectileSpeed || 1),
 			this.player.range,
 			attackData.projectileColor || '#ffff00',
-			attackData.projectileSize || BALANCE_CONFIG.PROJECTILES.BASE_SIZE,
+			BALANCE_CONFIG.PROJECTILES.BASE_SIZE,
 			playerVelX,
 			playerVelY,
 			attackData.isCrit || false,
@@ -1296,9 +1316,10 @@ export default class BattleScene {
 			attackData.hasPiercing || false,
 			attackData.hasBounce || false,
 			attackData.bounceCount || 0,
-			this.player.piercingCount || 0,
-			this.player.bounceRange || BALANCE_CONFIG.PROJECTILES.BASE_RANGE,
-			attackData.projectileType || 'normal'
+			attackData.piercingCount || 0,
+			attackData.bounceRange || BALANCE_CONFIG.PROJECTILES.BASE_RANGE,
+			attackData.projectileType || 'normal',
+			attackData.piercingDamageReduction || 0.2
 		);
 		this.projectiles.push(projectile);
 	}
@@ -1588,7 +1609,7 @@ export default class BattleScene {
 		});
 
 		this.projectiles.forEach(projectile => {
-			projectile.render(renderer);
+			projectile.render(renderer, this.debugCollisions);
 		});
 
 		this.enemyProjectiles.forEach(projectile => {
@@ -1629,6 +1650,48 @@ export default class BattleScene {
 		}
 
 		this.renderMinimap(renderer);
+
+		if (this.player && this.player.attackType === 'range') {
+			if (!this.player.autoShoot) {
+				this.engine.canvas.style.cursor = 'none';
+				this.renderManualCursor(renderer);
+			} else {
+				this.engine.canvas.style.cursor = 'none';
+			}
+		} else {
+			this.engine.canvas.style.cursor = 'default';
+		}
+	}
+
+	renderManualCursor(renderer) {
+		if (!this.player || this.player.autoShoot || this.player.attackType !== 'range') return;
+
+		const mousePos = this.engine.input.getMousePosition();
+
+		renderer.ctx.save();
+		renderer.ctx.strokeStyle = '#ffffff';
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.lineWidth = 2;
+
+		const crosshairSize = 12;
+		const crosshairGap = 4;
+
+		renderer.ctx.beginPath();
+		renderer.ctx.moveTo(mousePos.x - crosshairSize, mousePos.y);
+		renderer.ctx.lineTo(mousePos.x - crosshairGap, mousePos.y);
+		renderer.ctx.moveTo(mousePos.x + crosshairGap, mousePos.y);
+		renderer.ctx.lineTo(mousePos.x + crosshairSize, mousePos.y);
+		renderer.ctx.moveTo(mousePos.x, mousePos.y - crosshairSize);
+		renderer.ctx.lineTo(mousePos.x, mousePos.y - crosshairGap);
+		renderer.ctx.moveTo(mousePos.x, mousePos.y + crosshairGap);
+		renderer.ctx.lineTo(mousePos.x, mousePos.y + crosshairSize);
+		renderer.ctx.stroke();
+
+		renderer.ctx.beginPath();
+		renderer.ctx.arc(mousePos.x, mousePos.y, 3, 0, Math.PI * 2);
+		renderer.ctx.fill();
+
+		renderer.ctx.restore();
 	}
 
 	renderMinimap(renderer) {
@@ -1717,6 +1780,131 @@ export default class BattleScene {
 		renderer.ctx.restore();
 	}
 
+	getUpgradeValueDisplay(upgrade) {
+		if (!this.player || !upgrade.value) return null;
+		
+		const upgradeConfig = {
+			[UpgradeType.DAMAGE]: { prop: 'damage', calc: 'multiply', floor: true },
+			[UpgradeType.ATTACK_SPEED]: { prop: 'attackSpeed', calc: 'multiply' },
+			[UpgradeType.RANGE]: { prop: 'range', calc: 'multiply' },
+			[UpgradeType.SPEED]: { prop: 'speed', calc: 'multiply' },
+			[UpgradeType.MAX_HP]: { prop: 'maxHp', calc: 'add' },
+			[UpgradeType.HP_REGEN]: { prop: 'hpRegen', calc: 'add' },
+			[UpgradeType.CRIT_CHANCE]: { prop: 'critChance', calc: 'add' },
+			[UpgradeType.CRIT_DAMAGE]: { prop: 'critDamage', calc: 'add' },
+			[UpgradeType.AOE_RADIUS]: { prop: 'aoeRadiusMultiplier', calc: 'multiply' },
+			[UpgradeType.AOE_DAMAGE]: { prop: 'aoeDamageMultiplier', calc: 'multiply' },
+			[UpgradeType.PIERCING_DAMAGE_REDUCTION]: { prop: 'piercingDamageReduction', calc: 'subtract' },
+			[UpgradeType.PIERCING_MAX_COUNT]: { prop: 'piercingMaxCount', calc: 'add' },
+			[UpgradeType.BOUNCE_MAX_COUNT]: { prop: 'bounceMaxCount', calc: 'add' },
+			[UpgradeType.BOUNCE_DETECTION_RANGE]: { prop: 'bounceDetectionRange', calc: 'add' },
+			[UpgradeType.XP_GAIN]: { prop: 'xpGainMultiplier', calc: 'multiply' },
+			[UpgradeType.MONEY_GAIN]: { prop: 'moneyGainMultiplier', calc: 'multiply' },
+			[UpgradeType.FETCH_RANGE]: { prop: 'fetchRange', calc: 'multiply' },
+			[UpgradeType.PROJECTILE_SPEED]: { prop: 'projectileSpeedMultiplier', calc: 'multiply' },
+			[UpgradeType.KNOCKBACK]: { prop: 'knockback', calc: 'multiply' },
+			[UpgradeType.DURATION]: { prop: 'duration', calc: 'multiply' }
+		};
+		
+		let currentValue = null;
+		let newValue = null;
+		let typeName = upgrade.name;
+		
+		const config = upgradeConfig[upgrade.type];
+		
+		if (config) {
+			currentValue = this.player[config.prop];
+			if (typeof upgrade.value === 'number') {
+				if (config.calc === 'multiply' && upgrade.value >= 1) {
+					newValue = config.floor ? Math.floor(currentValue * upgrade.value) : currentValue * upgrade.value;
+				} else if (config.calc === 'add') {
+					newValue = currentValue + upgrade.value;
+				} else if (config.calc === 'subtract') {
+					newValue = Math.max(0, currentValue - upgrade.value);
+				}
+			}
+		} else if (upgrade.type === UpgradeType.SPELL_DAMAGE || upgrade.type === UpgradeType.SPELL_RANGE || upgrade.type === UpgradeType.SPELL_COOLDOWN) {
+			if (upgrade.value && upgrade.value.spellId) {
+				const spellId = upgrade.value.spellId;
+				const multiplierProp = {
+					[UpgradeType.SPELL_DAMAGE]: 'spellDamageMultipliers',
+					[UpgradeType.SPELL_RANGE]: 'spellRangeMultipliers',
+					[UpgradeType.SPELL_COOLDOWN]: 'spellCooldownMultipliers'
+				}[upgrade.type];
+				
+				currentValue = this.player[multiplierProp][spellId] || 1;
+				if (typeof upgrade.value.multiplier === 'number' && upgrade.value.multiplier >= 1) {
+					newValue = currentValue * upgrade.value.multiplier;
+				}
+			}
+		}
+		
+		if (currentValue !== null && newValue !== null) {
+			const isProjectileUpgrade = [
+				UpgradeType.AOE_RADIUS,
+				UpgradeType.AOE_DAMAGE,
+				UpgradeType.PIERCING_DAMAGE_REDUCTION,
+				UpgradeType.PIERCING_MAX_COUNT,
+				UpgradeType.BOUNCE_MAX_COUNT,
+				UpgradeType.BOUNCE_DETECTION_RANGE
+			].includes(upgrade.type);
+			
+			const formatConfig = {
+				[UpgradeType.CRIT_CHANCE]: { format: 'percent', multiplier: 100 },
+				[UpgradeType.CRIT_DAMAGE]: { format: 'decimal', decimals: 1, suffix: 'x' },
+				[UpgradeType.AOE_RADIUS]: { format: 'decimal', decimals: 2, suffix: 'x', statName: 'Rayon' },
+				[UpgradeType.AOE_DAMAGE]: { format: 'decimal', decimals: 2, suffix: 'x', statName: 'Dégâts' },
+				[UpgradeType.PIERCING_DAMAGE_REDUCTION]: { format: 'percent', multiplier: 100, statName: 'Efficacité' },
+				[UpgradeType.PIERCING_MAX_COUNT]: { format: 'integer', statName: 'Transperçage' },
+				[UpgradeType.BOUNCE_MAX_COUNT]: { format: 'integer', statName: 'Rebonds' },
+				[UpgradeType.BOUNCE_DETECTION_RANGE]: { format: 'integer', statName: 'Portée' },
+				[UpgradeType.XP_GAIN]: { format: 'multiplierPercent' },
+				[UpgradeType.MONEY_GAIN]: { format: 'multiplierPercent' },
+				[UpgradeType.FETCH_RANGE]: { format: 'integer' },
+				[UpgradeType.PROJECTILE_SPEED]: { format: 'multiplierPercent' },
+				[UpgradeType.KNOCKBACK]: { format: 'multiplierPercent' },
+				[UpgradeType.DURATION]: { format: 'multiplierPercent' },
+				[UpgradeType.SPELL_DAMAGE]: { format: 'multiplierPercent' },
+				[UpgradeType.SPELL_RANGE]: { format: 'multiplierPercent' },
+				[UpgradeType.SPELL_COOLDOWN]: { format: 'multiplierPercent' },
+				[UpgradeType.ATTACK_SPEED]: { format: 'decimal', decimals: 2 },
+				[UpgradeType.SPEED]: { format: 'decimal', decimals: 2 }
+			};
+			
+			const format = formatConfig[upgrade.type] || { format: 'integer' };
+			let formattedCurrent = '';
+			let formattedNew = '';
+			let statName = format.statName || typeName;
+			
+			const formatValue = (value, fmt) => {
+				if (fmt.format === 'percent') {
+					return `${(value * (fmt.multiplier || 100)).toFixed(0)}%`;
+				} else if (fmt.format === 'multiplierPercent') {
+					return `${((value - 1) * 100).toFixed(0)}%`;
+				} else if (fmt.format === 'decimal') {
+					return `${value.toFixed(fmt.decimals || 2)}${fmt.suffix || ''}`;
+				} else {
+					return `${Math.floor(value)}`;
+				}
+			};
+			
+			formattedCurrent = formatValue(currentValue, format);
+			formattedNew = formatValue(newValue, format);
+			
+			return {
+				typeName: typeName,
+				statName: statName,
+				currentValue: formattedCurrent,
+				newValue: formattedNew,
+				currentValueRaw: currentValue,
+				newValueRaw: newValue,
+				isProjectileUpgrade: isProjectileUpgrade
+			};
+		}
+		
+		return null;
+	}
+
 	renderUpgradeMenu(renderer) {
 		const animProgress = Math.min(this.upgradeAnimationProgress / this.upgradeAnimationDuration, 1);
 		const easeOutBack = (t) => {
@@ -1733,6 +1921,85 @@ export default class BattleScene {
 		renderer.ctx.globalAlpha = animProgress * 0.8 + 0.2;
 		renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
 		renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
+		renderer.ctx.globalAlpha = 1;
+		
+		// Animation des rayons jaunes depuis le centre
+		const centerX = renderer.width / 2;
+		const centerY = renderer.height / 2;
+		const rayCount = 24; // Plus de rayons pour couvrir tout le contour
+		const rayLength = Math.max(renderer.width, renderer.height) * 0.8;
+		const time = Date.now() * 0.001; // Temps en secondes
+		const rotationSpeed = 0.5; // Vitesse de rotation
+		const baseRotation = time * rotationSpeed;
+		
+		// Générer des largeurs et espacements aléatoires pour chaque rayon (basés sur l'index pour être cohérents)
+		const rayData = [];
+		const spacings = [];
+		const widths = [];
+		
+		// Générer d'abord tous les espacements et largeurs
+		for (let i = 0; i < rayCount; i++) {
+			// Utiliser un seed basé sur l'index pour avoir des valeurs aléatoires mais cohérentes
+			const seed = i * 137.508; // Nombre d'or pour une meilleure distribution
+			const random1 = (Math.sin(seed) * 10000) % 1;
+			const random2 = (Math.sin(seed * 2) * 10000) % 1;
+			
+			// Largeur aléatoire entre 40 et 80 (beaucoup plus gros)
+			const rayWidth = 40 + random1 * 40;
+			widths.push(rayWidth);
+			
+			// Espacement aléatoire entre 8° et 20° (plus petits car plus de rayons)
+			const spacing = 8 + random2 * 12;
+			spacings.push(spacing);
+		}
+		
+		// Normaliser les espacements pour qu'ils fassent exactement 360°
+		const totalSpacing = spacings.reduce((sum, s) => sum + s, 0);
+		const normalizationFactor = 360 / totalSpacing;
+		
+		let currentAngle = 0;
+		for (let i = 0; i < rayCount; i++) {
+			const normalizedSpacing = spacings[i] * normalizationFactor * (Math.PI / 180);
+			
+			rayData.push({
+				angle: currentAngle,
+				width: widths[i]
+			});
+			
+			currentAngle += normalizedSpacing;
+		}
+		
+		renderer.ctx.save();
+		renderer.ctx.translate(centerX, centerY);
+		renderer.ctx.rotate(baseRotation);
+		
+		for (let i = 0; i < rayData.length; i++) {
+			const ray = rayData[i];
+			const rayAlpha = 0.3 + Math.sin(time * 2 + i * 0.5) * 0.2; // Animation de transparence
+			
+			renderer.ctx.save();
+			renderer.ctx.rotate(ray.angle);
+			renderer.ctx.globalAlpha = rayAlpha * animProgress;
+			
+			// Créer un gradient pour le rayon
+			const gradient = renderer.ctx.createLinearGradient(0, 0, rayLength, 0);
+			gradient.addColorStop(0, 'rgba(255, 215, 0, 0.8)');
+			gradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.4)');
+			gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+			
+			renderer.ctx.fillStyle = gradient;
+			renderer.ctx.beginPath();
+			renderer.ctx.moveTo(0, -ray.width / 2);
+			renderer.ctx.lineTo(rayLength, -ray.width / 4);
+			renderer.ctx.lineTo(rayLength, ray.width / 4);
+			renderer.ctx.lineTo(0, ray.width / 2);
+			renderer.ctx.closePath();
+			renderer.ctx.fill();
+			
+			renderer.ctx.restore();
+		}
+		
+		renderer.ctx.restore();
 		renderer.ctx.globalAlpha = 1;
 
 		const titleY = 180;
@@ -1767,6 +2034,24 @@ export default class BattleScene {
 		const spacing = 30;
 		const startX = (renderer.width - (this.upgradeChoices.length * cardWidth + (this.upgradeChoices.length - 1) * spacing)) / 2;
 		const cardY = 440;
+		
+		// Fond non transparent qui englobe les 3 cartes
+		const backgroundPadding = 40;
+		const backgroundX = startX - backgroundPadding;
+		const backgroundY = cardY - backgroundPadding;
+		const backgroundWidth = (this.upgradeChoices.length * cardWidth + (this.upgradeChoices.length - 1) * spacing) + (backgroundPadding * 2);
+		const backgroundHeight = cardHeight + (backgroundPadding * 2);
+		
+		renderer.ctx.save();
+		renderer.ctx.globalAlpha = Math.max(0, (animProgress - 0.2) * 1.25);
+		renderer.ctx.fillStyle = 'rgba(20, 20, 30, 0.95)';
+		renderer.ctx.fillRect(backgroundX, backgroundY, backgroundWidth, backgroundHeight);
+		
+		// Bordure du fond
+		renderer.ctx.strokeStyle = 'rgba(100, 100, 120, 0.8)';
+		renderer.ctx.lineWidth = 3;
+		renderer.ctx.strokeRect(backgroundX, backgroundY, backgroundWidth, backgroundHeight);
+		renderer.ctx.restore();
 
 		this.upgradeChoices.forEach((upgrade, index) => {
 			const delayPerCard = 0.1;
@@ -1832,13 +2117,11 @@ export default class BattleScene {
 				renderer.ctx.shadowBlur = 0;
 			}
 			
-			// Modern card style matching the rest of the app
-			const backgroundColor = 'rgba(0, 0, 50, 0.7)';
+			const backgroundColor = RarityBackgroundColors[upgrade.rarity] || RarityBackgroundColors[UpgradeRarity.COMMON];
 			renderer.ctx.fillStyle = backgroundColor;
 			renderer.ctx.fillRect(cardCenterX, cardCenterY, cardWidth, cardHeight);
 			
-			// White border (thicker if selected)
-			renderer.ctx.strokeStyle = '#fff';
+			renderer.ctx.strokeStyle = borderColor;
 			renderer.ctx.lineWidth = isSelected ? 4 : 3;
 			renderer.ctx.strokeRect(cardCenterX, cardCenterY, cardWidth, cardHeight);
 
@@ -1865,7 +2148,15 @@ export default class BattleScene {
 			renderer.ctx.fillText(rarityName, 0, rarityY);
 
 			let icon = UpgradeIcons[upgrade.type];
-			if (upgrade.type === UpgradeType.SPELL && upgrade.value) {
+			
+			// Pour les upgrades de projectiles, utiliser l'icône du type de projectile
+			if (upgrade.type === UpgradeType.AOE_RADIUS || upgrade.type === UpgradeType.AOE_DAMAGE) {
+				icon = UpgradeIcons[UpgradeType.PROJECTILE_AOE];
+			} else if (upgrade.type === UpgradeType.PIERCING_DAMAGE_REDUCTION || upgrade.type === UpgradeType.PIERCING_MAX_COUNT) {
+				icon = UpgradeIcons[UpgradeType.PROJECTILE_PIERCING];
+			} else if (upgrade.type === UpgradeType.BOUNCE_MAX_COUNT || upgrade.type === UpgradeType.BOUNCE_DETECTION_RANGE) {
+				icon = UpgradeIcons[UpgradeType.PROJECTILE_BOUNCE];
+			} else if (upgrade.type === UpgradeType.SPELL && upgrade.value) {
 				const spellEmojis = {
 					'earthquake': '🟤',
 					'rock_trap': '🪨',
@@ -1873,12 +2164,31 @@ export default class BattleScene {
 				};
 				icon = spellEmojis[upgrade.value] || icon;
 			}
+			// Détecter si c'est un upgrade de projectile
+			const isProjectileUpgrade = [
+				UpgradeType.AOE_RADIUS,
+				UpgradeType.AOE_DAMAGE,
+				UpgradeType.PIERCING_DAMAGE_REDUCTION,
+				UpgradeType.PIERCING_MAX_COUNT,
+				UpgradeType.BOUNCE_MAX_COUNT,
+				UpgradeType.BOUNCE_DETECTION_RANGE
+			].includes(upgrade.type);
+			
+			// Détecter si c'est un upgrade de type de projectile initial (première upgrade)
+			const isProjectileTypeUpgrade = [
+				UpgradeType.PROJECTILE_AOE,
+				UpgradeType.PROJECTILE_PIERCING,
+				UpgradeType.PROJECTILE_BOUNCE
+			].includes(upgrade.type);
+			
+			// Centrer l'icône et le titre pour les upgrades de projectiles
+			// Pour les upgrades de type de projectile initial, descendre plus
+			const iconY = isProjectileTypeUpgrade ? cardCenterY + 150 : (isProjectileUpgrade ? cardCenterY + 100 : cardCenterY + 110);
 			renderer.ctx.font = '48px Pokemon';
 			renderer.ctx.fillStyle = '#fff';
 			renderer.ctx.textAlign = 'center';
 			renderer.ctx.strokeStyle = '#000';
 			renderer.ctx.lineWidth = 2;
-			const iconY = cardCenterY + 80;
 			renderer.ctx.strokeText(icon, 0, iconY);
 			renderer.ctx.fillText(icon, 0, iconY);
 			renderer.ctx.lineWidth = 1;
@@ -1888,71 +2198,248 @@ export default class BattleScene {
 			renderer.ctx.textAlign = 'center';
 			renderer.ctx.strokeStyle = '#000';
 			renderer.ctx.lineWidth = 1;
-			const nameY = cardCenterY + 135;
-			const nameLines = upgrade.name.split('\n');
+			const nameY = isProjectileTypeUpgrade ? cardCenterY + 200 : (isProjectileUpgrade ? cardCenterY + 155 : cardCenterY + 165);
+			
+			// Pour les upgrades de projectiles, afficher "PROJECTILE" puis le type
 			let currentNameY = nameY;
-			nameLines.forEach((line, lineIndex) => {
-				renderer.ctx.strokeText(line, 0, currentNameY);
-				renderer.ctx.fillText(line, 0, currentNameY);
-				if (lineIndex < nameLines.length - 1) {
-					currentNameY += 28;
+			if (isProjectileUpgrade) {
+				// Ligne 1: "PROJECTILE"
+				renderer.ctx.font = 'bold 20px Pokemon';
+				renderer.ctx.fillStyle = '#fff';
+				renderer.ctx.strokeText('PROJECTILE', 0, nameY);
+				renderer.ctx.fillText('PROJECTILE', 0, nameY);
+				
+				// Ligne 2: Type de projectile (Explosion, Perforation, Rebond)
+				let projectileType = 'Explosion';
+				if (upgrade.type === UpgradeType.PIERCING_DAMAGE_REDUCTION || upgrade.type === UpgradeType.PIERCING_MAX_COUNT) {
+					projectileType = 'Perforation';
+				} else if (upgrade.type === UpgradeType.BOUNCE_MAX_COUNT || upgrade.type === UpgradeType.BOUNCE_DETECTION_RANGE) {
+					projectileType = 'Rebond';
 				}
-			});
-
-			let valueText = '';
-			if (typeof upgrade.value === 'number') {
-				if (upgrade.value >= 1 && upgrade.value < 2) {
-					const percent = Math.round((upgrade.value - 1) * 100);
-					valueText = `+${percent}%`;
-				} else if (upgrade.value < 1) {
-					const percent = Math.round(upgrade.value * 100);
-					valueText = `+${percent}%`;
-				} else {
-					valueText = '';
-				}
+				
+				renderer.ctx.font = 'bold 24px Pokemon';
+				currentNameY = nameY + 30;
+				renderer.ctx.strokeText(projectileType, 0, currentNameY);
+				renderer.ctx.fillText(projectileType, 0, currentNameY);
+			} else {
+				// Affichage normal pour les autres upgrades
+				let displayName = upgrade.name;
+				const nameLines = displayName.split('\n');
+				nameLines.forEach((line, lineIndex) => {
+					renderer.ctx.strokeText(line, 0, currentNameY);
+					renderer.ctx.fillText(line, 0, currentNameY);
+					if (lineIndex < nameLines.length - 1) {
+						currentNameY += 28;
+					}
+				});
 			}
-			if (valueText) {
-				renderer.ctx.font = '20px Pokemon';
-				renderer.ctx.fillStyle = borderColor;
+
+
+			// Afficher les valeurs avec les couleurs appropriées (remplace la description)
+			const valueDisplay = this.getUpgradeValueDisplay(upgrade);
+			if (valueDisplay) {
+				// Pour les upgrades de projectiles, commencer après "EXPLOSION"
+				let lineY;
+				if (isProjectileUpgrade) {
+					lineY = nameY + 60; // Après "PROJECTILE" et "EXPLOSION"
+				} else {
+					lineY = currentNameY + 30;
+				}
 				renderer.ctx.strokeStyle = '#000';
 				renderer.ctx.lineWidth = 1;
-				const valueY = currentNameY + 30;
-				renderer.ctx.strokeText(valueText, 0, valueY);
-				renderer.ctx.fillText(valueText, 0, valueY);
-			}
-
-			renderer.ctx.fillStyle = '#fff';
-			renderer.ctx.font = '16px Pokemon';
-			renderer.ctx.textAlign = 'center';
-			renderer.ctx.strokeStyle = '#000';
-			renderer.ctx.lineWidth = 1;
-			let description = upgrade.description;
-			if (upgrade.type === 'projectileEnhancement' && this.player) {
-				if (this.player.hasAoE) {
-					description = 'Dégâts de zone +20% Rayon +15%';
-				} else if (this.player.hasPiercing) {
-					description = 'Unités transperçables +1';
-				} else if (this.player.hasBounce) {
-					description = 'Rebonds +1 Portée +50';
-				}
-			}
-			const words = description.split(' ');
-			let line = '';
-			let lineY = valueText ? currentNameY + 60 : currentNameY + 30;
-			words.forEach(word => {
-				const testLine = line + word + ' ';
-				const metrics = renderer.ctx.measureText(testLine);
-				if (metrics.width > cardWidth - 40) {
-					renderer.ctx.strokeText(line, 0, lineY);
-					renderer.ctx.fillText(line, 0, lineY);
-					line = word + ' ';
+				renderer.ctx.textAlign = 'center';
+				
+				if (valueDisplay.isProjectileUpgrade) {
+					// Affichage spécial pour les upgrades de projectiles
+					let fontSize = 18;
+					renderer.ctx.font = `${fontSize}px Pokemon`;
+					const maxWidth = cardWidth - 40;
+					
+					// Calculer le pourcentage d'augmentation
+					let percentIncrease = 0;
+					const isAddUpgrade = upgrade.type === UpgradeType.BOUNCE_DETECTION_RANGE || 
+					                     upgrade.type === UpgradeType.BOUNCE_MAX_COUNT ||
+					                     upgrade.type === UpgradeType.PIERCING_MAX_COUNT;
+					
+					if (isAddUpgrade && valueDisplay.currentValueRaw !== null && valueDisplay.newValueRaw !== null) {
+						const currentRaw = valueDisplay.currentValueRaw;
+						const newRaw = valueDisplay.newValueRaw;
+						if (currentRaw > 0) {
+							percentIncrease = Math.round(((newRaw - currentRaw) / currentRaw) * 100);
+						}
+					} else if (typeof upgrade.value === 'number') {
+						if (upgrade.value >= 1) {
+							// Multiplicateur (ex: 1.05 = +5%)
+							percentIncrease = Math.round((upgrade.value - 1) * 100);
+						} else {
+							// Pour les réductions (ex: piercing damage reduction)
+							percentIncrease = Math.round(upgrade.value * 100);
+						}
+					}
+					
+					// Ligne 1: "{StatName} +x%" dans la couleur de rareté
+					const statName = valueDisplay.statName;
+					const percentText = `${statName} +${percentIncrease}%`;
+					let textWidth = renderer.ctx.measureText(percentText).width;
+					
+					// Vérifier la largeur et ajuster la taille de police si nécessaire
+					if (textWidth > maxWidth) {
+						fontSize = Math.max(12, Math.floor(18 * (maxWidth / textWidth) * 0.95));
+						renderer.ctx.font = `${fontSize}px Pokemon`;
+						textWidth = renderer.ctx.measureText(percentText).width;
+						
+						if (textWidth > maxWidth) {
+							fontSize = Math.max(10, Math.floor(fontSize * (maxWidth / textWidth) * 0.95));
+							renderer.ctx.font = `${fontSize}px Pokemon`;
+						}
+					}
+					
+					renderer.ctx.textAlign = 'center';
+					renderer.ctx.fillStyle = '#ffd700'; //seleciton yellow
+					renderer.ctx.strokeText(percentText, 0, lineY);
+					renderer.ctx.fillText(percentText, 0, lineY);
+					
+					// Ligne 2: Valeurs "5 → 7"
 					lineY += 25;
+					const valuesText = `${valueDisplay.currentValue} → ${valueDisplay.newValue}`;
+					let valuesWidth = renderer.ctx.measureText(valuesText).width;
+					
+					if (valuesWidth > maxWidth) {
+						fontSize = Math.max(12, Math.floor(fontSize * (maxWidth / valuesWidth) * 0.95));
+						renderer.ctx.font = `${fontSize}px Pokemon`;
+						valuesWidth = renderer.ctx.measureText(valuesText).width;
+					}
+					
+					// Afficher les valeurs avec couleurs
+					let currentX = -valuesWidth / 2;
+					const spacing = 5;
+					
+					// Ancienne valeur en blanc
+					renderer.ctx.textAlign = 'left';
+					renderer.ctx.fillStyle = '#ffffff';
+					renderer.ctx.strokeText(valueDisplay.currentValue, currentX, lineY);
+					renderer.ctx.fillText(valueDisplay.currentValue, currentX, lineY);
+					currentX += renderer.ctx.measureText(valueDisplay.currentValue).width + spacing;
+					
+					// Flèche Unicode
+					const arrowText = '→';
+					renderer.ctx.fillStyle = '#ffffff';
+					renderer.ctx.strokeText(arrowText, currentX, lineY);
+					renderer.ctx.fillText(arrowText, currentX, lineY);
+					currentX += renderer.ctx.measureText(arrowText).width + spacing;
+					
+					// Nouvelle valeur en vert
+					renderer.ctx.fillStyle = '#4af626';
+					renderer.ctx.strokeText(valueDisplay.newValue, currentX, lineY);
+					renderer.ctx.fillText(valueDisplay.newValue, currentX, lineY);
+					
+					renderer.ctx.textAlign = 'center';
 				} else {
-					line = testLine;
+					// Affichage pour les upgrades non-projectiles
+					// Ligne 1: "+ X%" en couleur de rareté
+					let fontSize = 18;
+					renderer.ctx.font = `${fontSize}px Pokemon`;
+					
+					let percentIncrease = 0;
+					if (valueDisplay.currentValueRaw !== null && valueDisplay.newValueRaw !== null) {
+						const currentRaw = valueDisplay.currentValueRaw;
+						const newRaw = valueDisplay.newValueRaw;
+						
+						if (currentRaw > 0) {
+							percentIncrease = Math.round(((newRaw - currentRaw) / currentRaw) * 100);
+						} else if (typeof upgrade.value === 'number') {
+							if (upgrade.value >= 1 && upgrade.value < 2) {
+								percentIncrease = Math.round((upgrade.value - 1) * 100);
+							} else if (upgrade.value < 1) {
+								percentIncrease = Math.round(upgrade.value * 100);
+							} else {
+								percentIncrease = upgrade.value;
+							}
+						}
+					} else if (typeof upgrade.value === 'number') {
+						if (upgrade.value >= 1 && upgrade.value < 2) {
+							percentIncrease = Math.round((upgrade.value - 1) * 100);
+						} else if (upgrade.value < 1) {
+							percentIncrease = Math.round(upgrade.value * 100);
+						} else {
+							percentIncrease = upgrade.value;
+						}
+					}
+					
+					const percentText = `+${percentIncrease}%`;
+					const maxWidth = cardWidth - 40;
+					let textWidth = renderer.ctx.measureText(percentText).width;
+					
+					if (textWidth > maxWidth) {
+						fontSize = Math.max(12, Math.floor(18 * (maxWidth / textWidth) * 0.95));
+						renderer.ctx.font = `${fontSize}px Pokemon`;
+						textWidth = renderer.ctx.measureText(percentText).width;
+						
+						if (textWidth > maxWidth) {
+							fontSize = Math.max(10, Math.floor(fontSize * (maxWidth / textWidth) * 0.95));
+							renderer.ctx.font = `${fontSize}px Pokemon`;
+						}
+					}
+					
+					renderer.ctx.textAlign = 'center';
+					renderer.ctx.fillStyle = borderColor;
+					renderer.ctx.strokeText(percentText, 0, lineY);
+					renderer.ctx.fillText(percentText, 0, lineY);
+					
+					// Ligne 2: "5% → 10%"
+					lineY += 25;
+					
+					const isPercentageStat = upgrade.type === UpgradeType.CRIT_CHANCE || 
+					                          upgrade.type === UpgradeType.CRIT_DAMAGE ||
+					                          upgrade.type === UpgradeType.HP_REGEN;
+					
+					let currentValueStr = valueDisplay.currentValue;
+					let newValueStr = valueDisplay.newValue;
+					
+					if (isPercentageStat) {
+						if (upgrade.type === UpgradeType.CRIT_DAMAGE) {
+							currentValueStr = `${Math.round(valueDisplay.currentValueRaw * 100)}%`;
+							newValueStr = `${Math.round(valueDisplay.newValueRaw * 100)}%`;
+						} else {
+							currentValueStr = `${Math.round(valueDisplay.currentValueRaw * 100)}%`;
+							newValueStr = `${Math.round(valueDisplay.newValueRaw * 100)}%`;
+						}
+					} else if (typeof valueDisplay.currentValueRaw === 'number' && valueDisplay.currentValueRaw < 1) {
+						currentValueStr = `${Math.round(valueDisplay.currentValueRaw * 100)}%`;
+						newValueStr = `${Math.round(valueDisplay.newValueRaw * 100)}%`;
+					}
+					
+					const valuesText = `${currentValueStr} → ${newValueStr}`;
+					let valuesWidth = renderer.ctx.measureText(valuesText).width;
+					
+					if (valuesWidth > maxWidth) {
+						fontSize = Math.max(12, Math.floor(fontSize * (maxWidth / valuesWidth) * 0.95));
+						renderer.ctx.font = `${fontSize}px Pokemon`;
+						valuesWidth = renderer.ctx.measureText(valuesText).width;
+					}
+					
+					let nonProjectileCurrentX = -valuesWidth / 2;
+					const nonProjectileSpacing = 5;
+					
+					renderer.ctx.textAlign = 'left';
+					renderer.ctx.fillStyle = '#ffffff';
+					renderer.ctx.strokeText(currentValueStr, nonProjectileCurrentX, lineY);
+					renderer.ctx.fillText(currentValueStr, nonProjectileCurrentX, lineY);
+					nonProjectileCurrentX += renderer.ctx.measureText(currentValueStr).width + nonProjectileSpacing;
+					
+					const nonProjectileArrowText = '→';
+					renderer.ctx.fillStyle = '#ffffff';
+					renderer.ctx.strokeText(nonProjectileArrowText, nonProjectileCurrentX, lineY);
+					renderer.ctx.fillText(nonProjectileArrowText, nonProjectileCurrentX, lineY);
+					nonProjectileCurrentX += renderer.ctx.measureText(nonProjectileArrowText).width + nonProjectileSpacing;
+					
+					renderer.ctx.fillStyle = '#4af626';
+					renderer.ctx.strokeText(newValueStr, nonProjectileCurrentX, lineY);
+					renderer.ctx.fillText(newValueStr, nonProjectileCurrentX, lineY);
+					
+					renderer.ctx.textAlign = 'center';
 				}
-			});
-			renderer.ctx.strokeText(line, 0, lineY);
-			renderer.ctx.fillText(line, 0, lineY);
+			}
 
 			renderer.ctx.shadowBlur = 0;
 			renderer.ctx.restore();

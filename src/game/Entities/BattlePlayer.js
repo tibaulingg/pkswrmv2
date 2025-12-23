@@ -9,6 +9,7 @@ export default class BattlePlayer {
 		this.y = y;
 		this.animationSystem = animationSystem;
 		this.pokemonConfig = pokemonConfig;
+		this.ivs = ivs;
 		this.scale = 2;
 		
 		if (this.animationSystem) {
@@ -25,6 +26,7 @@ export default class BattlePlayer {
 		}
 		
 		const baseSpeed = BASE_SPEED * (pokemonConfig?.speedMultiplier || 1);
+		this.baseSpeed = baseSpeed;
 		this.speed = calculateStatWithIV(baseSpeed, ivs?.speed, 'speed');
 		this.directionX = 0;
 		this.directionY = 0;
@@ -32,6 +34,7 @@ export default class BattlePlayer {
 		this.velocityY = 0;
 		
 		const baseHp = pokemonConfig?.hp || 100;
+		this.baseHp = baseHp;
 		this.maxHp = calculateStatWithIV(baseHp, ivs?.hp, 'hp');
 		this.hp = this.maxHp;
 		this.displayedHp = this.hp;
@@ -51,15 +54,18 @@ export default class BattlePlayer {
 		this.attackType = pokemonConfig?.attackType || 'melee';
 		this.type = pokemonConfig?.type || 'normal';
 		const baseDamage = pokemonConfig?.damage;
+		this.baseDamage = baseDamage;
 		this.damage = calculateStatWithIV(baseDamage, ivs?.damage, 'damage');
 		const baseAttackSpeed = pokemonConfig?.attackSpeed || 1.0;
+		this.baseAttackSpeed = baseAttackSpeed;
 		this.attackSpeed = calculateStatWithIV(baseAttackSpeed, ivs?.attackSpeed, 'attackSpeed');
 		const baseRange = pokemonConfig?.range || 80;
+		this.baseRange = baseRange;
 		this.range = calculateStatWithIV(baseRange, ivs?.range, 'range');
 		const baseKnockback = pokemonConfig?.knockback || 30;
+		this.baseKnockback = baseKnockback;
 		this.knockback = calculateStatWithIV(baseKnockback, ivs?.knockback, 'knockback');
 		this.projectileColor = pokemonConfig?.projectileColor || '#ffff00';
-		this.projectileSize = pokemonConfig?.projectileSize || 8;
 		this.attackCooldown = 0;
 		this.attackCooldownMax = 1000 / this.attackSpeed;
 		this.meleeAttackColor = pokemonConfig?.meleeAttackColor || null;
@@ -92,10 +98,14 @@ export default class BattlePlayer {
 		this.hasAoE = false;
 		this.hasPiercing = false;
 		this.hasBounce = false;
-		this.bounceCount = 0;
+		this.bounceCount = 1; // Ancien système, gardé pour compatibilité
 		this.aoeDamageMultiplier = 1;
 		this.aoeRadiusMultiplier = 1;
 		this.piercingCount = 0;
+		this.piercingDamageReduction = 0.2; // Réduction de base par ennemi
+		this.piercingMaxCount = 0; // Nombre max d'ennemis transpercables (0 = illimité)
+		this.bounceMaxCount = 1; // Nombre max de rebonds
+		this.bounceDetectionRange = 300; // Rayon de détection pour les rebonds
 		this.bounceRange = 600;
 		this.xpGainMultiplier = 1;
 		this.moneyGainMultiplier = 1;
@@ -379,9 +389,52 @@ export default class BattlePlayer {
 			const baseMultiplier = 1.5;
 			const levelExponent = 1 + (this.level - 1) * 0.05;
 			this.xpToNextLevel = Math.floor(this.xpToNextLevel * baseMultiplier * levelExponent);
+			this.increaseStatsOnLevelUp();
 			return true;
 		}
 		return false;
+	}
+
+	increaseStatsOnLevelUp() {
+		const LEVEL_UP_STAT_INCREASE = 0.05;
+		
+		if (this.baseSpeed !== undefined) {
+			const oldSpeed = this.speed;
+			this.speed = calculateStatWithIV(this.baseSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.speed, 'speed');
+			this.triggerStatAnimation('speed', oldSpeed, this.speed);
+		}
+		
+		if (this.baseHp !== undefined) {
+			const oldMaxHp = this.maxHp;
+			this.maxHp = calculateStatWithIV(this.baseHp * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.hp, 'hp');
+			this.hp = Math.min(this.maxHp, this.hp + (this.maxHp - oldMaxHp));
+			this.triggerStatAnimation('maxHp', oldMaxHp, this.maxHp);
+		}
+		
+		if (this.baseDamage !== undefined) {
+			const oldDamage = this.damage;
+			this.damage = calculateStatWithIV(this.baseDamage * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.damage, 'damage');
+			this.triggerStatAnimation('damage', oldDamage, this.damage);
+		}
+		
+		if (this.baseAttackSpeed !== undefined) {
+			const oldAttackSpeed = this.attackSpeed;
+			this.attackSpeed = calculateStatWithIV(this.baseAttackSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.attackSpeed, 'attackSpeed');
+			this.attackCooldownMax = 1000 / this.attackSpeed;
+			this.triggerStatAnimation('attackSpeed', oldAttackSpeed, this.attackSpeed);
+		}
+		
+		if (this.baseRange !== undefined) {
+			const oldRange = this.range;
+			this.range = calculateStatWithIV(this.baseRange * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.range, 'range');
+			this.triggerStatAnimation('range', oldRange, this.range);
+		}
+		
+		if (this.baseKnockback !== undefined) {
+			const oldKnockback = this.knockback;
+			this.knockback = calculateStatWithIV(this.baseKnockback * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.knockback, 'knockback');
+			this.triggerStatAnimation('knockback', oldKnockback, this.knockback);
+		}
 	}
 
 	addMoney(amount) {
@@ -447,9 +500,6 @@ export default class BattlePlayer {
 			case 'projectileSpeed':
 				this.projectileSpeedMultiplier *= upgrade.value;
 				break;
-			case 'projectileSize':
-				this.projectileSize *= upgrade.value;
-				break;
 			case 'projectileAoe':
 				this.hasAoE = true;
 				this.hasPiercing = false;
@@ -462,11 +512,30 @@ export default class BattlePlayer {
 				break;
 			case 'projectileBounce':
 				this.hasBounce = true;
-				this.bounceCount = upgrade.value;
+				this.bounceCount = upgrade.value || 1;
 				this.hasAoE = false;
 				this.hasPiercing = false;
 				break;
+			case 'aoeRadius':
+				this.aoeRadiusMultiplier *= upgrade.value;
+				break;
+			case 'aoeDamage':
+				this.aoeDamageMultiplier *= upgrade.value;
+				break;
+			case 'piercingDamageReduction':
+				this.piercingDamageReduction = Math.max(0, this.piercingDamageReduction - upgrade.value);
+				break;
+			case 'piercingMaxCount':
+				this.piercingMaxCount += upgrade.value;
+				break;
+			case 'bounceMaxCount':
+				this.bounceMaxCount += upgrade.value;
+				break;
+			case 'bounceDetectionRange':
+				this.bounceDetectionRange += upgrade.value;
+				break;
 			case 'projectileEnhancement':
+				// Ancien système, gardé pour compatibilité mais ne devrait plus être proposé
 				if (this.hasAoE) {
 					this.aoeDamageMultiplier += 0.2;
 					this.aoeRadiusMultiplier += 0.15;
@@ -561,8 +630,15 @@ export default class BattlePlayer {
 	}
 
 	toggleAutoShoot() {
+		console.log('toggleAutoShoot called', {
+			attackType: this.attackType,
+			currentAutoShoot: this.autoShoot
+		});
 		if (this.attackType === 'range') {
 			this.autoShoot = !this.autoShoot;
+			console.log('autoShoot toggled to', this.autoShoot);
+		} else {
+			console.log('attackType is not range, cannot toggle');
 		}
 	}
 
@@ -643,9 +719,9 @@ export default class BattlePlayer {
 			const enhancementLevel = Math.max(0, Math.floor((currentMultiplier - baseMultiplier) / 0.15));
 			level += enhancementLevel;
 		} else if (this.hasPiercing) {
-			level = 1 + Math.max(0, this.piercingCount);
+			level = 1 + Math.max(0, this.piercingMaxCount);
 		} else if (this.hasBounce) {
-			level = Math.max(0, this.bounceCount);
+			level = Math.max(0, this.bounceMaxCount);
 		}
 		
 		return level;
@@ -709,14 +785,14 @@ export default class BattlePlayer {
 				playerVelocityX: this.velocityX,
 				playerVelocityY: this.velocityY,
 				projectileColor: this.projectileColor,
-				projectileSize: this.projectileSize,
 				projectileSpeed: this.projectileSpeedMultiplier,
-				aoeRadius: this.hasAoE ? this.projectileSize * 6 * this.aoeRadiusMultiplier : 0,
+				aoeRadius: this.hasAoE ? 80 * this.aoeRadiusMultiplier : 0,
 				hasPiercing: this.hasPiercing,
 				hasBounce: this.hasBounce,
-				bounceCount: this.bounceCount,
-				piercingCount: this.piercingCount,
-				bounceRange: this.bounceRange,
+				bounceCount: this.bounceMaxCount,
+				piercingCount: this.piercingMaxCount,
+				bounceRange: this.bounceDetectionRange,
+				piercingDamageReduction: this.piercingDamageReduction,
 				projectileType: this.type
 			};
 		} else if (this.attackType === 'circular_sweep' && this.baseAttackSpell) {

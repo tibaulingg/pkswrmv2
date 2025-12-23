@@ -198,8 +198,22 @@ export default class HUDRenderer {
 			this.renderStatLine(renderer, statsX, statsY + index * statsLineHeight, stat.label, value, statsFontSize, strokeOffset, strokeColor, labelColor, labelWidth, 2, animation, valueX);
 		});
 
+		if (player && player.attackType === 'range') {
+			const modeY = statsY + stats.length * statsLineHeight + 8;
+			const modeText = player.autoShoot ? 'MODE: AUTO' : 'MODE: MANUEL';
+			const modeColor = player.autoShoot ? '#4fc3f7' : '#ff9100';
+			
+			renderer.ctx.font = `bold ${statsFontSize}px Pokemon`;
+			renderer.ctx.fillStyle = modeColor;
+			renderer.ctx.strokeStyle = strokeColor;
+			renderer.ctx.lineWidth = strokeOffset;
+			renderer.ctx.textAlign = 'left';
+			renderer.ctx.strokeText(modeText, statsX, modeY);
+			renderer.ctx.fillText(modeText, statsX, modeY);
+		}
+
 		if (battleScene) {
-			const separatorY = statsY + stats.length * statsLineHeight + 8;
+			const separatorY = statsY + stats.length * statsLineHeight + 8 + (player && player.attackType === 'range' ? statsLineHeight : 0);
 			const separatorStartX = statsX;
 			const separatorEndX = valueX;
 			
@@ -210,7 +224,7 @@ export default class HUDRenderer {
 			renderer.ctx.lineTo(separatorEndX, separatorY);
 			renderer.ctx.stroke();
 			
-			const rewardsY = statsY + stats.length * statsLineHeight + 15;
+			const rewardsY = separatorY + 7;
 			this.renderSessionRewards(renderer, battleScene, engine, statsX, rewardsY, statsFontSize, strokeOffset, strokeColor);
 		}
 

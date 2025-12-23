@@ -15,11 +15,19 @@ export const UpgradeType = {
 	MAX_HP: 'maxHp',
 	HP_REGEN: 'hpRegen',
 	PROJECTILE_SPEED: 'projectileSpeed',
-	PROJECTILE_SIZE: 'projectileSize',
 	PROJECTILE_AOE: 'projectileAoe',
 	PROJECTILE_PIERCING: 'projectilePiercing',
 	PROJECTILE_BOUNCE: 'projectileBounce',
 	PROJECTILE_ENHANCEMENT: 'projectileEnhancement',
+	// AOE upgrades
+	AOE_RADIUS: 'aoeRadius',
+	AOE_DAMAGE: 'aoeDamage',
+	// Piercing upgrades
+	PIERCING_DAMAGE_REDUCTION: 'piercingDamageReduction',
+	PIERCING_MAX_COUNT: 'piercingMaxCount',
+	// Bounce upgrades
+	BOUNCE_MAX_COUNT: 'bounceMaxCount',
+	BOUNCE_DETECTION_RANGE: 'bounceDetectionRange',
 	KNOCKBACK: 'knockback',
 	FETCH_RANGE: 'fetchRange',
 	CRIT_CHANCE: 'critChance',
@@ -154,22 +162,6 @@ export const Upgrades = {
 		type: UpgradeType.FETCH_RANGE,
 		value: 1.2,
 	},
-	projectileSize_1: {
-		id: 'projectileSize_1',
-		name: 'Taille',
-		description: 'Augmente la taille des projectiles de 10%',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.PROJECTILE_SIZE,
-		value: 1.1,
-	},
-	projectileSize_2: {
-		id: 'projectileSize_2',
-		name: 'Taille',
-		description: 'Augmente la taille des projectiles de 20%',
-		rarity: UpgradeRarity.RARE,
-		type: UpgradeType.PROJECTILE_SIZE,
-		value: 1.2,
-	},
 	critChance_1: {
 		id: 'critChance_1',
 		name: 'Chance Crit',
@@ -264,15 +256,13 @@ export const Upgrades = {
 		description: 'Les projectiles infligent des dégâts de zone',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_AOE,
-		value: 1,
 	},
 	projectilePiercing_1: {
 		id: 'projectilePiercing_1',
-		name: 'Transperçant',
+		name: 'Perforation',
 		description: 'Les projectiles traversent les ennemis',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_PIERCING,
-		value: 1,
 	},
 	projectileBounce_1: {
 		id: 'projectileBounce_1',
@@ -280,7 +270,6 @@ export const Upgrades = {
 		description: 'Les projectiles rebondissent sur les ennemis',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_BOUNCE,
-		value: 3,
 	},
 	projectileEnhancement_1: {
 		id: 'projectileEnhancement_1',
@@ -290,78 +279,217 @@ export const Upgrades = {
 		type: UpgradeType.PROJECTILE_ENHANCEMENT,
 		value: 1,
 	},
-	earthquake_damage_1: {
-		id: 'earthquake_damage_1',
-		name: 'Séisme\n- Dégâts',
-		description: 'Augmente les dégâts de Séisme de 5%',
+	projectileEnhancement_2: {
+		id: 'projectileEnhancement_2',
+		name: 'Projectiles',
+		description: 'Améliore les projectiles spéciaux',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'earthquake', multiplier: 1.05 }
+		type: UpgradeType.PROJECTILE_ENHANCEMENT,
+		value: 1,
 	},
-	earthquake_range_1: {
-		id: 'earthquake_range_1',
-		name: 'Séisme\n- Portée',
-		description: 'Augmente la portée de Séisme de 5%',
+	projectileEnhancement_3: {
+		id: 'projectileEnhancement_3',
+		name: 'Projectiles',
+		description: 'Améliore les projectiles spéciaux',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'earthquake', multiplier: 1.05 }
+		type: UpgradeType.PROJECTILE_ENHANCEMENT,
+		value: 1,
 	},
-	earthquake_cooldown_1: {
-		id: 'earthquake_cooldown_1',
-		name: 'Séisme\n- Cooldown',
-		description: 'Réduit le cooldown de Séisme de 5%',
+	// AOE Upgrades
+	aoeRadius_common: {
+		id: 'aoeRadius_common',
+		name: 'Rayon Explosion',
+		description: 'Augmente le rayon d\'explosion de 5%',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'earthquake', multiplier: 0.95 }
+		type: UpgradeType.AOE_RADIUS,
+		value: 1.05,
 	},
-	rock_trap_damage_1: {
-		id: 'rock_trap_damage_1',
-		name: 'Piège de Rock\n- Dégâts',
-		description: 'Augmente les dégâts de Piège de Rock de 5%',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'rock_trap', multiplier: 1.05 }
+	aoeRadius_rare: {
+		id: 'aoeRadius_rare',
+		name: 'Rayon Explosion',
+		description: 'Augmente le rayon d\'explosion de 7%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.AOE_RADIUS,
+		value: 1.07,
 	},
-	rock_trap_range_1: {
-		id: 'rock_trap_range_1',
-		name: 'Piège de Rock\n- Portée',
-		description: 'Augmente la portée de Piège de Rock de 5%',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'rock_trap', multiplier: 1.05 }
+	aoeRadius_epic: {
+		id: 'aoeRadius_epic',
+		name: 'Rayon Explosion',
+		description: 'Augmente le rayon d\'explosion de 10%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.AOE_RADIUS,
+		value: 1.10,
 	},
-	rock_trap_cooldown_1: {
-		id: 'rock_trap_cooldown_1',
-		name: 'Piège de Rock\n- Cooldown',
-		description: 'Réduit le cooldown de Piège de Rock de 5%',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'rock_trap', multiplier: 0.95 }
+	aoeRadius_legendary: {
+		id: 'aoeRadius_legendary',
+		name: 'Rayon Explosion',
+		description: 'Augmente le rayon d\'explosion de 20%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.AOE_RADIUS,
+		value: 1.20,
 	},
-	hydrocanon_damage_1: {
-		id: 'hydrocanon_damage_1',
-		name: 'Hydrocanon\n- Dégâts',
-		description: 'Augmente les dégâts d\'Hydrocanon de 5%',
+	aoeDamage_common: {
+		id: 'aoeDamage_common',
+		name: 'Dégâts Explosion',
+		description: 'Augmente les dégâts d\'explosion de 5%',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_DAMAGE,
-		value: { spellId: 'hydrocanon', multiplier: 1.05 }
+		type: UpgradeType.AOE_DAMAGE,
+		value: 1.05,
 	},
-	hydrocanon_range_1: {
-		id: 'hydrocanon_range_1',
-		name: 'Hydrocanon\n- Portée',
-		description: 'Augmente la portée d\'Hydrocanon de 5%',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_RANGE,
-		value: { spellId: 'hydrocanon', multiplier: 1.05 }
+	aoeDamage_rare: {
+		id: 'aoeDamage_rare',
+		name: 'Dégâts Explosion',
+		description: 'Augmente les dégâts d\'explosion de 7%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.AOE_DAMAGE,
+		value: 1.07,
 	},
-	hydrocanon_cooldown_1: {
-		id: 'hydrocanon_cooldown_1',
-		name: 'Hydrocanon\n- Cooldown',
-		description: 'Réduit le cooldown d\'Hydrocanon de 5%',
+	aoeDamage_epic: {
+		id: 'aoeDamage_epic',
+		name: 'Dégâts Explosion',
+		description: 'Augmente les dégâts d\'explosion de 10%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.AOE_DAMAGE,
+		value: 1.10,
+	},
+	aoeDamage_legendary: {
+		id: 'aoeDamage_legendary',
+		name: 'Dégâts Explosion',
+		description: 'Augmente les dégâts d\'explosion de 20%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.AOE_DAMAGE,
+		value: 1.20,
+	},
+	// Piercing Upgrades
+	piercingDamageReduction_common: {
+		id: 'piercingDamageReduction_common',
+		name: 'Efficacité Perforatione',
+		description: 'Réduit la perte de dégâts de 2% par ennemi',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL_COOLDOWN,
-		value: { spellId: 'hydrocanon', multiplier: 0.95 }
-	}
+		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
+		value: 0.02,
+	},
+	piercingDamageReduction_rare: {
+		id: 'piercingDamageReduction_rare',
+		name: 'Efficacité Perforatione',
+		description: 'Réduit la perte de dégâts de 3% par ennemi',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
+		value: 0.03,
+	},
+	piercingDamageReduction_epic: {
+		id: 'piercingDamageReduction_epic',
+		name: 'Efficacité Perforatione',
+		description: 'Réduit la perte de dégâts de 5% par ennemi',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
+		value: 0.05,
+	},
+	piercingDamageReduction_legendary: {
+		id: 'piercingDamageReduction_legendary',
+		name: 'Efficacité Perforatione',
+		description: 'Réduit la perte de dégâts de 8% par ennemi',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
+		value: 0.08,
+	},
+	piercingMaxCount_common: {
+		id: 'piercingMaxCount_common',
+		name: 'Transperçage',
+		description: 'Augmente le nombre d\'ennemis transpercables de +1',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.PIERCING_MAX_COUNT,
+		value: 1,
+	},
+	piercingMaxCount_rare: {
+		id: 'piercingMaxCount_rare',
+		name: 'Transperçage',
+		description: 'Augmente le nombre d\'ennemis transpercables de +2',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.PIERCING_MAX_COUNT,
+		value: 2,
+	},
+	piercingMaxCount_epic: {
+		id: 'piercingMaxCount_epic',
+		name: 'Transperçage',
+		description: 'Augmente le nombre d\'ennemis transpercables de +3',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.PIERCING_MAX_COUNT,
+		value: 3,
+	},
+	piercingMaxCount_legendary: {
+		id: 'piercingMaxCount_legendary',
+		name: 'Transperçage',
+		description: 'Augmente le nombre d\'ennemis transpercables de +5',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.PIERCING_MAX_COUNT,
+		value: 5,
+	},
+	// Bounce Upgrades
+	bounceMaxCount_common: {
+		id: 'bounceMaxCount_common',
+		name: 'Rebonds',
+		description: 'Augmente le nombre maximum de rebonds de +1',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.BOUNCE_MAX_COUNT,
+		value: 1,
+	},
+	bounceMaxCount_rare: {
+		id: 'bounceMaxCount_rare',
+		name: 'Rebonds',
+		description: 'Augmente le nombre maximum de rebonds de +2',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.BOUNCE_MAX_COUNT,
+		value: 2,
+	},
+	bounceMaxCount_epic: {
+		id: 'bounceMaxCount_epic',
+		name: 'Rebonds',
+		description: 'Augmente le nombre maximum de rebonds de +3',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.BOUNCE_MAX_COUNT,
+		value: 3,
+	},
+	bounceMaxCount_legendary: {
+		id: 'bounceMaxCount_legendary',
+		name: 'Rebonds',
+		description: 'Augmente le nombre maximum de rebonds de +5',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.BOUNCE_MAX_COUNT,
+		value: 5,
+	},
+	bounceDetectionRange_common: {
+		id: 'bounceDetectionRange_common',
+		name: 'Portée Rebond',
+		description: 'Augmente le rayon de détection de rebond de 50',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.BOUNCE_DETECTION_RANGE,
+		value: 50,
+	},
+	bounceDetectionRange_rare: {
+		id: 'bounceDetectionRange_rare',
+		name: 'Portée Rebond',
+		description: 'Augmente le rayon de détection de rebond de 75',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.BOUNCE_DETECTION_RANGE,
+		value: 75,
+	},
+	bounceDetectionRange_epic: {
+		id: 'bounceDetectionRange_epic',
+		name: 'Portée Rebond',
+		description: 'Augmente le rayon de détection de rebond de 100',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.BOUNCE_DETECTION_RANGE,
+		value: 100,
+	},
+	bounceDetectionRange_legendary: {
+		id: 'bounceDetectionRange_legendary',
+		name: 'Portée Rebond',
+		description: 'Augmente le rayon de détection de rebond de 150',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.BOUNCE_DETECTION_RANGE,
+		value: 150,
+	},
 };
 
 export const RarityWeights = {
@@ -392,6 +520,13 @@ export const RarityBackgrounds = {
 	[UpgradeRarity.LEGENDARY]: 'linear-gradient(135deg, #3d2a1a 0%, #261a0d 100%)'
 };
 
+export const RarityBackgroundColors = {
+	[UpgradeRarity.COMMON]: 'rgba(26, 26, 26, 0.9)',
+	[UpgradeRarity.RARE]: 'rgba(13, 20, 25, 0.9)',
+	[UpgradeRarity.EPIC]: 'rgba(26, 15, 38, 0.9)',
+	[UpgradeRarity.LEGENDARY]: 'rgba(38, 26, 13, 0.9)'
+};
+
 export const UpgradeIcons = {
 	[UpgradeType.DAMAGE]: '⚔',
 	[UpgradeType.ATTACK_SPEED]: '⚡',
@@ -401,11 +536,16 @@ export const UpgradeIcons = {
 	[UpgradeType.HP_REGEN]: '♥',
 	[UpgradeType.KNOCKBACK]: '↯',
 	[UpgradeType.PROJECTILE_SPEED]: '➢',
-	[UpgradeType.PROJECTILE_SIZE]: '●',
 	[UpgradeType.PROJECTILE_AOE]: '💥',
 	[UpgradeType.PROJECTILE_PIERCING]: '➡',
 	[UpgradeType.PROJECTILE_BOUNCE]: '↻',
 	[UpgradeType.PROJECTILE_ENHANCEMENT]: '⬆',
+	[UpgradeType.AOE_RADIUS]: '📏',
+	[UpgradeType.AOE_DAMAGE]: '💥',
+	[UpgradeType.PIERCING_DAMAGE_REDUCTION]: '⚔',
+	[UpgradeType.PIERCING_MAX_COUNT]: '➡',
+	[UpgradeType.BOUNCE_MAX_COUNT]: '↻',
+	[UpgradeType.BOUNCE_DETECTION_RANGE]: '◎',
 	[UpgradeType.FETCH_RANGE]: '✦',
 	[UpgradeType.CRIT_CHANCE]: '★',
 	[UpgradeType.CRIT_DAMAGE]: '✦',
@@ -427,11 +567,25 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 	
 	const allProjectileUpgrades = [
 		UpgradeType.PROJECTILE_SPEED,
-		UpgradeType.PROJECTILE_SIZE,
 		UpgradeType.PROJECTILE_AOE,
 		UpgradeType.PROJECTILE_PIERCING,
 		UpgradeType.PROJECTILE_BOUNCE,
 		UpgradeType.PROJECTILE_ENHANCEMENT
+	];
+	
+	const aoeUpgrades = [
+		UpgradeType.AOE_RADIUS,
+		UpgradeType.AOE_DAMAGE
+	];
+	
+	const piercingUpgrades = [
+		UpgradeType.PIERCING_DAMAGE_REDUCTION,
+		UpgradeType.PIERCING_MAX_COUNT
+	];
+	
+	const bounceUpgrades = [
+		UpgradeType.BOUNCE_MAX_COUNT,
+		UpgradeType.BOUNCE_DETECTION_RANGE
 	];
 	
 	const hasProjectileType = player && (
@@ -439,6 +593,17 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 	);
 	
 	const isMelee = player && player.pokemonConfig && player.pokemonConfig.attackType === 'melee';
+	const isFirstLevelUp = player && player.level === 2;
+	const isRange = player && player.attackType === 'range';
+	
+	if (isFirstLevelUp && isRange && !hasProjectileType) {
+		const projectileTypeOptions = [
+			Upgrades.projectileAoe_1,
+			Upgrades.projectilePiercing_1,
+			Upgrades.projectileBounce_1
+		];
+		return projectileTypeOptions.slice(0, Math.min(count, projectileTypeOptions.length));
+	}
 	
 	const spellUpgradeTypes = [
 		UpgradeType.SPELL_DAMAGE,
@@ -447,9 +612,38 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 	];
 	
 	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
-		
 		if (isMelee && allProjectileUpgrades.includes(upgrade.type)) {
 			return false;
+		}
+		
+		if (isRange && !hasProjectileType && projectileTypeUpgrades.includes(upgrade.type)) {
+			return false;
+		}
+		
+		if (isRange && hasProjectileType) {
+			if (projectileTypeUpgrades.includes(upgrade.type)) {
+				return false;
+			}
+			
+			// Ne proposer que les upgrades correspondant au type de projectile choisi
+			if (player.hasAoE) {
+				if (piercingUpgrades.includes(upgrade.type) || bounceUpgrades.includes(upgrade.type)) {
+					return false;
+				}
+			} else if (player.hasPiercing) {
+				if (aoeUpgrades.includes(upgrade.type) || bounceUpgrades.includes(upgrade.type)) {
+					return false;
+				}
+			} else if (player.hasBounce) {
+				if (aoeUpgrades.includes(upgrade.type) || piercingUpgrades.includes(upgrade.type)) {
+					return false;
+				}
+			}
+			
+			// Ne plus proposer PROJECTILE_ENHANCEMENT
+			if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT) {
+				return false;
+			}
 		}
 		
 		if (upgrade.type === UpgradeType.SPELL && player) {
@@ -473,11 +667,8 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 			if (!isSpellUnlocked) return false;
 		}
 		
-		if (projectileTypeUpgrades.includes(upgrade.type) && hasProjectileType) {
-			return false;
-		}
-		
-		if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT && !hasProjectileType) {
+		// Ne plus proposer PROJECTILE_ENHANCEMENT (remplacé par les nouveaux upgrades spécifiques)
+		if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT) {
 			return false;
 		}
 		
@@ -488,22 +679,43 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 
 	const selected = [];
 	const used = new Set();
-
+	const usedTypes = new Set(); // Track les types d'upgrades déjà sélectionnés
+	
+	const projectileUpgradeTypes = [
+		UpgradeType.PROJECTILE_ENHANCEMENT,
+		UpgradeType.PROJECTILE_SPEED
+	];
+	
+	const getUpgradeWeight = (upgrade) => {
+		let weight = RarityWeights[upgrade.rarity];
+		// Augmenter le poids des upgrades de projectiles spécifiques
+		if (hasProjectileType) {
+			const allSpecificProjectileUpgrades = [...aoeUpgrades, ...piercingUpgrades, ...bounceUpgrades];
+			if (allSpecificProjectileUpgrades.includes(upgrade.type)) {
+				weight *= 2.5;
+			}
+		}
+		return weight;
+	};
 
 	for (let i = 0; i < count && selected.length < availableUpgrades.length; i++) {
-		const totalWeight = availableUpgrades
-			.filter(u => !used.has(u.id))
-			.reduce((sum, u) => sum + RarityWeights[u.rarity], 0);
+		// Filtrer les upgrades déjà utilisés ET ceux du même type que ceux déjà sélectionnés
+		const eligibleUpgrades = availableUpgrades.filter(u => 
+			!used.has(u.id) && !usedTypes.has(u.type)
+		);
+		
+		if (eligibleUpgrades.length === 0) break;
+		
+		const totalWeight = eligibleUpgrades.reduce((sum, u) => sum + getUpgradeWeight(u), 0);
 		
 		let random = Math.random() * totalWeight;
 
-		for (const upgrade of availableUpgrades) {
-			if (used.has(upgrade.id)) continue;
-			
-			random -= RarityWeights[upgrade.rarity];
+		for (const upgrade of eligibleUpgrades) {
+			random -= getUpgradeWeight(upgrade);
 			if (random <= 0) {
 				selected.push(upgrade);
 				used.add(upgrade.id);
+				usedTypes.add(upgrade.type); // Marquer ce type comme utilisé
 				break;
 			}
 		}
