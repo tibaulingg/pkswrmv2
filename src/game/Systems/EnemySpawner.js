@@ -124,7 +124,8 @@ export default class EnemySpawner {
 		}
 		
 		const spawnDistance = 400;
-		const maxAttempts = 20;
+		const maxAttempts = 30;
+		const safetyMargin = 24;
 		let validPosition = null;
 		
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -137,14 +138,46 @@ export default class EnemySpawner {
 			const x = playerX + Math.cos(angle) * spawnDistance;
 			const y = playerY + Math.sin(angle) * spawnDistance;
 
-			const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
-			const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
-			
 			const enemyWidth = 32;
 			const enemyHeight = 32;
+			const checkWidth = enemyWidth + safetyMargin * 2;
+			const checkHeight = enemyHeight + safetyMargin * 2;
 			
-			if (this.collisionSystem && this.collisionSystem.checkCollision(clampedX, clampedY, enemyWidth, enemyHeight)) {
-				continue;
+			const clampedX = Math.max(safetyMargin, Math.min(this.mapWidth - enemyWidth - safetyMargin, x));
+			const clampedY = Math.max(safetyMargin, Math.min(this.mapHeight - enemyHeight - safetyMargin, y));
+			
+			const checkX = clampedX - safetyMargin;
+			const checkY = clampedY - safetyMargin;
+			
+			if (this.collisionSystem) {
+				if (this.collisionSystem.checkCollision(checkX, checkY, checkWidth, checkHeight)) {
+					continue;
+				}
+				
+				const centerX = clampedX + enemyWidth / 2;
+				const centerY = clampedY + enemyHeight / 2;
+				const testPoints = [
+					{ x: centerX - safetyMargin, y: centerY },
+					{ x: centerX + safetyMargin, y: centerY },
+					{ x: centerX, y: centerY - safetyMargin },
+					{ x: centerX, y: centerY + safetyMargin },
+					{ x: centerX - safetyMargin * 0.7, y: centerY - safetyMargin * 0.7 },
+					{ x: centerX + safetyMargin * 0.7, y: centerY + safetyMargin * 0.7 },
+					{ x: centerX - safetyMargin * 0.7, y: centerY + safetyMargin * 0.7 },
+					{ x: centerX + safetyMargin * 0.7, y: centerY - safetyMargin * 0.7 }
+				];
+				
+				let hasCollision = false;
+				for (const point of testPoints) {
+					if (this.collisionSystem.checkCollision(point.x - 4, point.y - 4, 8, 8)) {
+						hasCollision = true;
+						break;
+					}
+				}
+				
+				if (hasCollision) {
+					continue;
+				}
 			}
 			
 			validPosition = { x: clampedX, y: clampedY, angle };
@@ -231,7 +264,8 @@ export default class EnemySpawner {
 		}
 
 		const spawnDistance = 400;
-		const maxAttempts = 20;
+		const maxAttempts = 30;
+		const safetyMargin = 40;
 		let validPosition = null;
 		
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -239,14 +273,46 @@ export default class EnemySpawner {
 			const x = playerX + Math.cos(angle) * spawnDistance;
 			const y = playerY + Math.sin(angle) * spawnDistance;
 
-			const clampedX = Math.max(0, Math.min(this.mapWidth - 32, x));
-			const clampedY = Math.max(0, Math.min(this.mapHeight - 32, y));
-			
 			const bossWidth = 96;
 			const bossHeight = 96;
+			const checkWidth = bossWidth + safetyMargin * 2;
+			const checkHeight = bossHeight + safetyMargin * 2;
 			
-			if (this.collisionSystem && this.collisionSystem.checkCollision(clampedX, clampedY, bossWidth, bossHeight)) {
-				continue;
+			const clampedX = Math.max(safetyMargin, Math.min(this.mapWidth - bossWidth - safetyMargin, x));
+			const clampedY = Math.max(safetyMargin, Math.min(this.mapHeight - bossHeight - safetyMargin, y));
+			
+			const checkX = clampedX - safetyMargin;
+			const checkY = clampedY - safetyMargin;
+			
+			if (this.collisionSystem) {
+				if (this.collisionSystem.checkCollision(checkX, checkY, checkWidth, checkHeight)) {
+					continue;
+				}
+				
+				const centerX = clampedX + bossWidth / 2;
+				const centerY = clampedY + bossHeight / 2;
+				const testPoints = [
+					{ x: centerX - safetyMargin, y: centerY },
+					{ x: centerX + safetyMargin, y: centerY },
+					{ x: centerX, y: centerY - safetyMargin },
+					{ x: centerX, y: centerY + safetyMargin },
+					{ x: centerX - safetyMargin * 0.7, y: centerY - safetyMargin * 0.7 },
+					{ x: centerX + safetyMargin * 0.7, y: centerY + safetyMargin * 0.7 },
+					{ x: centerX - safetyMargin * 0.7, y: centerY + safetyMargin * 0.7 },
+					{ x: centerX + safetyMargin * 0.7, y: centerY - safetyMargin * 0.7 }
+				];
+				
+				let hasCollision = false;
+				for (const point of testPoints) {
+					if (this.collisionSystem.checkCollision(point.x - 8, point.y - 8, 16, 16)) {
+						hasCollision = true;
+						break;
+					}
+				}
+				
+				if (hasCollision) {
+					continue;
+				}
 			}
 			
 			validPosition = { x: clampedX, y: clampedY };

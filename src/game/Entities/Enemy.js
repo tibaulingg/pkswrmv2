@@ -73,14 +73,17 @@ export default class Enemy {
 		this.hurtAnimationDuration = 300;
 		this.auraPulseTime = 0;
 		
-		this.separationRadius = 60;
-		this.separationStrength = 0.15;
+		this.baseSeparationRadius = 60;
+		this.baseSeparationStrength = 0.15;
+		this.separationRadius = this.baseSeparationRadius;
+		this.separationStrength = this.baseSeparationStrength;
 		
 		this.playerHistory = [];
-		this.maxHistoryLength = 5;
+		this.maxHistoryLength = 10;
 		this.predictionTime = 300;
-		this.interceptionFactor = 0.6;
-		this.flankingFactor = 0.3;
+		this.baseInterceptionFactor = 0.75;
+		this.interceptionFactor = this.baseInterceptionFactor;
+		this.flankingFactor = 0.45;
 		this.lastPlayerX = null;
 		this.lastPlayerY = null;
 		this.strategyTimer = 0;
@@ -88,6 +91,23 @@ export default class Enemy {
 		this.speedBoostTimer = 0;
 		this.speedBoostDuration = 0;
 		this.baseSpeed = this.speed;
+		
+		this.role = 'chasseur';
+		this.roleTimer = 0;
+		this.roleChangeInterval = 3000 + Math.random() * 2000;
+		this.enemyIndex = 0;
+		
+		this.kitingPunishmentActive = false;
+		this.kitingPunishmentTimer = 0;
+		this.kitingPunishmentDuration = 0;
+		this.kitingDistanceThreshold = 250;
+		this.kitingTimeThreshold = 1500;
+		this.kitingTimeAccumulator = 0;
+		this.baseAttackRange = this.attackRange;
+		
+		this.aggressiveInterceptionActive = false;
+		this.aggressiveInterceptionTimer = 0;
+		this.aggressiveInterceptionDuration = 300 + Math.random() * 200;
 	}
 
 	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32, otherEnemies = [], playerVelocityX = 0, playerVelocityY = 0) {
@@ -95,6 +115,11 @@ export default class Enemy {
 
 		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
 		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
+		
+		this.updateRole(deltaTime, otherEnemies);
+		this.updateKitingPunishment(deltaTime, playerX, playerY, otherEnemies);
+		this.updateDynamicSeparation(playerX, playerY);
+		this.updateAggressiveInterception(deltaTime, playerX, playerY);
 		
 		const separationForce = this.calculateSeparation(otherEnemies);
 		
@@ -144,12 +169,58 @@ export default class Enemy {
 		
 		this.strategyTimer += deltaTime;
 		if (this.strategyTimer > 2000 + Math.random() * 2000) {
-			const strategies = ['intercept', 'flank', 'direct'];
+			const playerSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+			let strategies = ['intercept', 'flank', 'direct'];
+			
+			if (this.role === 'chasseur') {
+				strategies = ['intercept', 'intercept', 'flank'];
+			} else if (this.role === 'bloqueur') {
+				strategies = ['intercept', 'direct', 'direct'];
+			} else {
+				strategies = ['flank', 'direct', 'direct'];
+			}
+			
+			if (playerSpeed > 0.5 && this.playerHistory.length >= 3) {
+				const recentHistory = this.playerHistory.slice(-3);
+				let isMovingStraight = true;
+				for (let i = 1; i < recentHistory.length; i++) {
+					const prev = recentHistory[i - 1];
+					const curr = recentHistory[i];
+					const dx1 = curr.x - prev.x;
+					const dy1 = curr.y - prev.y;
+					const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+					
+					if (i < recentHistory.length - 1) {
+						const next = recentHistory[i + 1];
+						const dx2 = next.x - curr.x;
+						const dy2 = next.y - curr.y;
+						const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+						
+						if (dist1 > 0.1 && dist2 > 0.1) {
+							const dir1X = dx1 / dist1;
+							const dir1Y = dy1 / dist1;
+							const dir2X = dx2 / dist2;
+							const dir2Y = dy2 / dist2;
+							const dot = dir1X * dir2X + dir1Y * dir2Y;
+							
+							if (dot < 0.8) {
+								isMovingStraight = false;
+								break;
+							}
+						}
+					}
+				}
+				
+				if (isMovingStraight && this.role === 'chasseur') {
+					strategies = ['intercept', 'intercept', 'intercept'];
+				}
+			}
+			
 			this.currentStrategy = strategies[Math.floor(Math.random() * strategies.length)];
 			this.strategyTimer = 0;
 		}
 		
-		const targetPos = this.calculateTargetPosition(playerX, playerY, playerVelocityX, playerVelocityY);
+		const targetPos = this.calculateTargetPositionByRole(playerX, playerY, playerVelocityX, playerVelocityY, otherEnemies);
 		
 		const dx = targetPos.x - this.getCenterX();
 		const dy = targetPos.y - this.getCenterY();
@@ -157,10 +228,10 @@ export default class Enemy {
 		
 		this.speedBoostTimer += deltaTime;
 		if (this.speedBoostTimer >= this.speedBoostDuration) {
-			if (Math.random() < 0.15 && distance > 150) {
-				this.speedBoostDuration = 600 + Math.random() * 300;
+			if (Math.random() < 0.35 && distance > 150) {
+				this.speedBoostDuration = 1000 + Math.random() * 500;
 				this.speedBoostTimer = 0;
-				this.speed = this.baseSpeed * (1.15 + Math.random() * 0.1);
+				this.speed = this.baseSpeed * (1.35 + Math.random() * 0.1);
 			} else {
 				this.speed = this.baseSpeed;
 			}
@@ -322,9 +393,59 @@ export default class Enemy {
 		let targetX = playerX;
 		let targetY = playerY;
 		
-		if (this.currentStrategy === 'intercept') {
-			const playerSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+		let predictedVelocityX = playerVelocityX;
+		let predictedVelocityY = playerVelocityY;
+		let velocityConfidence = 0.5;
+		
+		if (this.playerHistory.length >= 3) {
+			const recentHistory = this.playerHistory.slice(-3);
+			let avgVelX = 0;
+			let avgVelY = 0;
+			let totalTime = 0;
 			
+			for (let i = 1; i < recentHistory.length; i++) {
+				const prev = recentHistory[i - 1];
+				const curr = recentHistory[i];
+				const dt = (curr.time - prev.time) / 16;
+				
+				if (dt > 0 && dt < 100) {
+					const velX = (curr.x - prev.x) / dt;
+					const velY = (curr.y - prev.y) / dt;
+					avgVelX += velX;
+					avgVelY += velY;
+					totalTime += dt;
+				}
+			}
+			
+			if (totalTime > 0) {
+				avgVelX /= (recentHistory.length - 1);
+				avgVelY /= (recentHistory.length - 1);
+				
+				const currentSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+				const avgSpeed = Math.sqrt(avgVelX * avgVelX + avgVelY * avgVelY);
+				
+				if (avgSpeed > 0.01) {
+					const speedDiff = Math.abs(currentSpeed - avgSpeed) / Math.max(currentSpeed, avgSpeed);
+					const directionDiff = Math.abs(
+						(playerVelocityX * avgVelX + playerVelocityY * avgVelY) / (currentSpeed * avgSpeed)
+					);
+					
+					if (speedDiff < 0.3 && directionDiff > 0.85) {
+						velocityConfidence = 0.9;
+						predictedVelocityX = avgVelX;
+						predictedVelocityY = avgVelY;
+					} else {
+						predictedVelocityX = playerVelocityX * 0.7 + avgVelX * 0.3;
+						predictedVelocityY = playerVelocityY * 0.7 + avgVelY * 0.3;
+						velocityConfidence = 0.7;
+					}
+				}
+			}
+		}
+		
+		const playerSpeed = Math.sqrt(predictedVelocityX * predictedVelocityX + predictedVelocityY * predictedVelocityY);
+		
+		if (this.currentStrategy === 'intercept') {
 			if (playerSpeed > 0.01) {
 				const dx = playerX - enemyCenterX;
 				const dy = playerY - enemyCenterY;
@@ -332,8 +453,8 @@ export default class Enemy {
 				
 				if (distance > 0) {
 					const enemySpeed = this.speed * 16;
-					const relativeSpeedX = playerVelocityX;
-					const relativeSpeedY = playerVelocityY;
+					const relativeSpeedX = predictedVelocityX;
+					const relativeSpeedY = predictedVelocityY;
 					
 					const a = relativeSpeedX * relativeSpeedX + relativeSpeedY * relativeSpeedY - enemySpeed * enemySpeed;
 					const b = 2 * (dx * relativeSpeedX + dy * relativeSpeedY);
@@ -346,20 +467,24 @@ export default class Enemy {
 						const t2 = (-b - Math.sqrt(discriminant)) / (2 * a);
 						const t = Math.max(t1, t2);
 						
-						if (t > 0 && t < 5) {
-							const predictedX = playerX + playerVelocityX * t;
-							const predictedY = playerY + playerVelocityY * t;
+						if (t > 0 && t < 8) {
+							const predictionTime = t * (0.7 + velocityConfidence * 0.3);
+							const predictedX = playerX + predictedVelocityX * predictionTime;
+							const predictedY = playerY + predictedVelocityY * predictionTime;
 							
-							targetX = playerX * (1 - this.interceptionFactor) + predictedX * this.interceptionFactor;
-							targetY = playerY * (1 - this.interceptionFactor) + predictedY * this.interceptionFactor;
+							const effectiveInterceptionFactor = this.interceptionFactor * (0.7 + velocityConfidence * 0.3);
+							targetX = playerX * (1 - effectiveInterceptionFactor) + predictedX * effectiveInterceptionFactor;
+							targetY = playerY * (1 - effectiveInterceptionFactor) + predictedY * effectiveInterceptionFactor;
 						}
 					} else {
 						const timeToReach = distance / enemySpeed;
-						const predictedX = playerX + playerVelocityX * timeToReach * 0.5;
-						const predictedY = playerY + playerVelocityY * timeToReach * 0.5;
+						const predictionTime = timeToReach * (0.7 + velocityConfidence * 0.3);
+						const predictedX = playerX + predictedVelocityX * predictionTime;
+						const predictedY = playerY + predictedVelocityY * predictionTime;
 						
-						targetX = playerX * (1 - this.interceptionFactor * 0.5) + predictedX * this.interceptionFactor * 0.5;
-						targetY = playerY * (1 - this.interceptionFactor * 0.5) + predictedY * this.interceptionFactor * 0.5;
+						const effectiveInterceptionFactor = this.interceptionFactor * (0.6 + velocityConfidence * 0.2);
+						targetX = playerX * (1 - effectiveInterceptionFactor) + predictedX * effectiveInterceptionFactor;
+						targetY = playerY * (1 - effectiveInterceptionFactor) + predictedY * effectiveInterceptionFactor;
 					}
 				}
 			}
@@ -368,30 +493,239 @@ export default class Enemy {
 			const dy = playerY - enemyCenterY;
 			const distance = Math.sqrt(dx * dx + dy * dy);
 			
-			if (distance > 0) {
-				const playerSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+			if (distance > 0 && playerSpeed > 0.01) {
+				const playerDirX = predictedVelocityX / playerSpeed;
+				const playerDirY = predictedVelocityY / playerSpeed;
 				
-				if (playerSpeed > 0.01) {
-					const playerDirX = playerVelocityX / playerSpeed;
-					const playerDirY = playerVelocityY / playerSpeed;
-					
-					const perpX = -playerDirY;
-					const perpY = playerDirX;
-					
-					const flankOffset = 100 + Math.random() * 50;
-					const flankX = playerX + perpX * flankOffset;
-					const flankY = playerY + perpY * flankOffset;
-					
-					const futurePlayerX = playerX + playerVelocityX * 0.5;
-					const futurePlayerY = playerY + playerVelocityY * 0.5;
-					
-					targetX = futurePlayerX * (1 - this.flankingFactor) + flankX * this.flankingFactor;
-					targetY = futurePlayerY * (1 - this.flankingFactor) + flankY * this.flankingFactor;
-				}
+				const perpX = -playerDirY;
+				const perpY = playerDirX;
+				
+				const flankOffset = 120 + Math.random() * 60;
+				const flankX = playerX + perpX * flankOffset;
+				const flankY = playerY + perpY * flankOffset;
+				
+				const futureTime = 0.7 + velocityConfidence * 0.3;
+				const futurePlayerX = playerX + predictedVelocityX * futureTime;
+				const futurePlayerY = playerY + predictedVelocityY * futureTime;
+				
+				targetX = futurePlayerX * (1 - this.flankingFactor) + flankX * this.flankingFactor;
+				targetY = futurePlayerY * (1 - this.flankingFactor) + flankY * this.flankingFactor;
+			}
+		} else {
+			if (playerSpeed > 0.01) {
+				const futureTime = 0.5 + velocityConfidence * 0.4;
+				targetX = playerX + predictedVelocityX * futureTime;
+				targetY = playerY + predictedVelocityY * futureTime;
 			}
 		}
 		
 		return { x: targetX, y: targetY };
+	}
+
+	calculateTargetPositionByRole(playerX, playerY, playerVelocityX, playerVelocityY, otherEnemies) {
+		if (this.role === 'chasseur') {
+			return this.calculateTargetPosition(playerX, playerY, playerVelocityX, playerVelocityY);
+		} else if (this.role === 'bloqueur') {
+			return this.calculateBlockerTarget(playerX, playerY, playerVelocityX, playerVelocityY);
+		} else {
+			return this.calculateZoneTarget(playerX, playerY, playerVelocityX, playerVelocityY, otherEnemies);
+		}
+	}
+
+	calculateBlockerTarget(playerX, playerY, playerVelocityX, playerVelocityY) {
+		const enemyCenterX = this.getCenterX();
+		const enemyCenterY = this.getCenterY();
+		
+		const playerSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+		
+		if (playerSpeed > 0.01) {
+			const dx = playerX - enemyCenterX;
+			const dy = playerY - enemyCenterY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			const playerDirX = playerVelocityX / playerSpeed;
+			const playerDirY = playerVelocityY / playerSpeed;
+			
+			const lookAheadTime = Math.min(1.5, distance / (this.speed * 16));
+			const futurePlayerX = playerX + playerVelocityX * lookAheadTime;
+			const futurePlayerY = playerY + playerVelocityY * lookAheadTime;
+			
+			const interceptDistance = 80 + Math.random() * 40;
+			const interceptX = futurePlayerX - playerDirX * interceptDistance;
+			const interceptY = futurePlayerY - playerDirY * interceptDistance;
+			
+			return { x: interceptX, y: interceptY };
+		}
+		
+		return { x: playerX, y: playerY };
+	}
+
+	calculateZoneTarget(playerX, playerY, playerVelocityX, playerVelocityY, otherEnemies) {
+		const enemyCenterX = this.getCenterX();
+		const enemyCenterY = this.getCenterY();
+		
+		const dx = playerX - enemyCenterX;
+		const dy = playerY - enemyCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		const playerSpeed = Math.sqrt(playerVelocityX * playerVelocityX + playerVelocityY * playerVelocityY);
+		
+		if (playerSpeed > 0.01 && distance > 150) {
+			const playerDirX = playerVelocityX / playerSpeed;
+			const playerDirY = playerVelocityY / playerSpeed;
+			
+			const behindOffset = 120 + Math.random() * 80;
+			const behindX = playerX - playerDirX * behindOffset;
+			const behindY = playerY - playerDirY * behindOffset;
+			
+			const aliveEnemies = otherEnemies.filter(e => e.isAlive && e !== this);
+			let avgX = behindX;
+			let avgY = behindY;
+			let count = 1;
+			
+			for (const enemy of aliveEnemies) {
+				if (enemy.role === 'zone') {
+					avgX += enemy.getCenterX();
+					avgY += enemy.getCenterY();
+					count++;
+				}
+			}
+			
+			avgX /= count;
+			avgY /= count;
+			
+			const spreadAngle = (Math.PI * 2 / Math.max(1, aliveEnemies.filter(e => e.role === 'zone').length + 1)) * 
+				(aliveEnemies.filter(e => e.isAlive && e !== this && e.role === 'zone').length);
+			const spreadRadius = 60 + Math.random() * 40;
+			const spreadX = avgX + Math.cos(spreadAngle) * spreadRadius;
+			const spreadY = avgY + Math.sin(spreadAngle) * spreadRadius;
+			
+			return { x: spreadX, y: spreadY };
+		}
+		
+		return { x: playerX, y: playerY };
+	}
+
+	updateRole(deltaTime, otherEnemies) {
+		this.roleTimer += deltaTime;
+		if (this.roleTimer >= this.roleChangeInterval) {
+			const aliveEnemies = otherEnemies.filter(e => e.isAlive);
+			const myIndex = aliveEnemies.findIndex(e => e === this);
+			
+			if (myIndex >= 0) {
+				const roleIndex = myIndex % 3;
+				const roles = ['chasseur', 'bloqueur', 'zone'];
+				this.role = roles[roleIndex];
+			} else {
+				this.role = ['chasseur', 'bloqueur', 'zone'][Math.floor(Math.random() * 3)];
+			}
+			
+			this.roleTimer = 0;
+			this.roleChangeInterval = 3000 + Math.random() * 2000;
+		}
+	}
+
+	updateKitingPunishment(deltaTime, playerX, playerY, otherEnemies) {
+		const enemyCenterX = this.getCenterX();
+		const enemyCenterY = this.getCenterY();
+		const dx = playerX - enemyCenterX;
+		const dy = playerY - enemyCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		const aliveEnemies = otherEnemies.filter(e => e.isAlive);
+		if (aliveEnemies.length === 0) {
+			this.kitingTimeAccumulator = 0;
+			return;
+		}
+		
+		let avgDistance = distance;
+		let count = 1;
+		for (const enemy of aliveEnemies) {
+			const edx = playerX - enemy.getCenterX();
+			const edy = playerY - enemy.getCenterY();
+			const edist = Math.sqrt(edx * edx + edy * edy);
+			avgDistance += edist;
+			count++;
+		}
+		avgDistance /= count;
+		
+		if (avgDistance > this.kitingDistanceThreshold) {
+			this.kitingTimeAccumulator += deltaTime;
+			if (this.kitingTimeAccumulator >= this.kitingTimeThreshold) {
+				if (!this.kitingPunishmentActive) {
+					this.kitingPunishmentActive = true;
+					this.kitingPunishmentDuration = 2000 + Math.random() * 1000;
+					this.kitingPunishmentTimer = 0;
+					
+					if (Math.random() < 0.6) {
+						this.speed = this.baseSpeed * (1.2 + Math.random() * 0.15);
+					} else {
+						this.attackRange = this.baseAttackRange * 1.2;
+					}
+				}
+			}
+		} else {
+			this.kitingTimeAccumulator = Math.max(0, this.kitingTimeAccumulator - deltaTime * 2);
+			if (this.kitingPunishmentActive && avgDistance < this.kitingDistanceThreshold * 0.8) {
+				this.kitingPunishmentActive = false;
+				this.kitingPunishmentTimer = 0;
+				this.speed = this.baseSpeed;
+				this.attackRange = this.baseAttackRange;
+			}
+		}
+		
+		if (this.kitingPunishmentActive) {
+			this.kitingPunishmentTimer += deltaTime;
+			if (this.kitingPunishmentTimer >= this.kitingPunishmentDuration) {
+				this.kitingPunishmentActive = false;
+				this.kitingPunishmentTimer = 0;
+				this.speed = this.baseSpeed;
+				this.attackRange = this.baseAttackRange;
+			}
+		}
+	}
+
+	updateDynamicSeparation(playerX, playerY) {
+		const enemyCenterX = this.getCenterX();
+		const enemyCenterY = this.getCenterY();
+		const dx = playerX - enemyCenterX;
+		const dy = playerY - enemyCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		if (distance > 200) {
+			const factor = Math.min(1.5, 1 + (distance - 200) / 300);
+			this.separationRadius = this.baseSeparationRadius * factor;
+			this.separationStrength = this.baseSeparationStrength * factor;
+		} else {
+			this.separationRadius = this.baseSeparationRadius;
+			this.separationStrength = this.baseSeparationStrength;
+		}
+	}
+
+	updateAggressiveInterception(deltaTime, playerX, playerY) {
+		const enemyCenterX = this.getCenterX();
+		const enemyCenterY = this.getCenterY();
+		const dx = playerX - enemyCenterX;
+		const dy = playerY - enemyCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		if (distance > 200) {
+			if (!this.aggressiveInterceptionActive) {
+				this.aggressiveInterceptionActive = true;
+				this.aggressiveInterceptionTimer = 0;
+				this.aggressiveInterceptionDuration = 300 + Math.random() * 200;
+				this.interceptionFactor = 1.0;
+			}
+		}
+		
+		if (this.aggressiveInterceptionActive) {
+			this.aggressiveInterceptionTimer += deltaTime;
+			if (this.aggressiveInterceptionTimer >= this.aggressiveInterceptionDuration || distance <= 200) {
+				this.aggressiveInterceptionActive = false;
+				this.aggressiveInterceptionTimer = 0;
+				this.interceptionFactor = this.baseInterceptionFactor;
+			}
+		}
 	}
 
 	canAttack() {
@@ -440,6 +774,13 @@ export default class Enemy {
 		this.hp -= amount;
 		this.lostHp = this.displayedHp - this.hp;
 		this.hitFlashTime = this.hitFlashDuration;
+		
+		if (this.kitingPunishmentActive) {
+			this.kitingPunishmentActive = false;
+			this.kitingPunishmentTimer = 0;
+			this.speed = this.baseSpeed;
+			this.attackRange = this.baseAttackRange;
+		}
 		
 		if (isCrit) {
 			this.hurtAnimationTime = this.hurtAnimationDuration;
@@ -534,8 +875,15 @@ export default class Enemy {
 				const normalizedDy = dy / distance;
 				const force = (this.separationRadius - distance) / this.separationRadius;
 				
-				separationX += normalizedDx * force;
-				separationY += normalizedDy * force;
+				let roleMultiplier = 1.0;
+				if (this.role === 'zone' && other.role === 'zone') {
+					roleMultiplier = 1.3;
+				} else if (this.role === 'bloqueur' && other.role === 'bloqueur') {
+					roleMultiplier = 1.2;
+				}
+				
+				separationX += normalizedDx * force * roleMultiplier;
+				separationY += normalizedDy * force * roleMultiplier;
 				neighborCount++;
 			}
 		}
