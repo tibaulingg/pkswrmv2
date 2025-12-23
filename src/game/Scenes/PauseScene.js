@@ -1056,46 +1056,100 @@ export default class PauseScene {
 					renderer.ctx.restore();
 				}
 				
-				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[selectedPokemonId] ? this.engine.pokemonIVs[selectedPokemonId] : null;
-				if (ivs) {
-					renderer.ctx.save();
-					const ivY = descriptionY;
-					const ivFontSize = '14px';
-					renderer.ctx.font = `bold ${ivFontSize} Pokemon`;
-					renderer.ctx.textAlign = 'left';
-					renderer.ctx.textBaseline = 'top';
+				renderer.ctx.save();
+				const statsY = descriptionY - 10;
+				const statsFontSize = '14px';
+				const lineSpacing = 25;
+				renderer.ctx.textAlign = 'left';
+				renderer.ctx.textBaseline = 'top';
+				
+				if (pokemonConfig) {
+					const baseHp = pokemonConfig.hp || 0;
+					const baseDamage = pokemonConfig.damage || 0;
+					const baseAttackSpeed = pokemonConfig.attackSpeed || 0;
+					const baseRange = pokemonConfig.range || 0;
+					const baseSpeed = (pokemonConfig.speedMultiplier || 1) * 2;
+					const baseKnockback = pokemonConfig.knockback || 0;
 					
-					const getIVColor = (iv) => iv === 31 ? 'rgb(43, 231, 216)' : '#ffffff';
-					
-					const ivParts = [
-						{ label: 'HP', value: ivs.hp },
-						{ label: 'ATK', value: ivs.damage },
-						{ label: 'SPD', value: ivs.speed },
-						{ label: 'ASP', value: ivs.attackSpeed },
-						{ label: 'RNG', value: ivs.range },
-						{ label: 'KNOC', value: ivs.knockback }
+					const baseStats = [
+						{ label: 'HP', value: baseHp },
+						{ label: 'ATK', value: baseDamage },
+						{ label: 'SPD', value: baseSpeed.toFixed(1) },
+						{ label: 'ASP', value: baseAttackSpeed.toFixed(1) },
+						{ label: 'RNG', value: baseRange },
+						{ label: 'KNOC', value: baseKnockback }
 					];
 					
+					renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
+					renderer.ctx.fillStyle = '#87CEEB';
+					renderer.ctx.fillText('Base Stats:', itemStartX - 30, statsY);
+					
 					let currentX = itemStartX - 30;
-					ivParts.forEach((part, index) => {
-						renderer.ctx.font = `bold ${ivFontSize} Pokemon`;
-						renderer.ctx.fillStyle = '#ffff00';
-						renderer.ctx.fillText(`${part.label}:`, currentX, ivY);
+					baseStats.forEach((stat, index) => {
+						renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#87CEEB';
+						renderer.ctx.fillText(`${stat.label}:`, currentX, statsY + 20);
 						
-						const labelWidth = renderer.ctx.measureText(`${part.label}:`).width;
-						renderer.ctx.font = `${ivFontSize} Pokemon`;
-						renderer.ctx.fillStyle = getIVColor(part.value);
-						renderer.ctx.fillText(part.value.toString(), currentX + labelWidth + 5, ivY);
+						const labelWidth = renderer.ctx.measureText(`${stat.label}:`).width;
+						renderer.ctx.font = `${statsFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#ffffff';
+						renderer.ctx.fillText(stat.value.toString(), currentX + labelWidth + 5, statsY + 20);
 						
-						if (index < ivParts.length - 1) {
-							renderer.ctx.fillStyle = '#888888';
-							renderer.ctx.fillText(' | ', currentX + labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width, ivY);
-							currentX += labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width + renderer.ctx.measureText(' | ').width;
+						if (index < baseStats.length - 1) {
+							renderer.ctx.fillStyle = '#555555';
+							renderer.ctx.fillText(' | ', currentX + labelWidth + 5 + renderer.ctx.measureText(stat.value.toString()).width, statsY + 20);
+							currentX += labelWidth + 5 + renderer.ctx.measureText(stat.value.toString()).width + renderer.ctx.measureText(' | ').width;
 						}
 					});
 					
-					renderer.ctx.restore();
+					const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[selectedPokemonId] ? this.engine.pokemonIVs[selectedPokemonId] : null;
+					if (ivs) {
+						const getIVColor = (iv) => {
+							if (iv === 31) return 'rgb(43, 231, 216)';
+							return '#ffffff';
+						};
+						
+						const ivParts = [
+							{ label: 'HP', value: ivs.hp || 0 },
+							{ label: 'ATK', value: ivs.damage || 0 },
+							{ label: 'SPD', value: ivs.speed || 0 },
+							{ label: 'ASP', value: ivs.attackSpeed || 0 },
+							{ label: 'RNG', value: ivs.range || 0 },
+							{ label: 'KNOC', value: ivs.knockback || 0 }
+						];
+						
+						renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.fillText('IVs:', itemStartX - 30, statsY + lineSpacing + 15);
+						
+						currentX = itemStartX - 30;
+						ivParts.forEach((part, index) => {
+							renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
+							renderer.ctx.fillStyle = '#FFD700';
+							renderer.ctx.fillText(`${part.label}:`, currentX, statsY + lineSpacing + 40);
+							
+							const labelWidth = renderer.ctx.measureText(`${part.label}:`).width;
+							renderer.ctx.font = `${statsFontSize} Pokemon`;
+							renderer.ctx.fillStyle = getIVColor(part.value);
+							renderer.ctx.fillText(part.value.toString(), currentX + labelWidth + 5, statsY + lineSpacing + 40);
+							
+							if (index < ivParts.length - 1) {
+								renderer.ctx.fillStyle = '#555555';
+								renderer.ctx.fillText(' | ', currentX + labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width, statsY + lineSpacing + 40);
+								currentX += labelWidth + 5 + renderer.ctx.measureText(part.value.toString()).width + renderer.ctx.measureText(' | ').width;
+							}
+						});
+					} else {
+						renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.fillText('IVs:', itemStartX - 30, statsY + lineSpacing);
+						renderer.ctx.font = `${statsFontSize} Pokemon`;
+						renderer.ctx.fillStyle = '#888888';
+						renderer.ctx.fillText('Non disponibles', itemStartX + 50, statsY + lineSpacing + 20);
+					}
 				}
+				
+				renderer.ctx.restore();
 			}
 		}
 	}

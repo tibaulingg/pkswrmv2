@@ -249,6 +249,16 @@ export default class BattleScene {
 			this.damageNumberSystem.clear();
 			this.xpOrbSystem.clear();
 			
+			if (this.coinSystem) {
+				this.coinSystem.clear();
+			}
+			if (this.itemDropSystem) {
+				this.itemDropSystem.clear();
+			}
+			if (this.chestSystem) {
+				this.chestSystem.clear();
+			}
+			
 			const coinImage = this.engine.sprites.get('coins');
 			this.coinSystem = new CoinSystem(coinImage);
 			
@@ -388,7 +398,9 @@ export default class BattleScene {
 			this.updateHydrocanon(deltaTime);
 
 			if (this.enemySpawner) {
-				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.width, this.player.height);
+				const playerVelocityX = this.player.velocityX * 16;
+				const playerVelocityY = this.player.velocityY * 16;
+				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.width, this.player.height, playerVelocityX, playerVelocityY);
 				this.updateEnemyAttacks();
 				this.updateProjectileCollisions();
 			}

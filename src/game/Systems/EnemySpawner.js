@@ -29,7 +29,7 @@ export default class EnemySpawner {
 		this.maxEnemyDistance = 1200;
 	}
 
-	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32) {
+	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32, playerVelocityX = 0, playerVelocityY = 0) {
 		this.gameTime += deltaTime;
 		this.spawnTimer += deltaTime;
 		this.difficultyUpdateTimer += deltaTime;
@@ -63,7 +63,7 @@ export default class EnemySpawner {
 		this.enemies.forEach(enemy => {
 			if (enemy.isAlive) {
 				const otherEnemies = aliveEnemies.filter(e => e !== enemy);
-				enemy.update(deltaTime, playerX, playerY, this.collisionSystem, playerWidth, playerHeight, otherEnemies);
+				enemy.update(deltaTime, playerX, playerY, this.collisionSystem, playerWidth, playerHeight, otherEnemies, playerVelocityX, playerVelocityY);
 			}
 		});
 

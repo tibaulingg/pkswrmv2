@@ -6,8 +6,8 @@ class XPOrb {
 		this.size = 2.5 + Math.random() * 1.5;
 		this.isActive = true;
 		this.lifetime = 0;
-		this.maxLifetime = 10000;
-		this.fadeStartTime = 8000;
+		this.maxLifetime = Infinity;
+		this.fadeStartTime = Infinity;
 		this.bobOffset = Math.random() * Math.PI * 2;
 		this.velocityX = 0;
 		this.velocityY = 0;
@@ -19,11 +19,6 @@ class XPOrb {
 	update(deltaTime, playerX, playerY, fetchRange) {
 		if (!this.isActive) return;
 		this.lifetime += deltaTime;
-
-		if (this.lifetime >= this.maxLifetime) {
-			this.isActive = false;
-			return;
-		}
 
 		const dx = playerX - this.x;
 		const dy = playerY - this.y;

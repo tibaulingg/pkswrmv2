@@ -334,5 +334,27 @@ export default class ChestSystem {
 	
 	cleanup() {
 	}
+	
+	clear() {
+		this.activeChest = null;
+		this.isOpening = false;
+		this.animationTimer = 0;
+		this.shakeOffsetX = 0;
+		this.shakeOffsetY = 0;
+		this.chestAlpha = 1;
+		this.itemAlpha = 0;
+		this.itemScale = 0;
+		this.rewardItemId = null;
+		this.rewardItemImage = null;
+		this.rewardItemConfig = null;
+		this.rewardQuantity = 1;
+		this.messageTimer = 0;
+		this.phase = 'shaking';
+		this.itemPulseTimer = 0;
+		this.vibrationTimer = 0;
+		this.shakeCount = 0;
+		this.isShaking = false;
+		this.shakeAnimationTimer = 0;
+	}
 }
 
