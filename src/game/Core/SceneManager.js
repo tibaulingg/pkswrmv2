@@ -8,6 +8,7 @@ import ConfirmMenuScene from '../Scenes/ConfirmMenuScene.js';
 import TransitionScene from '../Scenes/TransitionScene.js';
 import ShopScene from '../Scenes/ShopScene.js';
 import GameOverScene from '../Scenes/GameOverScene.js';
+import SkillTreeScene from '../Scenes/SkillTreeScene.js';
 
 export default class SceneManager {
 	constructor(engine) {
@@ -21,7 +22,8 @@ export default class SceneManager {
 			confirmMenu: new ConfirmMenuScene(this.engine),
 			transition: new TransitionScene(this.engine),
 			shop: new ShopScene(this.engine),
-			gameOver: new GameOverScene(this.engine)
+			gameOver: new GameOverScene(this.engine),
+			skillTree: new SkillTreeScene(this.engine)
 		};
 		this.stack = [];
 	}

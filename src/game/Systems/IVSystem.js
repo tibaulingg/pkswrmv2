@@ -1,13 +1,15 @@
 const IV_COEFFICIENT = 0.01;
 
-export function generateIVs() {
+export function generateIVs(minIV = 1, shinyChance = 0.001) {
+	const isShiny = Math.random() < shinyChance;
 	return {
-		hp: Math.floor(Math.random() * 31) + 1,
-		damage: Math.floor(Math.random() * 31) + 1,
-		speed: Math.floor(Math.random() * 31) + 1,
-		attackSpeed: Math.floor(Math.random() * 31) + 1,
-		range: Math.floor(Math.random() * 31) + 1,
-		knockback: Math.floor(Math.random() * 31) + 1
+		hp: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		damage: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		speed: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		attackSpeed: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		range: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		knockback: Math.floor(Math.random() * (31 - minIV + 1)) + minIV,
+		shiny: isShiny
 	};
 }
 
@@ -26,7 +28,8 @@ export function mergeIVs(ivs1, ivs2) {
 		speed: Math.max(ivs1.speed || 0, ivs2.speed || 0),
 		attackSpeed: Math.max(ivs1.attackSpeed || 0, ivs2.attackSpeed || 0),
 		range: Math.max(ivs1.range || 0, ivs2.range || 0),
-		knockback: Math.max(ivs1.knockback || 0, ivs2.knockback || 0)
+		knockback: Math.max(ivs1.knockback || 0, ivs2.knockback || 0),
+		shiny: ivs1.shiny || ivs2.shiny || false
 	};
 }
 

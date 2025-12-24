@@ -306,6 +306,30 @@ export const PokemonSprites = {
 		projectileSpeed: 0.2,
 		spells: [],
 	},
+	ditto: {
+		name: 'ditto',
+		walk: {
+			frames: 5
+		},
+		idle: {
+			frames: 2,
+			duration: 1200
+		},
+		hurt: {
+			frames: 2
+		},
+		attackType: 'range',
+		type: 'normal',
+		hp: 20,
+		speedMultiplier: 1.0,
+		damage: 15,
+		attackSpeed: 1.5,
+		range: 150,
+		knockback: 5,
+		particleColor: '#FF69B4',
+		projectileColor: '#FF69B4',
+		spells: []
+	},
 };
 
 export function getPokemonConfig(pokemonName) {

@@ -4,6 +4,11 @@ export const EnemyTypes = {
 		name: 'Rattata',
 		pokemon: 'rattata',
 	},
+	turtwig: {
+		id: 'turtwig',
+		name: 'Turtwig',
+		pokemon: 'turtwig',
+	},
 	pidgey: {
 		id: 'pidgey',
 		name: 'Pidgey',
@@ -47,8 +52,8 @@ export const EnemyTypes = {
 export const MapEnemies = {
 	0: [
 		{ type: 'rattata', weight: 5 },
-		{ type: 'caterpie', weight: 0 },
-		{ type: 'pidgey', weight: 3 }
+		{ type: 'caterpie', weight: 1 },
+		{ type: 'pidgey', weight: 3 },
 	],
 	1: [
 		{ type: 'rattata', weight: 4 },

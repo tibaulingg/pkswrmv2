@@ -17,15 +17,6 @@ export default class GameManager {
 	}
 
 	endGame(result, battleScene = null) {
-		if (battleScene && battleScene.player && result === 'victory') {
-			if (battleScene.transferSessionRewardsToEngine) {
-				battleScene.transferSessionRewardsToEngine();
-			} else {
-				this.engine.money = battleScene.player.money;
-				this.engine.displayedMoney = battleScene.player.displayedMoney;
-			}
-		}
-		
 		if (battleScene && battleScene.survivalTime) {
 			this.engine.totalPlayTime = (this.engine.totalPlayTime || 0) + battleScene.survivalTime;
 		}
@@ -35,46 +26,101 @@ export default class GameManager {
 		}
 		
 		if (result === 'defeat') {
-			const moneyGained = battleScene.player.money - (battleScene.initialMoney || 0);
-			const moneyKept = Math.floor(moneyGained / 2);
-			this.engine.money += moneyKept;
-			this.engine.displayedMoney += moneyKept;
+			// Vérifier si c'est une défaite en endless après victoire
+			const isEndlessAfterVictory = battleScene && battleScene.isEndlessAfterVictory;
 			
-			const sessionInventory = battleScene.sessionInventory || {};
-			const sessionEggs = battleScene.sessionEggs || {};
-			
-			for (const [itemId, quantity] of Object.entries(sessionInventory)) {
-				const itemConfig = ItemConfig[itemId];
-				if (itemConfig && itemConfig.category === 'egg') {
-					if (!this.engine.inventory[itemId]) {
-						this.engine.inventory[itemId] = 0;
-					}
-					if (!this.engine.eggProgress) {
-						this.engine.eggProgress = {};
-					}
-					if (!this.engine.eggUniqueIds) {
-						this.engine.eggUniqueIds = {};
-					}
-					if (!this.engine.eggUniqueIds[itemId]) {
-						this.engine.eggUniqueIds[itemId] = [];
-					}
-					
-					const sessionEggUniqueIds = sessionEggs[itemId] || [];
-					const keptQuantity = Math.floor(quantity / 2);
-					const keptUniqueIds = sessionEggUniqueIds.slice(0, keptQuantity);
-					
-					keptUniqueIds.forEach(uniqueId => {
-						this.engine.eggUniqueIds[itemId].push(uniqueId);
-						this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: itemConfig.requiredKills };
-						this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
-					});
+			if (isEndlessAfterVictory) {
+				// Endless après victoire : transférer toutes les récompenses sans réduction
+				if (battleScene.transferSessionRewardsToEngine) {
+					battleScene.transferSessionRewardsToEngine();
 				} else {
-					const keptQuantity = Math.floor(quantity / 2);
-					if (keptQuantity > 0) {
+					const moneyGained = battleScene.player.money - (battleScene.initialMoney || 0);
+					this.engine.money += moneyGained;
+					this.engine.displayedMoney += moneyGained;
+					
+					const sessionInventory = battleScene.sessionInventory || {};
+					const sessionEggs = battleScene.sessionEggs || {};
+					
+					for (const [itemId, quantity] of Object.entries(sessionInventory)) {
+						const itemConfig = ItemConfig[itemId];
+						if (itemConfig && itemConfig.category === 'egg') {
+							if (!this.engine.inventory[itemId]) {
+								this.engine.inventory[itemId] = 0;
+							}
+							if (!this.engine.eggProgress) {
+								this.engine.eggProgress = {};
+							}
+							if (!this.engine.eggUniqueIds) {
+								this.engine.eggUniqueIds = {};
+							}
+							if (!this.engine.eggUniqueIds[itemId]) {
+								this.engine.eggUniqueIds[itemId] = [];
+							}
+							
+							const sessionEggUniqueIds = sessionEggs[itemId] || [];
+							const battleScene = this.engine.sceneManager.scenes.battle;
+							const hatchSpeedMultiplier = battleScene ? battleScene.getEggHatchSpeedMultiplier() : 1.0;
+							sessionEggUniqueIds.forEach(uniqueId => {
+								this.engine.eggUniqueIds[itemId].push(uniqueId);
+								const adjustedRequiredKills = Math.max(1, Math.floor(itemConfig.requiredKills * hatchSpeedMultiplier));
+								this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: adjustedRequiredKills };
+								this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
+							});
+						} else {
+							if (!this.engine.inventory[itemId]) {
+								this.engine.inventory[itemId] = 0;
+							}
+							this.engine.inventory[itemId] += quantity;
+						}
+					}
+				}
+			} else {
+				const itemLossReduction = battleScene ? battleScene.getItemLossReduction() : 0;
+				const lossRate = 0.5 - itemLossReduction;
+				
+				const moneyGained = battleScene.player.money - (battleScene.initialMoney || 0);
+				const moneyKept = Math.floor(moneyGained * (1 - lossRate));
+				this.engine.money += moneyKept;
+				this.engine.displayedMoney += moneyKept;
+				
+				const sessionInventory = battleScene.sessionInventory || {};
+				const sessionEggs = battleScene.sessionEggs || {};
+				const hatchSpeedMultiplier = battleScene ? battleScene.getEggHatchSpeedMultiplier() : 1.0;
+				
+				for (const [itemId, quantity] of Object.entries(sessionInventory)) {
+					const itemConfig = ItemConfig[itemId];
+					if (itemConfig && itemConfig.category === 'egg') {
 						if (!this.engine.inventory[itemId]) {
 							this.engine.inventory[itemId] = 0;
 						}
-						this.engine.inventory[itemId] += keptQuantity;
+						if (!this.engine.eggProgress) {
+							this.engine.eggProgress = {};
+						}
+						if (!this.engine.eggUniqueIds) {
+							this.engine.eggUniqueIds = {};
+						}
+						if (!this.engine.eggUniqueIds[itemId]) {
+							this.engine.eggUniqueIds[itemId] = [];
+						}
+						
+						const sessionEggUniqueIds = sessionEggs[itemId] || [];
+						const keptQuantity = Math.floor(quantity * (1 - lossRate));
+						const keptUniqueIds = sessionEggUniqueIds.slice(0, keptQuantity);
+						
+						keptUniqueIds.forEach(uniqueId => {
+							this.engine.eggUniqueIds[itemId].push(uniqueId);
+							const adjustedRequiredKills = Math.max(1, Math.floor(itemConfig.requiredKills * hatchSpeedMultiplier));
+							this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: adjustedRequiredKills };
+							this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
+						});
+					} else {
+						const keptQuantity = Math.floor(quantity * (1 - lossRate));
+						if (keptQuantity > 0) {
+							if (!this.engine.inventory[itemId]) {
+								this.engine.inventory[itemId] = 0;
+							}
+							this.engine.inventory[itemId] += keptQuantity;
+						}
 					}
 				}
 			}
@@ -82,8 +128,13 @@ export default class GameManager {
 		
 		SaveManager.saveGame(this.engine, false);
 		
-		if (result === 'defeat') {
-			this.engine.sceneManager.pushScene('gameOver', { battleScene: battleScene });
+		if (result === 'defeat' || result === 'victory') {
+			const isEndlessAfterVictory = battleScene && battleScene.isEndlessAfterVictory;
+			this.engine.sceneManager.pushScene('gameOver', { 
+				battleScene: battleScene, 
+				isVictory: result === 'victory',
+				isEndlessAfterVictory: isEndlessAfterVictory
+			});
 		} else {
 			this.showEndGameMenu(result, battleScene);
 		}

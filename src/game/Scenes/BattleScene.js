@@ -15,9 +15,11 @@ import { Spells } from '../Config/SpellConfig.js';
 import { getPokemonConfig, PokemonSprites, getPokemonLootTable } from '../Config/SpriteConfig.js';
 import { getRandomUpgrades, RarityColors, RarityGlowColors, RarityBackgroundColors, UpgradeIcons, UpgradeType, UpgradeRarity } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
+import { createStatusEffect, getEffectForPlayerPokemonType } from '../Systems/StatusEffectSystem.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
 import ChestSystem from '../Systems/ChestSystem.js';
+import { SkillTreeConfig } from '../Config/SkillTreeConfig.js';
 
 const TILE_SIZE = 32;
 
@@ -182,6 +184,7 @@ export default class BattleScene {
 		this.sessionInventory = {};
 		this.sessionEggs = {};
 		this.bossDefeated = false;
+		this.isEndlessAfterVictory = false;
 		this.chestSystem = new ChestSystem(this.engine);
 	}
 
@@ -199,6 +202,7 @@ export default class BattleScene {
 			this.sessionInventory = {};
 			this.sessionEggs = {};
 			this.bossDefeated = false;
+			this.isEndlessAfterVictory = false;
 			
 			const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 			const pokemonConfig = getPokemonConfig(selectedPokemon);
@@ -231,6 +235,8 @@ export default class BattleScene {
 					}
 				});
 			}
+			
+			this.applySkillTreeEffects();
 			
 			if (selectedPokemon) {
 				this.engine.playedPokemons.add(selectedPokemon);
@@ -368,15 +374,7 @@ export default class BattleScene {
 			this.useAssignedConsumable();
 		}
 		if (key === 'Space' && !this.upgradeChoices && this.player && this.player.attackType === 'range') {
-			console.log('Space key pressed', {
-				upgradeChoices: this.upgradeChoices,
-				hasPlayer: !!this.player,
-				attackType: this.player?.attackType,
-				currentAutoShoot: this.player?.autoShoot
-			});
-			console.log('Toggling autoShoot from', this.player.autoShoot, 'to', !this.player.autoShoot);
 			this.player.toggleAutoShoot();
-			console.log('After toggle, autoShoot is', this.player.autoShoot);
 		}
 
 		if (this.player && this.player.isAlive) {
@@ -412,6 +410,7 @@ export default class BattleScene {
 				const playerVelocityX = this.player.velocityX * 16;
 				const playerVelocityY = this.player.velocityY * 16;
 				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.width, this.player.height, playerVelocityX, playerVelocityY);
+				
 				this.updateEnemyAttacks();
 				this.updateProjectileCollisions();
 			}
@@ -508,7 +507,8 @@ export default class BattleScene {
 		}
 
 		if (enemy.isBoss) {
-			this.transferSessionRewardsToEngine();
+			// Ne pas transférer les récompenses immédiatement
+			// Elles seront transférées à la mort en endless ou au retour au village
 			this.showVictoryScreen();
 		}
 	}
@@ -532,35 +532,123 @@ export default class BattleScene {
 		this.engine.audio.play('ok', 0.5, 0.2);
 	}
 
+	getItemRarity(itemId, itemConfig) {
+		if (!itemConfig.rarity) return 'common';
+		if (itemConfig.rarity === 'legendary') return 'epic';
+		return itemConfig.rarity;
+	}
+
 	dropLootFromPokemon(x, y, pokemonName) {
 		const lootTable = getPokemonLootTable(pokemonName);
-		if (!lootTable || lootTable.length === 0) return;
+		if (!lootTable || lootTable.length === 0) {
+			return;
+		}
 
-		lootTable.forEach(loot => {
-			if (Math.random() < loot.chance) {
-				const itemConfig = ItemConfig[loot.itemId];
-				if (itemConfig) {
-					const itemImage = this.engine.sprites.get(`item_${loot.itemId}`);
-					
-					if (!itemImage) {
-						console.warn(`Sprite not found for item: item_${loot.itemId}`);
-						return;
-					}
-					
-					if (itemConfig.category === 'chest') {
-						const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
-						this.itemDropSystem.spawnItem(x, y, loot.itemId, itemImage, dropScale);
-					} else {
-						const offsetAngle = Math.random() * Math.PI * 2;
-						const offsetDistance = BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MAX;
-						const itemX = x + Math.cos(offsetAngle) * offsetDistance;
-						const itemY = y + Math.sin(offsetAngle) * offsetDistance;
-						const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
-						this.itemDropSystem.spawnItem(itemX, itemY, loot.itemId, itemImage, dropScale);
-					}
+		const lootRareChance = this.getLootRareChance();
+		const baseDropChanceBonus = this.getBaseDropChance();
+		const epicDropChanceBonus = this.getEpicDropChance();
+
+		if (lootTable.length === 0) {
+			return;
+		}
+
+		const itemsByTier = {
+			common: [],
+			rare: [],
+			epic: []
+		};
+
+		for (const loot of lootTable) {
+			const itemConfig = ItemConfig[loot.itemId];
+			if (!itemConfig) continue;
+			
+			const rarity = this.getItemRarity(loot.itemId, itemConfig);
+			
+			itemsByTier[rarity].push({
+				itemId: loot.itemId,
+				itemConfig: itemConfig,
+				rarity: rarity
+			});
+		}
+
+		const BASE_DROP_CHANCE = 0.10;
+		const finalDropChance = Math.min(1.0, BASE_DROP_CHANCE + baseDropChanceBonus);
+		const dropRoll = Math.random();
+		
+		if (dropRoll >= finalDropChance) {
+			return;
+		}
+
+		let commonChance = 0.80;
+		let rareChance = 0.15;
+		let epicChance = 0.05 + epicDropChanceBonus;
+
+		if (lootRareChance > 0) {
+			const bonus = lootRareChance * 0.3;
+			commonChance = Math.max(0.50, commonChance - bonus);
+			rareChance = Math.min(0.40, rareChance + bonus * 0.6);
+			epicChance = Math.min(0.15, epicChance + bonus * 0.4);
+		}
+
+		const total = commonChance + rareChance + epicChance;
+		commonChance /= total;
+		rareChance /= total;
+		epicChance /= total;
+
+		const tierRoll = Math.random();
+		let selectedTier = null;
+		let tierChance = 0;
+
+		if (tierRoll < commonChance) {
+			selectedTier = 'common';
+			tierChance = commonChance;
+		} else if (tierRoll < commonChance + rareChance) {
+			selectedTier = 'rare';
+			tierChance = rareChance;
+		} else {
+			selectedTier = 'epic';
+			tierChance = epicChance;
+		}
+
+		let tierItems = itemsByTier[selectedTier];
+		
+		if (tierItems.length === 0) {
+			const fallbackTiers = ['common', 'rare', 'epic'];
+			for (const fallbackTier of fallbackTiers) {
+				if (itemsByTier[fallbackTier].length > 0) {
+					selectedTier = fallbackTier;
+					tierItems = itemsByTier[fallbackTier];
+					break;
 				}
 			}
-		});
+			
+			if (tierItems.length === 0) {
+				return;
+			}
+		}
+
+		const selectedItem = tierItems[Math.floor(Math.random() * tierItems.length)];
+		const itemImage = this.engine.sprites.get(`item_${selectedItem.itemId}`);
+		
+		if (!itemImage) {
+			return;
+		}
+
+		this.spawnItemDrop(x, y, selectedItem.itemId, itemImage, selectedItem.itemConfig);
+	}
+
+	spawnItemDrop(x, y, itemId, itemImage, itemConfig) {
+		if (itemConfig.category === 'chest') {
+			const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
+			this.itemDropSystem.spawnItem(x, y, itemId, itemImage, dropScale);
+		} else {
+			const offsetAngle = Math.random() * Math.PI * 2;
+			const offsetDistance = BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MIN + Math.random() * BALANCE_CONFIG.LOOT.ITEM_DROP_OFFSET_MAX;
+			const itemX = x + Math.cos(offsetAngle) * offsetDistance;
+			const itemY = y + Math.sin(offsetAngle) * offsetDistance;
+			const dropScale = itemConfig.dropScale !== undefined ? itemConfig.dropScale : 1.0;
+			this.itemDropSystem.spawnItem(itemX, itemY, itemId, itemImage, dropScale);
+		}
 	}
 
 	spawnRegularCoin(centerX, centerY, reward) {
@@ -769,24 +857,43 @@ export default class BattleScene {
 					return;
 				}
 				
-				let damageToDeal = projectile.damage;
+				let baseDamageToDeal = projectile.damage;
 				if (projectile.hasPiercing) {
 					const pierceCount = projectile.hitEnemies.size;
 					const damageReduction = projectile.piercingDamageReduction || 0.2;
 					const damageMultiplier = Math.max(0.2, 1 - (pierceCount * damageReduction));
-					damageToDeal = Math.floor(projectile.baseDamage * damageMultiplier);
-					projectile.damage = damageToDeal;
+					baseDamageToDeal = Math.floor(projectile.baseDamage * damageMultiplier);
+					projectile.damage = baseDamageToDeal;
 				}
+				
+				const isCrit = Math.random() < projectile.critChance;
+				const damageToDeal = isCrit ? baseDamageToDeal * projectile.critDamage : baseDamageToDeal;
 				
 				const knockbackDir = this.calculateKnockbackDirection(projectile.x, projectile.y, directHitEnemy.getCenterX(), directHitEnemy.getCenterY());
 				const knockbackStrength = this.player.knockback * BALANCE_CONFIG.COMBAT.KNOCKBACK_PROJECTILE_MULTIPLIER * (directHitEnemy.isBoss ? BALANCE_CONFIG.COMBAT.KNOCKBACK_BOSS_MULTIPLIER : 1);
 				const knockbackX = knockbackDir.x * knockbackStrength;
 				const knockbackY = knockbackDir.y * knockbackStrength;
 				
-				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, projectile.isCrit);
+				this.damageNumberSystem.addDamage(directHitEnemy.getCenterX(), directHitEnemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, isCrit);
 				this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
-				const died = directHitEnemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
+				const died = directHitEnemy.takeDamage(damageToDeal, knockbackX, knockbackY, isCrit);
 				
+				if (projectile.hasEffect && Math.random() < projectile.effectProcChance) {
+					const effectType = getEffectForPlayerPokemonType(projectile.playerPokemonType);
+					const baseDamage = 5;
+					const baseIntensity = 0.5;
+					const baseDuration = 2000;
+					const statusEffect = createStatusEffect(
+						effectType,
+						baseDamage,
+						baseIntensity,
+						baseDuration,
+						projectile.effectDamageMultiplier,
+						projectile.effectIntensityMultiplier,
+						projectile.effectDurationMultiplier
+					);
+					directHitEnemy.applyStatusEffect(statusEffect);
+				}
 				
 				if (died) {
 					this.handleEnemyDeath(directHitEnemy);
@@ -814,12 +921,30 @@ export default class BattleScene {
 					const knockbackX = knockbackDir.x * knockbackStrength;
 					const knockbackY = knockbackDir.y * knockbackStrength;
 					
-							const damageToDeal = projectile.damage * this.player.aoeDamageMultiplier;
+							const baseAoeDamage = projectile.damage * this.player.aoeDamageMultiplier;
+							const isCrit = Math.random() < projectile.critChance;
+							const damageToDeal = isCrit ? baseAoeDamage * projectile.critDamage : baseAoeDamage;
 							
-							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, projectile.isCrit);
+							this.damageNumberSystem.addDamage(enemy.getCenterX(), enemy.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, damageToDeal, false, isCrit);
 					this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME, BALANCE_CONFIG.AUDIO.HIT_PITCH);
-							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, projectile.isCrit);
+							const died = enemy.takeDamage(damageToDeal, knockbackX, knockbackY, isCrit);
 					
+					if (projectile.hasEffect && Math.random() < projectile.effectProcChance) {
+						const effectType = getEffectForPlayerPokemonType(projectile.playerPokemonType);
+						const baseDamage = 2;
+						const baseIntensity = 0.5;
+						const baseDuration = 2000;
+						const statusEffect = createStatusEffect(
+							effectType,
+							baseDamage,
+							baseIntensity,
+							baseDuration,
+							projectile.effectDamageMultiplier,
+							projectile.effectIntensityMultiplier,
+							projectile.effectDurationMultiplier
+						);
+						enemy.applyStatusEffect(statusEffect);
+					}
 					
 					if (died) {
 						this.handleEnemyDeath(enemy);
@@ -1136,6 +1261,8 @@ export default class BattleScene {
 		this.engine.audio.play('orb', BALANCE_CONFIG.AUDIO.ORB_VOLUME, BALANCE_CONFIG.AUDIO.ORB_PITCH_LEVELUP);
 
 		if (leveledUp) {
+			this.engine.audio.play('pokemon_level_up', 0.7, 0.0);
+			this.player.increaseStatsOnLevelUp();
 			this.upgradeChoices = getRandomUpgrades(BALANCE_CONFIG.UI.UPGRADE_CHOICES_COUNT, this.player.upgrades, this.player);
 			this.selectedUpgradeIndex = 0;
 			this.upgradeAnimationProgress = 0;
@@ -1294,34 +1421,60 @@ export default class BattleScene {
 		const playerVelY = attackData.autoShoot ? 0 : (attackData.playerVelocityY || 0);
 		
 		let aoeRadius = 0;
-		if (this.player.hasAoE) {
+		if (this.player.hasUpgradeType && this.player.hasUpgradeType(UpgradeType.PROJECTILE_AOE)) {
 			aoeRadius = BALANCE_CONFIG.PROJECTILES.BASE_AOE_RADIUS * this.player.aoeRadiusMultiplier;
 		}
 		
-		const projectile = new Projectile(
-			this.player.getCenterX(),
-			this.player.getCenterY(),
-			targetX,
-			targetY,
-			attackData.damage,
-			BALANCE_CONFIG.PROJECTILES.BASE_SPEED_MULTIPLIER * (attackData.projectileSpeed || 1),
-			this.player.range,
-			attackData.projectileColor || '#ffff00',
-			BALANCE_CONFIG.PROJECTILES.BASE_SIZE,
-			playerVelX,
-			playerVelY,
-			attackData.isCrit || false,
-			aoeRadius,
-			false,
-			attackData.hasPiercing || false,
-			attackData.hasBounce || false,
-			attackData.bounceCount || 0,
-			attackData.piercingCount || 0,
-			attackData.bounceRange || BALANCE_CONFIG.PROJECTILES.BASE_RANGE,
-			attackData.projectileType || 'normal',
-			attackData.piercingDamageReduction || 0.2
-		);
-		this.projectiles.push(projectile);
+		const projectileCount = this.player.projectileCount || 1;
+		const spreadAngle = projectileCount > 1 ? Math.PI / 12 : 0;
+		
+		for (let i = 0; i < projectileCount; i++) {
+			let adjustedTargetX = targetX;
+			let adjustedTargetY = targetY;
+			
+			if (projectileCount > 1) {
+				const angle = Math.atan2(targetY - this.player.getCenterY(), targetX - this.player.getCenterX());
+				const offsetAngle = (i - (projectileCount - 1) / 2) * spreadAngle;
+				const distance = Math.sqrt(
+					Math.pow(targetX - this.player.getCenterX(), 2) + 
+					Math.pow(targetY - this.player.getCenterY(), 2)
+				);
+				adjustedTargetX = this.player.getCenterX() + Math.cos(angle + offsetAngle) * distance;
+				adjustedTargetY = this.player.getCenterY() + Math.sin(angle + offsetAngle) * distance;
+			}
+			
+			const projectile = new Projectile(
+				this.player.getCenterX(),
+				this.player.getCenterY(),
+				adjustedTargetX,
+				adjustedTargetY,
+				attackData.damage,
+				BALANCE_CONFIG.PROJECTILES.BASE_SPEED_MULTIPLIER * (attackData.projectileSpeed || 1) * this.player.projectileSpeedMultiplier,
+				this.player.range,
+				attackData.projectileColor || '#ffff00',
+				BALANCE_CONFIG.PROJECTILES.BASE_SIZE,
+				playerVelX,
+				playerVelY,
+				aoeRadius,
+				false,
+				attackData.hasPiercing || false,
+				attackData.hasBounce || false,
+				attackData.bounceCount || 0,
+				attackData.piercingCount || 0,
+				attackData.bounceRange || BALANCE_CONFIG.PROJECTILES.BASE_RANGE,
+				attackData.projectileType || 'normal',
+				attackData.piercingDamageReduction || 0.2,
+				attackData.hasEffect || false,
+				attackData.effectProcChance || 0,
+				attackData.effectDamageMultiplier || 1,
+				attackData.effectIntensityMultiplier || 1,
+				attackData.effectDurationMultiplier || 1,
+				attackData.playerPokemonType || 'normal',
+				this.player.critChance || 0,
+				this.player.critDamage || 1.5
+			);
+			this.projectiles.push(projectile);
+		}
 	}
 
 	handleCircularSweepAttack(attackData) {
@@ -1798,6 +1951,10 @@ export default class BattleScene {
 			[UpgradeType.PIERCING_MAX_COUNT]: { prop: 'piercingMaxCount', calc: 'add' },
 			[UpgradeType.BOUNCE_MAX_COUNT]: { prop: 'bounceMaxCount', calc: 'add' },
 			[UpgradeType.BOUNCE_DETECTION_RANGE]: { prop: 'bounceDetectionRange', calc: 'add' },
+			[UpgradeType.EFFECT_PROC_CHANCE]: { prop: 'effectProcChance', calc: 'add' },
+			[UpgradeType.EFFECT_DAMAGE]: { prop: 'effectDamageMultiplier', calc: 'multiply' },
+			[UpgradeType.EFFECT_INTENSITY]: { prop: 'effectIntensityMultiplier', calc: 'multiply' },
+			[UpgradeType.EFFECT_DURATION]: { prop: 'effectDurationMultiplier', calc: 'multiply' },
 			[UpgradeType.XP_GAIN]: { prop: 'xpGainMultiplier', calc: 'multiply' },
 			[UpgradeType.MONEY_GAIN]: { prop: 'moneyGainMultiplier', calc: 'multiply' },
 			[UpgradeType.FETCH_RANGE]: { prop: 'fetchRange', calc: 'multiply' },
@@ -1846,7 +2003,11 @@ export default class BattleScene {
 				UpgradeType.PIERCING_DAMAGE_REDUCTION,
 				UpgradeType.PIERCING_MAX_COUNT,
 				UpgradeType.BOUNCE_MAX_COUNT,
-				UpgradeType.BOUNCE_DETECTION_RANGE
+				UpgradeType.BOUNCE_DETECTION_RANGE,
+				UpgradeType.EFFECT_PROC_CHANCE,
+				UpgradeType.EFFECT_DAMAGE,
+				UpgradeType.EFFECT_INTENSITY,
+				UpgradeType.EFFECT_DURATION
 			].includes(upgrade.type);
 			
 			const formatConfig = {
@@ -1858,6 +2019,10 @@ export default class BattleScene {
 				[UpgradeType.PIERCING_MAX_COUNT]: { format: 'integer', statName: 'Transperçage' },
 				[UpgradeType.BOUNCE_MAX_COUNT]: { format: 'integer', statName: 'Rebonds' },
 				[UpgradeType.BOUNCE_DETECTION_RANGE]: { format: 'integer', statName: 'Portée' },
+				[UpgradeType.EFFECT_PROC_CHANCE]: { format: 'percent', multiplier: 100, statName: 'Chance' },
+				[UpgradeType.EFFECT_DAMAGE]: { format: 'multiplierPercent', statName: 'Dégâts' },
+				[UpgradeType.EFFECT_INTENSITY]: { format: 'multiplierPercent', statName: 'Intensité' },
+				[UpgradeType.EFFECT_DURATION]: { format: 'multiplierPercent', statName: 'Durée' },
 				[UpgradeType.XP_GAIN]: { format: 'multiplierPercent' },
 				[UpgradeType.MONEY_GAIN]: { format: 'multiplierPercent' },
 				[UpgradeType.FETCH_RANGE]: { format: 'integer' },
@@ -2146,6 +2311,27 @@ export default class BattleScene {
 			const rarityY = cardCenterY + 30;
 			renderer.ctx.strokeText(rarityName, 0, rarityY);
 			renderer.ctx.fillText(rarityName, 0, rarityY);
+			
+			// Détecter si c'est un upgrade de type de projectile initial (première upgrade)
+			const isProjectileTypeUpgrade = [
+				UpgradeType.PROJECTILE_AOE,
+				UpgradeType.PROJECTILE_PIERCING,
+				UpgradeType.PROJECTILE_BOUNCE,
+				UpgradeType.PROJECTILE_EFFECT
+			].includes(upgrade.type);
+			
+			// Badge "NEW PROJECTILE TYPE" pour les upgrades de type de projectile
+			if (isProjectileTypeUpgrade) {
+				const badgeText = 'NEW PROJECTILE TYPE';
+				renderer.ctx.font = 'bold 12px Pokemon';
+				renderer.ctx.fillStyle = '#FFD700'; // Or/doré pour le badge
+				renderer.ctx.textAlign = 'center';
+				renderer.ctx.strokeStyle = '#000';
+				renderer.ctx.lineWidth = 1.5;
+				const badgeY = rarityY + 25;
+				renderer.ctx.strokeText(badgeText, 0, badgeY);
+				renderer.ctx.fillText(badgeText, 0, badgeY);
+			}
 
 			let icon = UpgradeIcons[upgrade.type];
 			
@@ -2171,18 +2357,13 @@ export default class BattleScene {
 				UpgradeType.PIERCING_DAMAGE_REDUCTION,
 				UpgradeType.PIERCING_MAX_COUNT,
 				UpgradeType.BOUNCE_MAX_COUNT,
-				UpgradeType.BOUNCE_DETECTION_RANGE
+				UpgradeType.BOUNCE_DETECTION_RANGE,
+				UpgradeType.EFFECT_PROC_CHANCE,
+				UpgradeType.EFFECT_DAMAGE,
+				UpgradeType.EFFECT_INTENSITY,
+				UpgradeType.EFFECT_DURATION
 			].includes(upgrade.type);
 			
-			// Détecter si c'est un upgrade de type de projectile initial (première upgrade)
-			const isProjectileTypeUpgrade = [
-				UpgradeType.PROJECTILE_AOE,
-				UpgradeType.PROJECTILE_PIERCING,
-				UpgradeType.PROJECTILE_BOUNCE
-			].includes(upgrade.type);
-			
-			// Centrer l'icône et le titre pour les upgrades de projectiles
-			// Pour les upgrades de type de projectile initial, descendre plus
 			const iconY = isProjectileTypeUpgrade ? cardCenterY + 150 : (isProjectileUpgrade ? cardCenterY + 100 : cardCenterY + 110);
 			renderer.ctx.font = '48px Pokemon';
 			renderer.ctx.fillStyle = '#fff';
@@ -2200,21 +2381,36 @@ export default class BattleScene {
 			renderer.ctx.lineWidth = 1;
 			const nameY = isProjectileTypeUpgrade ? cardCenterY + 200 : (isProjectileUpgrade ? cardCenterY + 155 : cardCenterY + 165);
 			
-			// Pour les upgrades de projectiles, afficher "PROJECTILE" puis le type
 			let currentNameY = nameY;
-			if (isProjectileUpgrade) {
-				// Ligne 1: "PROJECTILE"
+			if (isProjectileTypeUpgrade) {
+				let projectileType = '';
+				if (upgrade.type === UpgradeType.PROJECTILE_AOE) {
+					projectileType = 'Explosion';
+				} else if (upgrade.type === UpgradeType.PROJECTILE_PIERCING) {
+					projectileType = 'Perforation';
+				} else if (upgrade.type === UpgradeType.PROJECTILE_BOUNCE) {
+					projectileType = 'Rebond';
+				} else if (upgrade.type === UpgradeType.PROJECTILE_EFFECT) {
+					projectileType = 'Effet';
+				}
+				
+				renderer.ctx.font = 'bold 24px Pokemon';
+				renderer.ctx.strokeText(projectileType, 0, currentNameY);
+				renderer.ctx.fillText(projectileType, 0, currentNameY);
+			} else if (isProjectileUpgrade) {
 				renderer.ctx.font = 'bold 20px Pokemon';
 				renderer.ctx.fillStyle = '#fff';
 				renderer.ctx.strokeText('PROJECTILE', 0, nameY);
 				renderer.ctx.fillText('PROJECTILE', 0, nameY);
 				
-				// Ligne 2: Type de projectile (Explosion, Perforation, Rebond)
 				let projectileType = 'Explosion';
 				if (upgrade.type === UpgradeType.PIERCING_DAMAGE_REDUCTION || upgrade.type === UpgradeType.PIERCING_MAX_COUNT) {
 					projectileType = 'Perforation';
 				} else if (upgrade.type === UpgradeType.BOUNCE_MAX_COUNT || upgrade.type === UpgradeType.BOUNCE_DETECTION_RANGE) {
 					projectileType = 'Rebond';
+				} else if (upgrade.type === UpgradeType.EFFECT_PROC_CHANCE || upgrade.type === UpgradeType.EFFECT_DAMAGE || 
+				          upgrade.type === UpgradeType.EFFECT_INTENSITY || upgrade.type === UpgradeType.EFFECT_DURATION) {
+					projectileType = 'Effet';
 				}
 				
 				renderer.ctx.font = 'bold 24px Pokemon';
@@ -2222,7 +2418,6 @@ export default class BattleScene {
 				renderer.ctx.strokeText(projectileType, 0, currentNameY);
 				renderer.ctx.fillText(projectileType, 0, currentNameY);
 			} else {
-				// Affichage normal pour les autres upgrades
 				let displayName = upgrade.name;
 				const nameLines = displayName.split('\n');
 				nameLines.forEach((line, lineIndex) => {
@@ -2255,38 +2450,40 @@ export default class BattleScene {
 					renderer.ctx.font = `${fontSize}px Pokemon`;
 					const maxWidth = cardWidth - 40;
 					
-					// Calculer le pourcentage d'augmentation
-					let percentIncrease = 0;
+					// Calculer l'augmentation
 					const isAddUpgrade = upgrade.type === UpgradeType.BOUNCE_DETECTION_RANGE || 
 					                     upgrade.type === UpgradeType.BOUNCE_MAX_COUNT ||
 					                     upgrade.type === UpgradeType.PIERCING_MAX_COUNT;
 					
+					let displayText = '';
+					const statName = valueDisplay.statName;
+					
 					if (isAddUpgrade && valueDisplay.currentValueRaw !== null && valueDisplay.newValueRaw !== null) {
 						const currentRaw = valueDisplay.currentValueRaw;
 						const newRaw = valueDisplay.newValueRaw;
-						if (currentRaw > 0) {
-							percentIncrease = Math.round(((newRaw - currentRaw) / currentRaw) * 100);
+						const absoluteIncrease = Math.round(newRaw - currentRaw);
+						displayText = `${statName} +${absoluteIncrease}`;
+					} else {
+						let percentIncrease = 0;
+						if (typeof upgrade.value === 'number') {
+							if (upgrade.value >= 1) {
+								// Multiplicateur (ex: 1.05 = +5%)
+								percentIncrease = Math.round((upgrade.value - 1) * 100);
+							} else {
+								// Pour les réductions (ex: piercing damage reduction)
+								percentIncrease = Math.round(upgrade.value * 100);
+							}
 						}
-					} else if (typeof upgrade.value === 'number') {
-						if (upgrade.value >= 1) {
-							// Multiplicateur (ex: 1.05 = +5%)
-							percentIncrease = Math.round((upgrade.value - 1) * 100);
-						} else {
-							// Pour les réductions (ex: piercing damage reduction)
-							percentIncrease = Math.round(upgrade.value * 100);
-						}
+						displayText = `${statName} +${percentIncrease}%`;
 					}
 					
-					// Ligne 1: "{StatName} +x%" dans la couleur de rareté
-					const statName = valueDisplay.statName;
-					const percentText = `${statName} +${percentIncrease}%`;
-					let textWidth = renderer.ctx.measureText(percentText).width;
+					let textWidth = renderer.ctx.measureText(displayText).width;
 					
 					// Vérifier la largeur et ajuster la taille de police si nécessaire
 					if (textWidth > maxWidth) {
 						fontSize = Math.max(12, Math.floor(18 * (maxWidth / textWidth) * 0.95));
 						renderer.ctx.font = `${fontSize}px Pokemon`;
-						textWidth = renderer.ctx.measureText(percentText).width;
+						textWidth = renderer.ctx.measureText(displayText).width;
 						
 						if (textWidth > maxWidth) {
 							fontSize = Math.max(10, Math.floor(fontSize * (maxWidth / textWidth) * 0.95));
@@ -2295,9 +2492,9 @@ export default class BattleScene {
 					}
 					
 					renderer.ctx.textAlign = 'center';
-					renderer.ctx.fillStyle = '#ffd700'; //seleciton yellow
-					renderer.ctx.strokeText(percentText, 0, lineY);
-					renderer.ctx.fillText(percentText, 0, lineY);
+					renderer.ctx.fillStyle = '#ffd700';
+					renderer.ctx.strokeText(displayText, 0, lineY);
+					renderer.ctx.fillText(displayText, 0, lineY);
 					
 					// Ligne 2: Valeurs "5 → 7"
 					lineY += 25;
@@ -2391,7 +2588,8 @@ export default class BattleScene {
 					
 					const isPercentageStat = upgrade.type === UpgradeType.CRIT_CHANCE || 
 					                          upgrade.type === UpgradeType.CRIT_DAMAGE ||
-					                          upgrade.type === UpgradeType.HP_REGEN;
+					                          upgrade.type === UpgradeType.HP_REGEN ||
+					                          upgrade.type === UpgradeType.EFFECT_PROC_CHANCE;
 					
 					let currentValueStr = valueDisplay.currentValue;
 					let newValueStr = valueDisplay.newValue;
@@ -2572,7 +2770,8 @@ export default class BattleScene {
 				const sessionEggUniqueIds = this.sessionEggs[itemId] || [];
 				sessionEggUniqueIds.forEach(uniqueId => {
 					this.engine.eggUniqueIds[itemId].push(uniqueId);
-					this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: itemConfig.requiredKills };
+					const adjustedRequiredKills = Math.max(1, Math.floor(itemConfig.requiredKills * this.getEggHatchSpeedMultiplier()));
+					this.engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: adjustedRequiredKills };
 					this.engine.inventory[itemId] = (this.engine.inventory[itemId] || 0) + 1;
 				});
 			} else {
@@ -2587,6 +2786,8 @@ export default class BattleScene {
 	}
 
 	showVictoryScreen() {
+		// Mettre le jeu en pause sans tuer le joueur
+		this.state = 'victory';
 		this.engine.gameManager.endGame('victory', this);
 	}
 
@@ -2605,6 +2806,201 @@ export default class BattleScene {
 
 	showDefeatMenu() {
 		this.engine.gameManager.endGame('defeat', this);
+	}
+
+	applySkillTreeEffects() {
+		if (!this.player || !this.engine.skillTreeState) return;
+
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+
+				const rank = nodeState.currentRank;
+				const effect = node.effect;
+
+				if (effect.damageMultiplier) {
+					const multiplier = Math.pow(effect.damageMultiplier, rank);
+					this.player.damage *= multiplier;
+				}
+
+				if (effect.hpMultiplier) {
+					const multiplier = Math.pow(effect.hpMultiplier, rank);
+					const oldMaxHp = this.player.maxHp;
+					this.player.maxHp *= multiplier;
+					const hpRatio = this.player.hp / oldMaxHp;
+					this.player.hp = this.player.maxHp * hpRatio;
+					this.player.displayedHp = this.player.hp;
+				}
+
+				if (effect.regen) {
+					this.player.hpRegen += effect.regen * rank;
+				}
+
+				if (effect.projectileSpeedMultiplier) {
+					const multiplier = Math.pow(effect.projectileSpeedMultiplier, rank);
+					this.player.projectileSpeedMultiplier *= multiplier;
+				}
+
+				if (effect.extraProjectile) {
+					this.player.projectileCount += effect.extraProjectile * rank;
+				}
+
+				if (effect.critChance) {
+					this.player.critChance = (this.player.critChance || 0) + (effect.critChance * rank);
+				}
+
+				if (effect.critDamage) {
+					this.player.critDamage = (this.player.critDamage || 1.5) + (effect.critDamage * rank);
+				}
+
+				if (effect.attackSpeedMultiplier) {
+					const multiplier = Math.pow(effect.attackSpeedMultiplier, rank);
+					this.player.attackSpeed *= multiplier;
+					this.player.attackCooldownMax = 1000 / this.player.attackSpeed;
+				}
+
+				if (effect.rangeMultiplier) {
+					const multiplier = Math.pow(effect.rangeMultiplier, rank);
+					this.player.range *= multiplier;
+				}
+
+				if (effect.speedMultiplier) {
+					const multiplier = Math.pow(effect.speedMultiplier, rank);
+					this.player.speed *= multiplier;
+				}
+
+				if (effect.knockbackMultiplier) {
+					const multiplier = Math.pow(effect.knockbackMultiplier, rank);
+					this.player.knockback *= multiplier;
+				}
+
+				if (effect.xpGainMultiplier) {
+					const multiplier = Math.pow(effect.xpGainMultiplier, rank);
+					this.player.xpGainMultiplier *= multiplier;
+				}
+
+				if (effect.moneyGainMultiplier) {
+					const multiplier = Math.pow(effect.moneyGainMultiplier, rank);
+					this.player.moneyGainMultiplier *= multiplier;
+				}
+
+				if (effect.fetchRangeMultiplier) {
+					const multiplier = Math.pow(effect.fetchRangeMultiplier, rank);
+					this.player.fetchRange *= multiplier;
+				}
+
+				if (effect.maxSpells) {
+					this.player.maxSpells = (this.player.maxSpells || 3) + (effect.maxSpells * rank);
+				}
+			}
+		}
+	}
+
+	getEggHatchSpeedMultiplier() {
+		if (!this.engine.skillTreeState) return 1.0;
+		let multiplier = 1.0;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.eggHatchSpeedMultiplier) {
+					const rank = nodeState.currentRank;
+					multiplier *= Math.pow(node.effect.eggHatchSpeedMultiplier, rank);
+				}
+			}
+		}
+		return multiplier;
+	}
+
+	getEggIVBonus() {
+		if (!this.engine.skillTreeState) return 1;
+		let bonus = 1;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.eggIVBonus) {
+					bonus += node.effect.eggIVBonus * nodeState.currentRank;
+				}
+			}
+		}
+		return bonus;
+	}
+
+	getItemLossReduction() {
+		if (!this.engine.skillTreeState) return 0;
+		let reduction = 0;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.itemLossReduction) {
+					reduction += node.effect.itemLossReduction * nodeState.currentRank;
+				}
+			}
+		}
+		return Math.min(reduction, 0.5);
+	}
+
+	getLootRareChance() {
+		if (!this.engine.skillTreeState) return 0;
+		let chance = 0;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.lootRareChance) {
+					chance += node.effect.lootRareChance * nodeState.currentRank;
+				}
+			}
+		}
+		return chance;
+	}
+
+	getBaseDropChance() {
+		if (!this.engine.skillTreeState) return 0;
+		let bonus = 0;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.baseDropChance) {
+					bonus += node.effect.baseDropChance * nodeState.currentRank;
+				}
+			}
+		}
+		return bonus;
+	}
+
+	getEpicDropChance() {
+		if (!this.engine.skillTreeState) return 0;
+		let bonus = 0;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.epicDropChance) {
+					bonus += node.effect.epicDropChance * nodeState.currentRank;
+				}
+			}
+		}
+		return bonus;
+	}
+
+	getShinyChance() {
+		if (!this.engine.skillTreeState) return 0.001;
+		let chance = 0.001;
+		for (const branch of SkillTreeConfig.branches) {
+			for (const node of branch.nodes) {
+				const nodeState = this.engine.skillTreeState[node.id];
+				if (!nodeState || nodeState.currentRank <= 0) continue;
+				if (node.effect.shinyChance) {
+					chance += node.effect.shinyChance * nodeState.currentRank;
+				}
+			}
+		}
+		return Math.min(chance, 1.0);
 	}
 
 	applyGrayscaleFilter(renderer) {

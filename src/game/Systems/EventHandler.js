@@ -14,8 +14,8 @@ export default class EventHandler {
 			case 'shop':
 				this.openShop();
 				break;
-			default:
-				console.log(`Unhandled event: ${eventId}`);
+		default:
+			break;
 		}
 	}
 
@@ -44,7 +44,6 @@ export default class EventHandler {
 	}
 
 	openShop() {
-		console.log('Shop not implemented yet');
 	}
 }
 

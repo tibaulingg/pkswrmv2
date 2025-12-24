@@ -1,5 +1,5 @@
 export default class Projectile {
-	constructor(x, y, targetX, targetY, damage, speed = 0.6, maxDistance = 600, color = '#ffff00', size = 8, playerVelocityX = 0, playerVelocityY = 0, isCrit = false, aoeRadius = 0, isEnemy = false, hasPiercing = false, hasBounce = false, bounceCount = 0, piercingCount = 0, bounceRange = 300, type = 'normal', piercingDamageReduction = 0.2) {
+	constructor(x, y, targetX, targetY, damage, speed = 0.6, maxDistance = 600, color = '#ffff00', size = 8, playerVelocityX = 0, playerVelocityY = 0, aoeRadius = 0, isEnemy = false, hasPiercing = false, hasBounce = false, bounceCount = 0, piercingCount = 0, bounceRange = 300, type = 'normal', piercingDamageReduction = 0.2, hasEffect = false, effectProcChance = 0, effectDamageMultiplier = 1, effectIntensityMultiplier = 1, effectDurationMultiplier = 1, playerPokemonType = 'normal', critChance = 0, critDamage = 1.5) {
 		this.x = x;
 		this.y = y;
 		this.baseDamage = damage;
@@ -7,13 +7,20 @@ export default class Projectile {
 		this.color = color;
 		this.size = size;
 		this.isActive = true;
-		this.isCrit = isCrit;
 		this.maxDistance = maxDistance;
 		this.traveledDistance = 0;
 		this.aoeRadius = aoeRadius;
 		this.hasAoE = aoeRadius > 0;
 		this.hasPiercing = hasPiercing;
 		this.hasBounce = hasBounce;
+		this.hasEffect = hasEffect;
+		this.effectProcChance = effectProcChance;
+		this.effectDamageMultiplier = effectDamageMultiplier;
+		this.effectIntensityMultiplier = effectIntensityMultiplier;
+		this.effectDurationMultiplier = effectDurationMultiplier;
+		this.playerPokemonType = playerPokemonType;
+		this.critChance = critChance;
+		this.critDamage = critDamage;
 		this.bounceCount = bounceCount;
 		this.currentBounces = 0;
 		this.piercingCount = piercingCount;

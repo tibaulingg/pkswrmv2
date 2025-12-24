@@ -3,6 +3,7 @@ export const ItemConfig = {
 		id: 'key',
 		name: 'Clé',
 		category: 'relic',
+		rarity: 'common',
 		iconImage: '/sprites/items/key.png',
 		description: 'Permet d\'ouvrir des coffres',
 	},
@@ -10,6 +11,7 @@ export const ItemConfig = {
 		id: 'rattata_tail',
 		name: 'Queue de Rattata',
 		category: 'misc',
+		rarity: 'common',
 		iconImage: '/sprites/items/rattata_tail.png',
 		description: 'Peut être vendue',
 	},
@@ -17,6 +19,7 @@ export const ItemConfig = {
 		id: 'bronze_chest',
 		name: 'Coffre en Bronze',
 		category: 'chest',
+		rarity: 'rare',
 		icon: '',
 		iconImage: '/sprites/items/bronze_chest.png',
 		description: 'Coffre en Bronze, peut contenir des objets',
@@ -29,6 +32,7 @@ export const ItemConfig = {
 		id: 'apple',
 		name: 'Pomme',
 		category: 'consumable',
+		rarity: 'common',
 		iconImage: '/sprites/items/apple.png',
 		description: 'Restaure 50 HP',
 		effect: {
@@ -40,6 +44,7 @@ export const ItemConfig = {
 		id: 'golden_apple',
 		name: 'Pomme Dorée',
 		category: 'consumable',
+		rarity: 'rare',
 		iconImage: '/sprites/items/golden_apple.png',
 		description: 'Restaure 200 HP',
 		effect: {
@@ -51,6 +56,7 @@ export const ItemConfig = {
 		id: 'mystic_water',
 		name: 'Eau Mystique',
 		category: 'equipable',
+		rarity: 'epic',
 		icon: '',
 		iconImage: '/sprites/items/mystic_water.png',
 		description: 'Augmente les dégâts d\'eau de 10%',
@@ -88,7 +94,7 @@ export const ItemConfig = {
 		description: 'Un oeuf épique',
 		rarity: 'epic',
 		requiredKills: 50,
-		possiblePokemon: ['kecleon', 'quagsire']
+		possiblePokemon: ['kecleon', 'quagsire', 'ditto', 'chansey']
 	},
 	egg_legendary: {
 		id: 'egg_legendary',
@@ -96,7 +102,7 @@ export const ItemConfig = {
 		category: 'egg',
 		iconImage: '/sprites/items/egg_legendary.png',
 		description: 'Un oeuf légendaire',
-		rarity: 'legendary',
+		rarity: 'epic',
 		requiredKills: 100,
 		possiblePokemon: ['garchomp']
 	}

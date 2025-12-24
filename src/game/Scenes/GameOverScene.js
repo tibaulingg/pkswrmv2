@@ -14,31 +14,87 @@ export default class GameOverScene {
 	init(data) {
 		this.selectedIndex = 0;
 		this.battleScene = data?.battleScene || null;
-		this.isDefeat = true;
+		this.isDefeat = data?.isVictory === false || (data?.isVictory === undefined && true);
+		this.isEndlessAfterVictory = data?.isEndlessAfterVictory || false;
 		this.itemAnimations = {};
 		this.animationStartTime = 0;
 		
+		// Jouer la musique de victoire (la musique de défaite est déjà jouée dans startDeathAnimation)
+		if (!this.isDefeat) {
+			this.engine.audio.playMusic('victory', 0.7, false);
+		}
+		
 		if (this.battleScene) {
-			const moneyGained = this.battleScene.player.money - (this.battleScene.initialMoney || 0);
-			const moneyOriginal = Math.floor(moneyGained);
-			const moneyKept = Math.floor(moneyOriginal / 2);
-			this.itemAnimations['money'] = {
-				original: moneyOriginal,
-				target: moneyKept,
-				current: moneyOriginal
-			};
-			
-			const sessionInventory = this.battleScene.sessionInventory || {};
-			Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
-				if (quantity > 0) {
-					const keptQuantity = Math.floor(quantity / 2);
-					this.itemAnimations[itemId] = {
-						original: quantity,
-						target: keptQuantity,
-						current: quantity
+			if (this.isDefeat) {
+				// Défaite : réduire les items de moitié SAUF si c'est en endless après victoire
+				if (this.isEndlessAfterVictory) {
+					// Endless après victoire : garder tous les items (pas de réduction)
+					const moneyGained = this.battleScene.player.money - (this.battleScene.initialMoney || 0);
+					const moneyTotal = Math.floor(moneyGained);
+					if (moneyTotal > 0) {
+						this.itemAnimations['money'] = {
+							original: moneyTotal,
+							target: moneyTotal,
+							current: moneyTotal
+						};
+					}
+					
+					const sessionInventory = this.battleScene.sessionInventory || {};
+					Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
+						if (quantity > 0) {
+							this.itemAnimations[itemId] = {
+								original: quantity,
+								target: quantity,
+								current: quantity
+							};
+						}
+					});
+				} else {
+					// Défaite normale : réduire les items de moitié
+					const moneyGained = this.battleScene.player.money - (this.battleScene.initialMoney || 0);
+					const moneyOriginal = Math.floor(moneyGained);
+					const moneyKept = Math.floor(moneyOriginal / 2);
+					this.itemAnimations['money'] = {
+						original: moneyOriginal,
+						target: moneyKept,
+						current: moneyOriginal
+					};
+					
+					const sessionInventory = this.battleScene.sessionInventory || {};
+					Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
+						if (quantity > 0) {
+							const keptQuantity = Math.floor(quantity / 2);
+							this.itemAnimations[itemId] = {
+								original: quantity,
+								target: keptQuantity,
+								current: quantity
+							};
+						}
+					});
+				}
+			} else {
+				// Victoire : garder tous les items (pas de réduction)
+				const moneyGained = this.battleScene.player.money - (this.battleScene.initialMoney || 0);
+				const moneyTotal = Math.floor(moneyGained);
+				if (moneyTotal > 0) {
+					this.itemAnimations['money'] = {
+						original: moneyTotal,
+						target: moneyTotal,
+						current: moneyTotal
 					};
 				}
-			});
+				
+				const sessionInventory = this.battleScene.sessionInventory || {};
+				Object.entries(sessionInventory).forEach(([itemId, quantity]) => {
+					if (quantity > 0) {
+						this.itemAnimations[itemId] = {
+							original: quantity,
+							target: quantity,
+							current: quantity
+						};
+					}
+				});
+			}
 		}
 	}
 
@@ -84,20 +140,49 @@ export default class GameOverScene {
 		const options = [];
 		
 		if (this.battleScene) {
-			options.push({
-				label: 'Rejouer',
-				action: (engine) => {
-					engine.sceneManager.popScene();
-					if (this.battleScene.mapData) {
-						engine.gameManager.startGame(this.battleScene.mapData);
+			if (this.isDefeat) {
+				options.push({
+					label: 'Rejouer',
+					action: (engine) => {
+						engine.sceneManager.popScene();
+						if (this.battleScene.mapData) {
+							engine.gameManager.startGame(this.battleScene.mapData);
+						}
 					}
-				}
-			});
+				});
+			} else {
+				// Victoire : option pour continuer en mode endless
+				options.push({
+					label: 'Continuer (Endless)',
+					action: (engine) => {
+						engine.sceneManager.popScene();
+						// Reprendre le jeu en mode endless
+						// Ne pas transférer les récompenses maintenant, elles seront données à la mort
+						this.battleScene.isEndlessAfterVictory = true;
+						this.battleScene.bossDefeated = true;
+						this.battleScene.bossSpawned = false;
+						this.battleScene.boss = null;
+						if (this.battleScene.mapData && this.battleScene.mapData.bossTimer) {
+							this.battleScene.bossTimer = this.battleScene.mapData.bossTimer;
+						}
+						this.battleScene.state = 'playing';
+						engine.audio.stopMusic();
+						const musicName = `map_${this.battleScene.mapData.image}`;
+						engine.audio.playMusic(musicName);
+					}
+				});
+			}
 		}
 		
 		options.push({
 			label: 'Retour au Village',
 			action: (engine) => {
+				// Si on retourne au village depuis la victoire, transférer les récompenses
+				if (this.battleScene && !this.isDefeat && !this.battleScene.isEndlessAfterVictory) {
+					if (this.battleScene.transferSessionRewardsToEngine) {
+						this.battleScene.transferSessionRewardsToEngine();
+					}
+				}
 				engine.sceneManager.popScene();
 				engine.sceneManager.changeScene('game', { enteringFromTop: true });
 			}

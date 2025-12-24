@@ -218,6 +218,7 @@ export default class MainMenuScene {
 		this.engine.totalPlayTime = 0;
 		this.engine.gamesPlayed = 0;
 		this.engine.pokemonIVs = {};
+		this.engine.skillTreeState = {};
 		
 		if (selectedPokemon) {
 			this.engine.pokemonIVs[selectedPokemon] = generateStarterIVs();
@@ -556,6 +557,8 @@ export default class MainMenuScene {
 				const y = pokemonY;
 				
 				const pokemonSprite = this.engine.sprites.get(`pokemon_${pokemonName}_normal`);
+				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[pokemonName] ? this.engine.pokemonIVs[pokemonName] : null;
+				const isShiny = ivs && ivs.shiny;
 				
 				if (pokemonSprite) {
 					if (index === this.selectedPokemonIndex && this.pseudoValidated) {
@@ -563,11 +566,31 @@ export default class MainMenuScene {
 						renderer.drawStrokeRect(x - 4, y - 4, pokemonIconSize + 8, pokemonIconSize + 8, '#ffff00', 3);
 					}
 					
+					if (isShiny) {
+						renderer.ctx.save();
+						renderer.ctx.globalAlpha = 0.2;
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.fillRect(x - 2, y - 2, pokemonIconSize + 4, pokemonIconSize + 4);
+						renderer.ctx.globalAlpha = 1;
+						renderer.ctx.restore();
+					}
+					
 					renderer.drawImage(pokemonSprite, x, y, pokemonIconSize, pokemonIconSize);
+					
+					if (isShiny) {
+						renderer.ctx.save();
+						renderer.ctx.font = 'bold 16px Pokemon';
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.strokeStyle = '#000000';
+						renderer.ctx.lineWidth = 2;
+						renderer.ctx.strokeText('✨', x + pokemonIconSize - 12, y + 2);
+						renderer.ctx.fillText('✨', x + pokemonIconSize - 12, y + 2);
+						renderer.ctx.restore();
+					}
 				}
 				
 				renderer.ctx.save();
-				renderer.ctx.fillStyle = (index === this.selectedPokemonIndex && this.pseudoValidated) ? '#ffff00' : '#ffffff';
+				renderer.ctx.fillStyle = (index === this.selectedPokemonIndex && this.pseudoValidated) ? '#ffff00' : (isShiny ? '#FFD700' : '#ffffff');
 				renderer.ctx.font = '14px Pokemon';
 				renderer.ctx.textAlign = 'center';
 				renderer.ctx.fillText(pokemonName, x + pokemonIconSize / 2, y + pokemonIconSize + 15);

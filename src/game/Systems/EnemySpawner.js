@@ -27,12 +27,25 @@ export default class EnemySpawner {
 		this.bossSpawned = false;
 		this.totalEnemiesKilled = 0;
 		this.maxEnemyDistance = 1200;
+		this.frozenEnemyLevel = null;
+		this.spawnFreezeTimer = 0;
+		this.spawnFrozen = false;
 	}
 
 	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32, playerVelocityX = 0, playerVelocityY = 0) {
 		this.gameTime += deltaTime;
 		this.spawnTimer += deltaTime;
 		this.difficultyUpdateTimer += deltaTime;
+
+		// Gestion du freeze des spawns après le boss
+		if (this.spawnFrozen) {
+			this.spawnFreezeTimer += deltaTime;
+			const freezeDuration = 5000 + Math.random() * 3000; // 5-8 secondes
+			if (this.spawnFreezeTimer >= freezeDuration) {
+				this.spawnFrozen = false;
+				this.spawnFreezeTimer = 0;
+			}
+		}
 
 		if (this.difficultyUpdateTimer >= this.difficultyUpdateInterval) {
 			this.updateDifficulty();
@@ -48,7 +61,12 @@ export default class EnemySpawner {
 		const spawnRateMultiplier = Math.max(0.3, 1 - (currentEnemyCount / this.maxEnemies) * 0.7);
 		const adjustedSpawnInterval = this.spawnInterval / spawnRateMultiplier;
 
-		if (this.spawnTimer >= adjustedSpawnInterval && currentEnemyCount < this.maxEnemies) {
+		// Ne pas spawner si freeze actif ou si boss présent avec cap
+		const boss = this.getBoss();
+		const bossAlive = boss && boss.isAlive;
+		const shouldSpawn = !this.spawnFrozen && (!bossAlive || currentEnemyCount < this.getBossMaxEnemies());
+
+		if (this.spawnTimer >= adjustedSpawnInterval && currentEnemyCount < this.maxEnemies && shouldSpawn) {
 			const spawnCount = Math.min(this.spawnCount, this.maxEnemies - currentEnemyCount);
 			for (let i = 0; i < spawnCount; i++) {
 				if (currentEnemyCount < this.maxEnemies) {
@@ -69,6 +87,16 @@ export default class EnemySpawner {
 
 		this.cleanupDistantEnemies(playerX, playerY);
 
+		const deadEnemies = this.enemies.filter(enemy => !enemy.isAlive);
+		if (deadEnemies.length > 0 && this.engine && this.engine.sceneManager) {
+			const battleScene = this.engine.sceneManager.scenes.battle;
+			if (battleScene && battleScene.handleEnemyDeath) {
+				deadEnemies.forEach(enemy => {
+					battleScene.handleEnemyDeath(enemy);
+				});
+			}
+		}
+
 		const beforeCount = this.enemies.length;
 		this.enemies = this.enemies.filter(enemy => enemy.isAlive);
 		const afterCount = this.enemies.length;
@@ -78,9 +106,34 @@ export default class EnemySpawner {
 	updateDifficulty() {
 		const minutes = this.gameTime / 60000;
 		
-		this.spawnInterval = Math.max(500, this.baseSpawnInterval - (minutes * 150));
+		// Calcul du temps avant le boss
+		const timeUntilBoss = this.bossTimer ? (this.bossTimer - this.gameTime) : Infinity;
+		const preBossWindowStart = 40000; // 40s avant
+		const preBossWindowEnd = 20000; // 20s avant
+		const isPreBoss = !this.bossSpawned && timeUntilBoss <= preBossWindowStart && timeUntilBoss >= preBossWindowEnd;
 		
-		this.maxEnemies = Math.min(80, this.baseMaxEnemies + Math.floor(minutes * 5));
+		// Réduire progressivement le spawn rate avant le boss
+		if (isPreBoss) {
+			const progress = (preBossWindowStart - timeUntilBoss) / (preBossWindowStart - preBossWindowEnd);
+			const baseInterval = Math.max(500, this.baseSpawnInterval - (minutes * 150));
+			const reducedInterval = baseInterval * (1 + progress * 2); // Augmente progressivement (réduit le spawn rate)
+			this.spawnInterval = reducedInterval;
+		} else {
+			this.spawnInterval = Math.max(500, this.baseSpawnInterval - (minutes * 150));
+		}
+		
+		// Geler le scaling HP avant le boss
+		if (isPreBoss && this.frozenEnemyLevel === null) {
+			this.frozenEnemyLevel = this.calculateEnemyLevel();
+		}
+		
+		// Pendant le boss, limiter maxEnemies
+		const boss = this.getBoss();
+		if (boss && boss.isAlive) {
+			this.maxEnemies = Math.min(this.maxEnemies, this.getBossMaxEnemies());
+		} else {
+			this.maxEnemies = Math.min(80, this.baseMaxEnemies + Math.floor(minutes * 5));
+		}
 		
 		if (minutes < 1) {
 			this.spawnCount = 3;
@@ -92,6 +145,11 @@ export default class EnemySpawner {
 			this.spawnCount = 6;
 		} else if (minutes >= 8 && this.spawnCount < 8) {
 			this.spawnCount = 8;
+		}
+		
+		// Réduire spawnCount pendant le boss
+		if (boss && boss.isAlive) {
+			this.spawnCount = Math.min(this.spawnCount, 3);
 		}
 	}
 
@@ -216,7 +274,7 @@ export default class EnemySpawner {
 
 		const level = this.calculateEnemyLevel();
 		const pokemonConfig = config.pokemon && this.spriteManager ? getPokemonConfig(config.pokemon) : null;
-		const enemy = new Enemy(clampedX, clampedY, enemyType, config, animationSystem, level, particleColor, pokemonConfig);
+		const enemy = new Enemy(clampedX, clampedY, enemyType, config, animationSystem, level, particleColor, pokemonConfig, this.spriteManager);
 		
 		if (pokemonConfig) {
 			enemy.projectileColor = pokemonConfig.projectileColor || enemy.projectileColor;
@@ -227,6 +285,11 @@ export default class EnemySpawner {
 	}
 
 	calculateEnemyLevel() {
+		// Si le niveau est gelé (pré-boss), utiliser le niveau gelé
+		if (this.frozenEnemyLevel !== null) {
+			return this.frozenEnemyLevel;
+		}
+		
 		const timeMinutes = this.gameTime / 60000;
 		const baseLevel = 1;
 		const levelPerMinute = 2.0;
@@ -258,6 +321,21 @@ export default class EnemySpawner {
 
 		const config = EnemyTypes[this.bossType];
 		if (!config) return;
+
+		// Détruire 60-80% des mobs existants
+		const aliveEnemies = this.enemies.filter(e => e.isAlive && !e.isBoss);
+		const killPercentage = 0.6 + Math.random() * 0.2; // 60-80%
+		const enemiesToKill = Math.floor(aliveEnemies.length * killPercentage);
+		
+		// Mélanger et tuer aléatoirement
+		const shuffled = [...aliveEnemies].sort(() => Math.random() - 0.5);
+		for (let i = 0; i < enemiesToKill && i < shuffled.length; i++) {
+			shuffled[i].isAlive = false;
+		}
+		
+		// Geler les spawns 5-8 secondes
+		this.spawnFrozen = true;
+		this.spawnFreezeTimer = 0;
 
 		if (this.engine && config.pokemon) {
 			this.engine.encounteredPokemons.add(config.pokemon);
@@ -351,7 +429,7 @@ export default class EnemySpawner {
 
 		const level = this.calculateEnemyLevel();
 		const pokemonConfig = config.pokemon && this.spriteManager ? getPokemonConfig(config.pokemon) : null;
-		const boss = new Enemy(clampedX, clampedY, this.bossType, config, animationSystem, level, particleColor, pokemonConfig);
+		const boss = new Enemy(clampedX, clampedY, this.bossType, config, animationSystem, level, particleColor, pokemonConfig, this.spriteManager);
 		boss.isBoss = true;
 		
 		if (pokemonConfig) {
@@ -381,6 +459,11 @@ export default class EnemySpawner {
 		return this.enemies.find(enemy => enemy.isBoss && enemy.isAlive);
 	}
 
+	getBossMaxEnemies() {
+		// Cap d'ennemis pendant le boss
+		return 20;
+	}
+
 	render(renderer, debug = 0) {
 		this.enemies.forEach(enemy => {
 			enemy.render(renderer, debug);
@@ -390,6 +473,9 @@ export default class EnemySpawner {
 	clear() {
 		this.enemies = [];
 		this.bossSpawned = false;
+		this.frozenEnemyLevel = null;
+		this.spawnFreezeTimer = 0;
+		this.spawnFrozen = false;
 	}
 }
 

@@ -3,7 +3,7 @@ export const Maps = [
 		id: 0,
 		name: 'Forêt',
 		image: 'forest',
-		bossTimer: 120000,
+		bossTimer: 120000, //2min
 		bossType: 'boss_rattata',
 		arrowX: 523,
 		arrowY: 276

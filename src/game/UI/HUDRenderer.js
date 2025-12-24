@@ -1,6 +1,6 @@
 import { EnemyTypes } from '../Config/EnemyConfig.js';
 import { ItemConfig } from '../Config/ItemConfig.js';
-import { RarityColors, UpgradeRarity } from '../Config/UpgradeConfig.js';
+import { RarityColors, UpgradeRarity, UpgradeType } from '../Config/UpgradeConfig.js';
 
 export default class HUDRenderer {
 	constructor() {
@@ -21,6 +21,7 @@ export default class HUDRenderer {
 			}
 		}
 
+		this.renderTopLeftInfo(renderer, survivalTime, battleScene);
 		this.renderHUDBackground(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine);
 		this.renderHPXP(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
 		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss, battleScene);
@@ -34,37 +35,18 @@ export default class HUDRenderer {
 		const scale = 1 + growthProgress * 0.15;
 		const glowIntensity = isAnimated ? (1 - animationProgress) * 0.8 : 0;
 		
-		const labelCenterX = x + labelWidth / 2;
-		const labelCenterY = y + fontSize / 2;
 		const finalValueX = valueX !== null ? valueX : (x + labelWidth + spacing);
 		const valueCenterY = y + fontSize / 2;
 		
 		renderer.ctx.save();
 		
-		if (isAnimated) {
-			renderer.ctx.translate(labelCenterX, labelCenterY);
-			renderer.ctx.scale(scale, scale);
-			renderer.ctx.translate(-labelCenterX, -labelCenterY);
-		}
-		
-		if (glowIntensity > 0) {
-			renderer.ctx.shadowColor = 'rgba(255, 255, 0, ' + glowIntensity + ')';
-			renderer.ctx.shadowBlur = 10 * glowIntensity;
-		}
-		
 		renderer.ctx.textAlign = 'left';
 		renderer.ctx.textBaseline = 'top';
 		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
-		
-		if (isAnimated) {
-			renderer.ctx.fillStyle = '#ffff00';
-		} else {
-			renderer.ctx.fillStyle = labelColor;
-		}
-		
+		renderer.ctx.fillStyle = '#ffffff';
 		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
-		renderer.ctx.strokeText(label, x + strokeOffset, y + strokeOffset);
+		renderer.ctx.lineWidth = 2.5;
+		renderer.ctx.strokeText(label, x, y);
 		renderer.ctx.fillText(label, x, y);
 		
 		renderer.ctx.restore();
@@ -83,23 +65,17 @@ export default class HUDRenderer {
 		}
 
 		renderer.ctx.font = `${fontSize}px Pokemon`;
-		
-		if (isAnimated) {
-			renderer.ctx.fillStyle = '#ffff00';
-		} else {
-			renderer.ctx.fillStyle = '#ffffff';
-		}
-		
+		renderer.ctx.fillStyle = '#ffff00';
 		renderer.ctx.strokeStyle = strokeColor;
-		renderer.ctx.lineWidth = 1;
+		renderer.ctx.lineWidth = 2.5;
 		
 		if (valueX !== null) {
 			renderer.ctx.textAlign = 'right';
-			renderer.ctx.strokeText(value, finalValueX - strokeOffset, y + strokeOffset);
+			renderer.ctx.strokeText(value, finalValueX, y);
 			renderer.ctx.fillText(value, finalValueX, y);
 		} else {
 			renderer.ctx.textAlign = 'left';
-			renderer.ctx.strokeText(value, finalValueX + strokeOffset, y + strokeOffset);
+			renderer.ctx.strokeText(value, finalValueX, y);
 			renderer.ctx.fillText(value, finalValueX, y);
 		}
 		
@@ -113,12 +89,12 @@ export default class HUDRenderer {
 		const minimapY = 10;
 		
 		const padding = 10;
-		const statsStartY = minimapY + minimapSize + 15;
+		const statsStartY = 70;
 		const fontSize = 20;
 		const statsFontSize = 18;
 		const lineHeight = fontSize + 4;
 		const statsLineHeight = statsFontSize + 4;
-		const strokeOffset = 1;
+		const strokeOffset = 2.5;
 		const strokeColor = '#000000';
 		const labelColor = '#E58E72';
 		const barGreen = '#30B72C';
@@ -151,13 +127,13 @@ export default class HUDRenderer {
 
 		const stats = [
 			{ label: 'ATK', key: 'damage' },
-			{ label: 'SPD', key: 'speed' },
-			{ label: 'ASP', key: 'attackSpeed' },
-			{ label: 'RNG', key: 'range' },
+			{ label: 'SPEED', key: 'speed' },
+			{ label: 'ATKSP', key: 'attackSpeed' },
+			{ label: 'RANGE', key: 'range' },
 			{ label: 'CRIT', key: 'critChance' },
 			{ label: 'CDMG', key: 'critDamage' },
-			{ label: 'REG', key: 'hpRegen' },
-			{ label: 'KNOC', key: 'knockback' },
+			{ label: 'REGEN', key: 'hpRegen' },
+			{ label: 'KNOCK', key: 'knockback' },
 		];
 
 		let maxLabelWidth = 0;
@@ -185,7 +161,7 @@ export default class HUDRenderer {
 			}
 		});
 
-		const statsX = minimapX;
+		const statsX = 12;
 		const statsY = statsStartY;
 		const valueX = statsX + labelWidth + 2 + maxValueWidth;
 		
@@ -198,22 +174,8 @@ export default class HUDRenderer {
 			this.renderStatLine(renderer, statsX, statsY + index * statsLineHeight, stat.label, value, statsFontSize, strokeOffset, strokeColor, labelColor, labelWidth, 2, animation, valueX);
 		});
 
-		if (player && player.attackType === 'range') {
-			const modeY = statsY + stats.length * statsLineHeight + 8;
-			const modeText = player.autoShoot ? 'MODE: AUTO' : 'MODE: MANUEL';
-			const modeColor = player.autoShoot ? '#4fc3f7' : '#ff9100';
-			
-			renderer.ctx.font = `bold ${statsFontSize}px Pokemon`;
-			renderer.ctx.fillStyle = modeColor;
-			renderer.ctx.strokeStyle = strokeColor;
-			renderer.ctx.lineWidth = strokeOffset;
-			renderer.ctx.textAlign = 'left';
-			renderer.ctx.strokeText(modeText, statsX, modeY);
-			renderer.ctx.fillText(modeText, statsX, modeY);
-		}
-
 		if (battleScene) {
-			const separatorY = statsY + stats.length * statsLineHeight + 8 + (player && player.attackType === 'range' ? statsLineHeight : 0);
+			const separatorY = statsY + stats.length * statsLineHeight + 8;
 			const separatorStartX = statsX;
 			const separatorEndX = valueX;
 			
@@ -229,6 +191,43 @@ export default class HUDRenderer {
 		}
 
 		renderer.ctx.restore();
+	}
+
+	renderTopLeftInfo(renderer, survivalTime, battleScene) {
+		const padding = 12;
+		const fontSize = 16;
+		const lineHeight = 22;
+		let y = padding;
+		
+		renderer.ctx.save();
+		renderer.ctx.font = `bold ${fontSize}px Pokemon`;
+		renderer.ctx.fillStyle = '#ffffff';
+		renderer.ctx.strokeStyle = '#000000';
+		renderer.ctx.lineWidth = 2.5;
+		renderer.ctx.textAlign = 'left';
+		renderer.ctx.textBaseline = 'top';
+		
+		const enemiesKilled = battleScene && battleScene.enemySpawner ? battleScene.enemySpawner.totalEnemiesKilled : 0;
+		const defeatedText = `Pokémons: ${enemiesKilled}`;
+		renderer.ctx.strokeText(defeatedText, padding, y);
+		renderer.ctx.fillText(defeatedText, padding, y);
+		
+		y += lineHeight;
+		
+		const timeString = this.formatTime(survivalTime);
+		const timerText = `Temps: ${timeString}`;
+		renderer.ctx.strokeText(timerText, padding, y);
+		renderer.ctx.fillText(timerText, padding, y);
+		
+		renderer.ctx.restore();
+	}
+	
+	formatTime(milliseconds) {
+		const totalSeconds = Math.floor(milliseconds / 1000);
+		const minutes = Math.floor(totalSeconds / 60);
+		const seconds = totalSeconds % 60;
+		
+		return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 	}
 
 	getSessionRewardsHeight(battleScene) {
@@ -311,11 +310,11 @@ export default class HUDRenderer {
 	}
 
 	getProjectileTypeIcon(player) {
-		if (player.hasAoE) {
+		if (player.hasUpgradeType && player.hasUpgradeType(UpgradeType.PROJECTILE_AOE)) {
 			return '💥';
-		} else if (player.hasPiercing) {
+		} else if (player.hasUpgradeType && player.hasUpgradeType(UpgradeType.PROJECTILE_PIERCING)) {
 			return '➡';
-		} else if (player.hasBounce) {
+		} else if (player.hasUpgradeType && player.hasUpgradeType(UpgradeType.PROJECTILE_BOUNCE)) {
 			return '↻';
 		}
 		return '●';

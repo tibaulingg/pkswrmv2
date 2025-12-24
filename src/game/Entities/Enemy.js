@@ -1,5 +1,5 @@
 export default class Enemy {
-	constructor(x, y, type, config, animationSystem, level = 1, particleColor = '#ff0000', pokemonConfig = null) {
+	constructor(x, y, type, config, animationSystem, level = 1, particleColor = '#ff0000', pokemonConfig = null, spriteManager = null) {
 		this.x = x;
 		this.y = y;
 		this.type = type;
@@ -43,7 +43,8 @@ export default class Enemy {
 		this.lostHpDecaySpeed = 0.5;
 
 		this.pokemonConfig = pokemonConfig;
-		this.speed = BASE_SPEED * pokemonSpeedMultiplier * speedMultiplier * (1 + (level - 1) * 0.05);
+		this.baseSpeed = BASE_SPEED * pokemonSpeedMultiplier * speedMultiplier * (1 + (level - 1) * 0.05);
+		this.speed = this.baseSpeed;
 		this.damage = Math.floor(baseDamage * damageMultiplier * damageLevelMultiplier);
 
 		this.attackType = pokemonConfig?.attackType || 'melee';
@@ -83,10 +84,62 @@ export default class Enemy {
 			this.canAnticipate = false;
 			this.anticipationTime = 0;
 		}
+
+		this.statusEffect = null;
+		this.effectAnimationTime = 0;
+		this.spriteManager = spriteManager;
+	}
+
+	applyStatusEffect(effect) {
+		this.statusEffect = effect;
+		this.effectAnimationTime = 0;
 	}
 
 	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32, otherEnemies = [], playerVelocityX = 0, playerVelocityY = 0) {
 		if (!this.isAlive) return;
+
+		if (this.statusEffect) {
+			this.statusEffect.duration -= deltaTime;
+			this.effectAnimationTime += deltaTime;
+
+			if (this.statusEffect.duration <= 0) {
+				this.statusEffect = null;
+				this.speed = this.baseSpeed;
+			} else {
+				if (this.statusEffect.slowAmount !== undefined) {
+					this.speed = this.baseSpeed * (1 - this.statusEffect.slowAmount);
+				} else {
+					this.speed = this.baseSpeed;
+				}
+
+				if (this.statusEffect.tickInterval !== Infinity && this.statusEffect.tickTimer >= this.statusEffect.tickInterval) {
+					this.hp -= this.statusEffect.damage;
+					this.lostHp = this.displayedHp - this.hp;
+					this.hitFlashTime = this.hitFlashDuration;
+					this.hurtAnimationTime = this.hurtAnimationDuration;
+					if (this.animationSystem) {
+						this.animationSystem.setAnimation('hurt');
+					}
+					
+					if (this.hp <= 0) {
+						this.hp = 0;
+						this.displayedHp = 0;
+						this.lostHp = 0;
+						this.isAlive = false;
+					}
+					
+					this.statusEffect.tickTimer = 0;
+				} else if (this.statusEffect.tickInterval !== Infinity) {
+					this.statusEffect.tickTimer += deltaTime;
+				}
+
+				if (this.statusEffect.stunDuration !== undefined) {
+					if (this.statusEffect.stunDuration > 0) {
+						this.statusEffect.stunDuration -= deltaTime;
+					}
+				}
+			}
+		}
 
 		const hitboxOffsetX = (this.spriteWidth - this.width) / 2;
 		const hitboxOffsetY = (this.spriteHeight - this.height) / 2;
@@ -488,6 +541,82 @@ export default class Enemy {
 				renderer.ctx.fillStyle = '#ffd700';
 				const tempWidth = (hpBarWidth - 1) * (displayedHpPercent - hpPercent);
 				renderer.ctx.fillRect(hpBarX + 0.5 + (hpBarWidth - 1) * hpPercent, hpBarY + 0.5, tempWidth, hpBarHeight - 1);
+			}
+		}
+
+		if (this.statusEffect && this.spriteManager) {
+			const effectType = this.statusEffect.type;
+			let effectSprite = null;
+			
+			if (effectType === 'burn') {
+				effectSprite = this.spriteManager.get('fireeffect');
+			}
+			
+			if (effectSprite) {
+				const frameWidth = 111 / 7;
+				const frameHeight = 17;
+				const frameIndex = Math.floor((this.effectAnimationTime / 100) % 7);
+				const sourceX = frameIndex * frameWidth;
+				const centerX = this.getCenterX();
+				const centerY = this.getCenterY();
+				const effectY = centerY - this.spriteHeight / 2 - 20;
+				const effectSize = 30;
+
+				renderer.ctx.save();
+				renderer.ctx.imageSmoothingEnabled = false;
+				renderer.ctx.drawImage(
+					effectSprite,
+					sourceX,
+					0,
+					frameWidth,
+					frameHeight,
+					centerX - effectSize / 2,
+					effectY - effectSize / 2,
+					effectSize,
+					effectSize
+				);
+				renderer.ctx.restore();
+			} else if (this.statusEffect) {
+				const centerX = this.getCenterX();
+				const centerY = this.getCenterY();
+				const effectY = centerY - this.spriteHeight / 2 - 20;
+				const effectSize = 20;
+				
+				renderer.ctx.save();
+				
+				if (effectType === 'poison') {
+					renderer.ctx.fillStyle = 'rgba(150, 0, 255, 0.7)';
+					renderer.ctx.beginPath();
+					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
+					renderer.ctx.fill();
+					
+					for (let i = 0; i < 3; i++) {
+						const angle = (this.effectAnimationTime * 0.01 + i * Math.PI * 2 / 3) % (Math.PI * 2);
+						const offsetX = Math.cos(angle) * (effectSize / 3);
+						const offsetY = Math.sin(angle) * (effectSize / 3);
+						renderer.ctx.fillStyle = 'rgba(200, 0, 255, 0.9)';
+						renderer.ctx.beginPath();
+						renderer.ctx.arc(centerX + offsetX, effectY + offsetY, 3, 0, Math.PI * 2);
+						renderer.ctx.fill();
+					}
+				} else if (effectType === 'stun') {
+					renderer.ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+					renderer.ctx.lineWidth = 3;
+					renderer.ctx.setLineDash([5, 5]);
+					renderer.ctx.beginPath();
+					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
+					renderer.ctx.stroke();
+					renderer.ctx.setLineDash([]);
+				} else if (effectType === 'slow' || effectType === 'wet' || effectType === 'freeze') {
+					renderer.ctx.fillStyle = effectType === 'freeze' ? 'rgba(150, 200, 255, 0.7)' : 
+					                        effectType === 'wet' ? 'rgba(100, 150, 255, 0.7)' : 
+					                        'rgba(200, 200, 200, 0.7)';
+					renderer.ctx.beginPath();
+					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
+					renderer.ctx.fill();
+				}
+				
+				renderer.ctx.restore();
 			}
 		}
 	}

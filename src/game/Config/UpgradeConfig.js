@@ -1,5 +1,3 @@
-import { canPokemonUnlockSpell } from './SpellConfig.js';
-
 export const UpgradeRarity = {
 	COMMON: 'common',
 	RARE: 'rare',
@@ -18,27 +16,24 @@ export const UpgradeType = {
 	PROJECTILE_AOE: 'projectileAoe',
 	PROJECTILE_PIERCING: 'projectilePiercing',
 	PROJECTILE_BOUNCE: 'projectileBounce',
-	PROJECTILE_ENHANCEMENT: 'projectileEnhancement',
-	// AOE upgrades
+	PROJECTILE_EFFECT: 'projectileEffect',
 	AOE_RADIUS: 'aoeRadius',
 	AOE_DAMAGE: 'aoeDamage',
-	// Piercing upgrades
 	PIERCING_DAMAGE_REDUCTION: 'piercingDamageReduction',
 	PIERCING_MAX_COUNT: 'piercingMaxCount',
-	// Bounce upgrades
 	BOUNCE_MAX_COUNT: 'bounceMaxCount',
 	BOUNCE_DETECTION_RANGE: 'bounceDetectionRange',
+	EFFECT_PROC_CHANCE: 'effectProcChance',
+	EFFECT_DAMAGE: 'effectDamage',
+	EFFECT_INTENSITY: 'effectIntensity',
+	EFFECT_DURATION: 'effectDuration',
 	KNOCKBACK: 'knockback',
 	FETCH_RANGE: 'fetchRange',
 	CRIT_CHANCE: 'critChance',
 	CRIT_DAMAGE: 'critDamage',
 	XP_GAIN: 'xpGain',
 	MONEY_GAIN: 'moneyGain',
-	DURATION: 'duration',
-	SPELL: 'spell',
-	SPELL_DAMAGE: 'spellDamage',
-	SPELL_RANGE: 'spellRange',
-	SPELL_COOLDOWN: 'spellCooldown'
+	DURATION: 'duration'
 };
 
 export const Upgrades = {
@@ -49,6 +44,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.DAMAGE,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	damage_2: {
 		id: 'damage_2',
@@ -57,6 +55,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.DAMAGE,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	attackSpeed_1: {
 		id: 'attackSpeed_1',
@@ -65,6 +66,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.ATTACK_SPEED,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	attackSpeed_2: {
 		id: 'attackSpeed_2',
@@ -73,6 +77,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.ATTACK_SPEED,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	range_1: {
 		id: 'range_1',
@@ -81,6 +88,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.RANGE,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	range_2: {
 		id: 'range_2',
@@ -89,6 +99,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.RANGE,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	speed_1: {
 		id: 'speed_1',
@@ -97,6 +110,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.SPEED,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	speed_2: {
 		id: 'speed_2',
@@ -105,6 +121,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.SPEED,
 		value: 1.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	maxHp_1: {
 		id: 'maxHp_1',
@@ -113,6 +132,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.MAX_HP,
 		value: 5,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	maxHp_2: {
 		id: 'maxHp_2',
@@ -121,6 +143,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.MAX_HP,
 		value: 15,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	hpRegen_1: {
 		id: 'hpRegen_1',
@@ -129,6 +154,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.HP_REGEN,
 		value: 1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	knockback_1: {
 		id: 'knockback_1',
@@ -137,6 +165,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.KNOCKBACK,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	projectileSpeed_1: {
 		id: 'projectileSpeed_1',
@@ -145,6 +176,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_SPEED,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	fetchRange_1: {
 		id: 'fetchRange_1',
@@ -153,6 +187,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.FETCH_RANGE,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	fetchRange_2: {
 		id: 'fetchRange_2',
@@ -161,6 +198,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.FETCH_RANGE,
 		value: 1.2,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	critChance_1: {
 		id: 'critChance_1',
@@ -169,6 +209,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.CRIT_CHANCE,
 		value: 0.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	critChance_2: {
 		id: 'critChance_2',
@@ -177,6 +220,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.CRIT_CHANCE,
 		value: 0.05,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	critDamage_1: {
 		id: 'critDamage_1',
@@ -185,6 +231,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.CRIT_DAMAGE,
 		value: 0.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	critDamage_2: {
 		id: 'critDamage_2',
@@ -193,6 +242,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.CRIT_DAMAGE,
 		value: 0.15,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	xpGain_1: {
 		id: 'xpGain_1',
@@ -201,6 +253,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.XP_GAIN,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	xpGain_2: {
 		id: 'xpGain_2',
@@ -209,6 +264,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.XP_GAIN,
 		value: 1.15,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	moneyGain_1: {
 		id: 'moneyGain_1',
@@ -217,6 +275,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.MONEY_GAIN,
 		value: 1.1,
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	moneyGain_2: {
 		id: 'moneyGain_2',
@@ -225,30 +286,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.MONEY_GAIN,
 		value: 1.2,
-	},
-	spell_earthquake: {
-		id: 'spell_earthquake',
-		name: 'Séisme',
-		description: 'Débloque le sort Séisme',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL,
-		value: 'earthquake',
-	},
-	spell_rock_trap: {
-		id: 'spell_rock_trap',
-		name: 'Piège de Rock',
-		description: 'Débloque le sort Piège de Rock',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL,
-		value: 'rock_trap',
-	},
-	spell_hydrocanon: {
-		id: 'spell_hydrocanon',
-		name: 'Hydrocanon',
-		description: 'Débloque le sort Hydrocanon',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.SPELL,
-		value: 'hydrocanon',
+		requires: [],
+		excludes: [],
+		grants: []
 	},
 	projectileAoe_1: {
 		id: 'projectileAoe_1',
@@ -256,6 +296,9 @@ export const Upgrades = {
 		description: 'Les projectiles infligent des dégâts de zone',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_AOE,
+		grants: [UpgradeType.PROJECTILE_AOE],
+		excludes: [UpgradeType.PROJECTILE_PIERCING, UpgradeType.PROJECTILE_BOUNCE],
+		requires: []
 	},
 	projectilePiercing_1: {
 		id: 'projectilePiercing_1',
@@ -263,6 +306,9 @@ export const Upgrades = {
 		description: 'Les projectiles traversent les ennemis',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_PIERCING,
+		grants: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [UpgradeType.PROJECTILE_AOE, UpgradeType.PROJECTILE_BOUNCE],
+		requires: []
 	},
 	projectileBounce_1: {
 		id: 'projectileBounce_1',
@@ -270,32 +316,20 @@ export const Upgrades = {
 		description: 'Les projectiles rebondissent sur les ennemis',
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PROJECTILE_BOUNCE,
+		grants: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [UpgradeType.PROJECTILE_AOE, UpgradeType.PROJECTILE_PIERCING],
+		requires: []
 	},
-	projectileEnhancement_1: {
-		id: 'projectileEnhancement_1',
-		name: 'Projectiles',
-		description: 'Améliore les projectiles spéciaux',
+	projectileEffect_1: {
+		id: 'projectileEffect_1',
+		name: 'Effet',
+		description: 'Les projectiles ont une chance de déclencher un effet selon le type de l\'ennemi',
 		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.PROJECTILE_ENHANCEMENT,
-		value: 1,
+		type: UpgradeType.PROJECTILE_EFFECT,
+		grants: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		requires: []
 	},
-	projectileEnhancement_2: {
-		id: 'projectileEnhancement_2',
-		name: 'Projectiles',
-		description: 'Améliore les projectiles spéciaux',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.PROJECTILE_ENHANCEMENT,
-		value: 1,
-	},
-	projectileEnhancement_3: {
-		id: 'projectileEnhancement_3',
-		name: 'Projectiles',
-		description: 'Améliore les projectiles spéciaux',
-		rarity: UpgradeRarity.COMMON,
-		type: UpgradeType.PROJECTILE_ENHANCEMENT,
-		value: 1,
-	},
-	// AOE Upgrades
 	aoeRadius_common: {
 		id: 'aoeRadius_common',
 		name: 'Rayon Explosion',
@@ -303,6 +337,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.AOE_RADIUS,
 		value: 1.05,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeRadius_rare: {
 		id: 'aoeRadius_rare',
@@ -311,6 +348,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.AOE_RADIUS,
 		value: 1.07,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeRadius_epic: {
 		id: 'aoeRadius_epic',
@@ -319,6 +359,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.AOE_RADIUS,
 		value: 1.10,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeRadius_legendary: {
 		id: 'aoeRadius_legendary',
@@ -327,6 +370,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.AOE_RADIUS,
 		value: 1.20,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeDamage_common: {
 		id: 'aoeDamage_common',
@@ -335,6 +381,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.AOE_DAMAGE,
 		value: 1.05,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeDamage_rare: {
 		id: 'aoeDamage_rare',
@@ -343,6 +392,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.AOE_DAMAGE,
 		value: 1.07,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeDamage_epic: {
 		id: 'aoeDamage_epic',
@@ -351,6 +403,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.AOE_DAMAGE,
 		value: 1.10,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
 	aoeDamage_legendary: {
 		id: 'aoeDamage_legendary',
@@ -359,8 +414,10 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.AOE_DAMAGE,
 		value: 1.20,
+		requires: [UpgradeType.PROJECTILE_AOE],
+		excludes: [],
+		grants: []
 	},
-	// Piercing Upgrades
 	piercingDamageReduction_common: {
 		id: 'piercingDamageReduction_common',
 		name: 'Efficacité Perforatione',
@@ -368,6 +425,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
 		value: 0.02,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingDamageReduction_rare: {
 		id: 'piercingDamageReduction_rare',
@@ -376,6 +436,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
 		value: 0.03,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingDamageReduction_epic: {
 		id: 'piercingDamageReduction_epic',
@@ -384,6 +447,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
 		value: 0.05,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingDamageReduction_legendary: {
 		id: 'piercingDamageReduction_legendary',
@@ -392,6 +458,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.PIERCING_DAMAGE_REDUCTION,
 		value: 0.08,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingMaxCount_common: {
 		id: 'piercingMaxCount_common',
@@ -400,6 +469,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.PIERCING_MAX_COUNT,
 		value: 1,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingMaxCount_rare: {
 		id: 'piercingMaxCount_rare',
@@ -408,6 +480,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.PIERCING_MAX_COUNT,
 		value: 2,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingMaxCount_epic: {
 		id: 'piercingMaxCount_epic',
@@ -416,6 +491,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.PIERCING_MAX_COUNT,
 		value: 3,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
 	piercingMaxCount_legendary: {
 		id: 'piercingMaxCount_legendary',
@@ -424,8 +502,10 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.PIERCING_MAX_COUNT,
 		value: 5,
+		requires: [UpgradeType.PROJECTILE_PIERCING],
+		excludes: [],
+		grants: []
 	},
-	// Bounce Upgrades
 	bounceMaxCount_common: {
 		id: 'bounceMaxCount_common',
 		name: 'Rebonds',
@@ -433,6 +513,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.BOUNCE_MAX_COUNT,
 		value: 1,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceMaxCount_rare: {
 		id: 'bounceMaxCount_rare',
@@ -441,6 +524,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.BOUNCE_MAX_COUNT,
 		value: 2,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceMaxCount_epic: {
 		id: 'bounceMaxCount_epic',
@@ -449,6 +535,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.BOUNCE_MAX_COUNT,
 		value: 3,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceMaxCount_legendary: {
 		id: 'bounceMaxCount_legendary',
@@ -457,6 +546,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.BOUNCE_MAX_COUNT,
 		value: 5,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceDetectionRange_common: {
 		id: 'bounceDetectionRange_common',
@@ -465,6 +557,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.COMMON,
 		type: UpgradeType.BOUNCE_DETECTION_RANGE,
 		value: 50,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceDetectionRange_rare: {
 		id: 'bounceDetectionRange_rare',
@@ -473,6 +568,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.RARE,
 		type: UpgradeType.BOUNCE_DETECTION_RANGE,
 		value: 75,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceDetectionRange_epic: {
 		id: 'bounceDetectionRange_epic',
@@ -481,6 +579,9 @@ export const Upgrades = {
 		rarity: UpgradeRarity.EPIC,
 		type: UpgradeType.BOUNCE_DETECTION_RANGE,
 		value: 100,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
 	},
 	bounceDetectionRange_legendary: {
 		id: 'bounceDetectionRange_legendary',
@@ -489,6 +590,185 @@ export const Upgrades = {
 		rarity: UpgradeRarity.LEGENDARY,
 		type: UpgradeType.BOUNCE_DETECTION_RANGE,
 		value: 150,
+		requires: [UpgradeType.PROJECTILE_BOUNCE],
+		excludes: [],
+		grants: []
+	},
+	effectProcChance_common: {
+		id: 'effectProcChance_common',
+		name: 'Chance Effet',
+		description: 'Augmente les chances de déclencher un effet de +5%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.EFFECT_PROC_CHANCE,
+		value: 0.05,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectProcChance_rare: {
+		id: 'effectProcChance_rare',
+		name: 'Chance Effet',
+		description: 'Augmente les chances de déclencher un effet de +7%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.EFFECT_PROC_CHANCE,
+		value: 0.07,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectProcChance_epic: {
+		id: 'effectProcChance_epic',
+		name: 'Chance Effet',
+		description: 'Augmente les chances de déclencher un effet de +10%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.EFFECT_PROC_CHANCE,
+		value: 0.10,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectProcChance_legendary: {
+		id: 'effectProcChance_legendary',
+		name: 'Chance Effet',
+		description: 'Augmente les chances de déclencher un effet de +20%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.EFFECT_PROC_CHANCE,
+		value: 0.20,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDamage_common: {
+		id: 'effectDamage_common',
+		name: 'Dégâts Effet',
+		description: 'Augmente les dégâts des effets de +10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.EFFECT_DAMAGE,
+		value: 1.10,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDamage_rare: {
+		id: 'effectDamage_rare',
+		name: 'Dégâts Effet',
+		description: 'Augmente les dégâts des effets de +15%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.EFFECT_DAMAGE,
+		value: 1.15,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDamage_epic: {
+		id: 'effectDamage_epic',
+		name: 'Dégâts Effet',
+		description: 'Augmente les dégâts des effets de +20%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.EFFECT_DAMAGE,
+		value: 1.20,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDamage_legendary: {
+		id: 'effectDamage_legendary',
+		name: 'Dégâts Effet',
+		description: 'Augmente les dégâts des effets de +30%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.EFFECT_DAMAGE,
+		value: 1.30,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectIntensity_common: {
+		id: 'effectIntensity_common',
+		name: 'Intensité Effet',
+		description: 'Augmente l\'intensité des effets de +10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.EFFECT_INTENSITY,
+		value: 1.10,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectIntensity_rare: {
+		id: 'effectIntensity_rare',
+		name: 'Intensité Effet',
+		description: 'Augmente l\'intensité des effets de +15%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.EFFECT_INTENSITY,
+		value: 1.15,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectIntensity_epic: {
+		id: 'effectIntensity_epic',
+		name: 'Intensité Effet',
+		description: 'Augmente l\'intensité des effets de +20%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.EFFECT_INTENSITY,
+		value: 1.20,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectIntensity_legendary: {
+		id: 'effectIntensity_legendary',
+		name: 'Intensité Effet',
+		description: 'Augmente l\'intensité des effets de +30%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.EFFECT_INTENSITY,
+		value: 1.30,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDuration_common: {
+		id: 'effectDuration_common',
+		name: 'Durée Effet',
+		description: 'Augmente la durée des effets de +10%',
+		rarity: UpgradeRarity.COMMON,
+		type: UpgradeType.EFFECT_DURATION,
+		value: 1.10,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDuration_rare: {
+		id: 'effectDuration_rare',
+		name: 'Durée Effet',
+		description: 'Augmente la durée des effets de +15%',
+		rarity: UpgradeRarity.RARE,
+		type: UpgradeType.EFFECT_DURATION,
+		value: 1.15,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDuration_epic: {
+		id: 'effectDuration_epic',
+		name: 'Durée Effet',
+		description: 'Augmente la durée des effets de +20%',
+		rarity: UpgradeRarity.EPIC,
+		type: UpgradeType.EFFECT_DURATION,
+		value: 1.20,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
+	},
+	effectDuration_legendary: {
+		id: 'effectDuration_legendary',
+		name: 'Durée Effet',
+		description: 'Augmente la durée des effets de +30%',
+		rarity: UpgradeRarity.LEGENDARY,
+		type: UpgradeType.EFFECT_DURATION,
+		value: 1.30,
+		requires: [UpgradeType.PROJECTILE_EFFECT],
+		excludes: [],
+		grants: []
 	},
 };
 
@@ -539,137 +819,115 @@ export const UpgradeIcons = {
 	[UpgradeType.PROJECTILE_AOE]: '💥',
 	[UpgradeType.PROJECTILE_PIERCING]: '➡',
 	[UpgradeType.PROJECTILE_BOUNCE]: '↻',
-	[UpgradeType.PROJECTILE_ENHANCEMENT]: '⬆',
+	[UpgradeType.PROJECTILE_EFFECT]: '✨',
 	[UpgradeType.AOE_RADIUS]: '📏',
 	[UpgradeType.AOE_DAMAGE]: '💥',
 	[UpgradeType.PIERCING_DAMAGE_REDUCTION]: '⚔',
 	[UpgradeType.PIERCING_MAX_COUNT]: '➡',
 	[UpgradeType.BOUNCE_MAX_COUNT]: '↻',
 	[UpgradeType.BOUNCE_DETECTION_RANGE]: '◎',
+	[UpgradeType.EFFECT_PROC_CHANCE]: '🎲',
+	[UpgradeType.EFFECT_DAMAGE]: '💥',
+	[UpgradeType.EFFECT_INTENSITY]: '⚡',
+	[UpgradeType.EFFECT_DURATION]: '⏱',
 	[UpgradeType.FETCH_RANGE]: '✦',
 	[UpgradeType.CRIT_CHANCE]: '★',
 	[UpgradeType.CRIT_DAMAGE]: '✦',
 	[UpgradeType.XP_GAIN]: '⭐',
 	[UpgradeType.MONEY_GAIN]: '💰',
-	[UpgradeType.DURATION]: '⏱',
-	[UpgradeType.SPELL]: '✨',
-	[UpgradeType.SPELL_DAMAGE]: '⚔',
-	[UpgradeType.SPELL_RANGE]: '◎',
-	[UpgradeType.SPELL_COOLDOWN]: '⚡'
+	[UpgradeType.DURATION]: '⏱'
 };
 
-export function getRandomUpgrades(count, playerUpgrades, player = null) {
-	const projectileTypeUpgrades = [
-		UpgradeType.PROJECTILE_AOE,
-		UpgradeType.PROJECTILE_PIERCING,
-		UpgradeType.PROJECTILE_BOUNCE
-	];
+function playerHasUpgradeType(player, upgradeType) {
+	if (!player || !player.upgrades) return false;
 	
+	for (const upgradeId in player.upgrades) {
+		const upgrade = Upgrades[upgradeId];
+		if (upgrade && upgrade.type === upgradeType) {
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+function getPlayerUpgradeTypes(player) {
+	if (!player || !player.upgrades) return new Set();
+	
+	const types = new Set();
+	for (const upgradeId in player.upgrades) {
+		const upgrade = Upgrades[upgradeId];
+		if (upgrade) {
+			if (upgrade.grants && upgrade.grants.length > 0) {
+				upgrade.grants.forEach(type => types.add(type));
+			} else {
+				types.add(upgrade.type);
+			}
+		}
+	}
+	
+	return types;
+}
+
+export function getRandomUpgrades(count, playerUpgrades, player = null) {
+	const isMelee = player && player.pokemonConfig && player.pokemonConfig.attackType === 'melee';
 	const allProjectileUpgrades = [
 		UpgradeType.PROJECTILE_SPEED,
 		UpgradeType.PROJECTILE_AOE,
 		UpgradeType.PROJECTILE_PIERCING,
 		UpgradeType.PROJECTILE_BOUNCE,
-		UpgradeType.PROJECTILE_ENHANCEMENT
+		UpgradeType.PROJECTILE_EFFECT
 	];
 	
-	const aoeUpgrades = [
-		UpgradeType.AOE_RADIUS,
-		UpgradeType.AOE_DAMAGE
+	const projectileModeTypes = [
+		UpgradeType.PROJECTILE_AOE,
+		UpgradeType.PROJECTILE_PIERCING,
+		UpgradeType.PROJECTILE_BOUNCE
 	];
 	
-	const piercingUpgrades = [
-		UpgradeType.PIERCING_DAMAGE_REDUCTION,
-		UpgradeType.PIERCING_MAX_COUNT
-	];
-	
-	const bounceUpgrades = [
-		UpgradeType.BOUNCE_MAX_COUNT,
-		UpgradeType.BOUNCE_DETECTION_RANGE
-	];
-	
-	const hasProjectileType = player && (
-		player.hasAoE || player.hasPiercing || player.hasBounce
-	);
-	
-	const isMelee = player && player.pokemonConfig && player.pokemonConfig.attackType === 'melee';
-	const isFirstLevelUp = player && player.level === 2;
-	const isRange = player && player.attackType === 'range';
-	
-	if (isFirstLevelUp && isRange && !hasProjectileType) {
-		const projectileTypeOptions = [
-			Upgrades.projectileAoe_1,
-			Upgrades.projectilePiercing_1,
-			Upgrades.projectileBounce_1
-		];
-		return projectileTypeOptions.slice(0, Math.min(count, projectileTypeOptions.length));
-	}
-	
-	const spellUpgradeTypes = [
-		UpgradeType.SPELL_DAMAGE,
-		UpgradeType.SPELL_RANGE,
-		UpgradeType.SPELL_COOLDOWN
-	];
+	const playerUpgradeTypes = getPlayerUpgradeTypes(player);
+	const hasMainProjectileMode = projectileModeTypes.some(type => playerUpgradeTypes.has(type));
 	
 	const availableUpgrades = Object.values(Upgrades).filter(upgrade => {
 		if (isMelee && allProjectileUpgrades.includes(upgrade.type)) {
 			return false;
 		}
 		
-		if (isRange && !hasProjectileType && projectileTypeUpgrades.includes(upgrade.type)) {
-			return false;
+		if (!upgrade.requires) upgrade.requires = [];
+		if (!upgrade.excludes) upgrade.excludes = [];
+		if (!upgrade.grants) upgrade.grants = [];
+		
+		if (upgrade.grants && upgrade.grants.length > 0) {
+			for (const grantedType of upgrade.grants) {
+				if (playerUpgradeTypes.has(grantedType)) {
+					return false;
+				}
+			}
 		}
 		
-		if (isRange && hasProjectileType) {
-			if (projectileTypeUpgrades.includes(upgrade.type)) {
-				return false;
-			}
-			
-			// Ne proposer que les upgrades correspondant au type de projectile choisi
-			if (player.hasAoE) {
-				if (piercingUpgrades.includes(upgrade.type) || bounceUpgrades.includes(upgrade.type)) {
-					return false;
-				}
-			} else if (player.hasPiercing) {
-				if (aoeUpgrades.includes(upgrade.type) || bounceUpgrades.includes(upgrade.type)) {
-					return false;
-				}
-			} else if (player.hasBounce) {
-				if (aoeUpgrades.includes(upgrade.type) || piercingUpgrades.includes(upgrade.type)) {
-					return false;
-				}
-			}
-			
-			// Ne plus proposer PROJECTILE_ENHANCEMENT
-			if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT) {
+		for (const requiredType of upgrade.requires) {
+			if (!playerUpgradeTypes.has(requiredType)) {
 				return false;
 			}
 		}
 		
-		if (upgrade.type === UpgradeType.SPELL && player) {
-			const unlockedSpells = player.getUnlockedSpells();
-			const spellId = upgrade.value;
-			const isAlreadyUnlocked = unlockedSpells.some(spell => spell.id === spellId);
-			if (isAlreadyUnlocked) return false;
-			
-			const pokemonName = player.pokemonConfig?.name;
-			if (pokemonName && !canPokemonUnlockSpell(pokemonName, spellId)) {
+		for (const excludedType of upgrade.excludes) {
+			if (playerUpgradeTypes.has(excludedType)) {
 				return false;
 			}
 		}
 		
-		if (spellUpgradeTypes.includes(upgrade.type) && player) {
-			const unlockedSpells = player.getUnlockedSpells();
-			const spellId = upgrade.value?.spellId;
-			if (!spellId) return false;
-			
-			const isSpellUnlocked = unlockedSpells.some(spell => spell.id === spellId);
-			if (!isSpellUnlocked) return false;
-		}
-		
-		// Ne plus proposer PROJECTILE_ENHANCEMENT (remplacé par les nouveaux upgrades spécifiques)
-		if (upgrade.type === UpgradeType.PROJECTILE_ENHANCEMENT) {
-			return false;
+		if (player && playerUpgrades) {
+			for (const grantedType of upgrade.grants) {
+				for (const existingUpgradeId in playerUpgrades) {
+					const existingUpgrade = Upgrades[existingUpgradeId];
+					if (existingUpgrade && existingUpgrade.excludes) {
+						if (existingUpgrade.excludes.includes(grantedType)) {
+							return false;
+						}
+					}
+				}
+			}
 		}
 		
 		return true;
@@ -679,30 +937,51 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 
 	const selected = [];
 	const used = new Set();
-	const usedTypes = new Set(); // Track les types d'upgrades déjà sélectionnés
-	
-	const projectileUpgradeTypes = [
-		UpgradeType.PROJECTILE_ENHANCEMENT,
-		UpgradeType.PROJECTILE_SPEED
-	];
+	const usedTypes = new Set();
 	
 	const getUpgradeWeight = (upgrade) => {
 		let weight = RarityWeights[upgrade.rarity];
-		// Augmenter le poids des upgrades de projectiles spécifiques
-		if (hasProjectileType) {
-			const allSpecificProjectileUpgrades = [...aoeUpgrades, ...piercingUpgrades, ...bounceUpgrades];
-			if (allSpecificProjectileUpgrades.includes(upgrade.type)) {
-				weight *= 2.5;
+		
+		if (upgrade.grants && upgrade.grants.length > 0) {
+			const isProjectileMode = upgrade.grants.some(type => 
+				projectileModeTypes.includes(type) || type === UpgradeType.PROJECTILE_EFFECT
+			);
+			
+			if (isProjectileMode) {
+				if (!hasMainProjectileMode) {
+					weight += RarityWeights[upgrade.rarity] * 4.0;
+				} else if (upgrade.grants.includes(UpgradeType.PROJECTILE_EFFECT) && 
+				          !playerUpgradeTypes.has(UpgradeType.PROJECTILE_EFFECT)) {
+					weight += RarityWeights[upgrade.rarity] * 2.0;
+				}
 			}
 		}
+		
+		if (hasMainProjectileMode && upgrade.requires && upgrade.requires.length > 0) {
+			const requiresProjectileMode = upgrade.requires.some(type => 
+				projectileModeTypes.includes(type) || type === UpgradeType.PROJECTILE_EFFECT
+			);
+			if (requiresProjectileMode) {
+				weight += RarityWeights[upgrade.rarity] * 1.5;
+			}
+		}
+		
 		return weight;
 	};
 
 	for (let i = 0; i < count && selected.length < availableUpgrades.length; i++) {
-		// Filtrer les upgrades déjà utilisés ET ceux du même type que ceux déjà sélectionnés
-		const eligibleUpgrades = availableUpgrades.filter(u => 
-			!used.has(u.id) && !usedTypes.has(u.type)
-		);
+		const eligibleUpgrades = availableUpgrades.filter(u => {
+			if (used.has(u.id)) return false;
+			if (usedTypes.has(u.type)) return false;
+			
+			if (u.grants && u.grants.length > 0) {
+				for (const grantedType of u.grants) {
+					if (usedTypes.has(grantedType)) return false;
+				}
+			}
+			
+			return true;
+		});
 		
 		if (eligibleUpgrades.length === 0) break;
 		
@@ -715,7 +994,10 @@ export function getRandomUpgrades(count, playerUpgrades, player = null) {
 			if (random <= 0) {
 				selected.push(upgrade);
 				used.add(upgrade.id);
-				usedTypes.add(upgrade.type); // Marquer ce type comme utilisé
+				usedTypes.add(upgrade.type);
+				if (upgrade.grants && upgrade.grants.length > 0) {
+					upgrade.grants.forEach(type => usedTypes.add(type));
+				}
 				break;
 			}
 		}

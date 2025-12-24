@@ -82,6 +82,28 @@ export default class GameScene {
 	}
 
 	initNPCs() {
+		const mapWidth = this.map ? this.map.width : 1920;
+		const mapHeight = this.map ? this.map.height : 1080;
+		const margin = 100;
+		const npcSize = 64;
+		
+		let dittoX, dittoY;
+		let attempts = 0;
+		const maxAttempts = 50;
+		const sideMargin = 150;
+		const sideWidth = 200;
+		
+		do {
+			const spawnLeft = Math.random() < 0.5;
+			if (spawnLeft) {
+				dittoX = margin + Math.random() * sideWidth;
+			} else {
+				dittoX = mapWidth - margin - npcSize - Math.random() * sideWidth;
+			}
+			dittoY = margin + Math.random() * (mapHeight - margin * 2 - npcSize);
+			attempts++;
+		} while (attempts < maxAttempts && this.isPositionBlocked(dittoX, dittoY, npcSize));
+		
 		this.npcs = [
 			{
 				id: 'kecleon',
@@ -100,6 +122,18 @@ export default class GameScene {
 				shopId: 'chansey',
 				x: 615,
 				y: 455,
+				width: 64,
+				height: 64,
+				interactionRange: 80,
+				animationSystem: null,
+				idleTimer: 0,
+				fasterIdleDuration: null
+			},
+			{
+				id: 'ditto',
+				shopId: 'skillTree',
+				x: dittoX,
+				y: dittoY,
 				width: 64,
 				height: 64,
 				interactionRange: 80,
@@ -129,6 +163,32 @@ export default class GameScene {
 		this.updateNPCCollisions();
 	}
 
+	isPositionBlocked(x, y, size) {
+		const minDistance = 150;
+		
+		const existingNPCs = [
+			{ x: 159, y: 402 },
+			{ x: 615, y: 455 }
+		];
+		
+		for (const npc of existingNPCs) {
+			const distance = Math.sqrt(
+				Math.pow(x - npc.x, 2) + Math.pow(y - npc.y, 2)
+			);
+			if (distance < minDistance) {
+				return true;
+			}
+		}
+		
+		if (this.collisionSystem) {
+			if (this.collisionSystem.checkCollision(x, y, size, size)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
 	updateNPCCollisions() {
 		if (this.collisionSystem && this.npcs) {
 			const npcCollisions = this.npcs.map(npc => {
@@ -156,6 +216,7 @@ export default class GameScene {
 		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
 		const isTransitionOpen = currentScene && (currentScene.constructor.name === 'TransitionScene' || currentScene === this.engine.sceneManager.scenes.transition);
 		const isShopOpen = currentScene && (currentScene.constructor.name === 'ShopScene' || currentScene === this.engine.sceneManager.scenes.shop);
+		const isSkillTreeOpen = currentScene && (currentScene.constructor.name === 'SkillTreeScene' || currentScene === this.engine.sceneManager.scenes.skillTree);
 		
 		if (this.eggHatchingAnimation) {
 			this.eggHatchingAnimation.timer += deltaTime;
@@ -227,6 +288,41 @@ export default class GameScene {
 		
 		this.npcs.forEach(npc => {
 			if (npc.animationSystem && (!this.eggHatchingAnimation || npc.id !== 'chansey')) {
+				if (npc.id === 'ditto' && this.player) {
+					const dittoCenterX = npc.x + npc.width / 2;
+					const dittoCenterY = npc.y + npc.height / 2;
+					const playerCenterX = this.player.x + this.player.width / 2;
+					const playerCenterY = this.player.y + this.player.height / 2;
+					
+					const dx = playerCenterX - dittoCenterX;
+					const dy = playerCenterY - dittoCenterY;
+					
+					const angle = Math.atan2(dy, dx);
+					const degrees = angle * (180 / Math.PI);
+					const normalizedDegrees = (degrees + 360) % 360;
+					
+					let direction = 'down';
+					if (normalizedDegrees >= 337.5 || normalizedDegrees < 22.5) {
+						direction = 'right';
+					} else if (normalizedDegrees >= 22.5 && normalizedDegrees < 67.5) {
+						direction = 'downRight';
+					} else if (normalizedDegrees >= 67.5 && normalizedDegrees < 112.5) {
+						direction = 'down';
+					} else if (normalizedDegrees >= 112.5 && normalizedDegrees < 157.5) {
+						direction = 'downLeft';
+					} else if (normalizedDegrees >= 157.5 && normalizedDegrees < 202.5) {
+						direction = 'left';
+					} else if (normalizedDegrees >= 202.5 && normalizedDegrees < 247.5) {
+						direction = 'upLeft';
+					} else if (normalizedDegrees >= 247.5 && normalizedDegrees < 292.5) {
+						direction = 'up';
+					} else if (normalizedDegrees >= 292.5 && normalizedDegrees < 337.5) {
+						direction = 'upRight';
+					}
+					
+					npc.animationSystem.setDirection(direction);
+				}
+				
 				if (npc.animationSystem.currentAnimation === 'charge') {
 					npc.animationSystem.update(deltaTime, false, 0, 0);
 					
@@ -238,7 +334,42 @@ export default class GameScene {
 							const baseIdleDuration = pokemonConfig.animations.idle?.duration || null;
 							npc.fasterIdleDuration = baseIdleDuration ? baseIdleDuration * 0.5 : null;
 							npc.animationSystem.setIdleInterval(700);
-							npc.animationSystem.setDirection('down');
+							if (npc.id === 'ditto' && this.player) {
+								const dittoCenterX = npc.x + npc.width / 2;
+								const dittoCenterY = npc.y + npc.height / 2;
+								const playerCenterX = this.player.x + this.player.width / 2;
+								const playerCenterY = this.player.y + this.player.height / 2;
+								
+								const dx = playerCenterX - dittoCenterX;
+								const dy = playerCenterY - dittoCenterY;
+								
+								const angle = Math.atan2(dy, dx);
+								const degrees = angle * (180 / Math.PI);
+								const normalizedDegrees = (degrees + 360) % 360;
+								
+								let direction = 'down';
+								if (normalizedDegrees >= 337.5 || normalizedDegrees < 22.5) {
+									direction = 'right';
+								} else if (normalizedDegrees >= 22.5 && normalizedDegrees < 67.5) {
+									direction = 'downRight';
+								} else if (normalizedDegrees >= 67.5 && normalizedDegrees < 112.5) {
+									direction = 'down';
+								} else if (normalizedDegrees >= 112.5 && normalizedDegrees < 157.5) {
+									direction = 'downLeft';
+								} else if (normalizedDegrees >= 157.5 && normalizedDegrees < 202.5) {
+									direction = 'left';
+								} else if (normalizedDegrees >= 202.5 && normalizedDegrees < 247.5) {
+									direction = 'upLeft';
+								} else if (normalizedDegrees >= 247.5 && normalizedDegrees < 292.5) {
+									direction = 'up';
+								} else if (normalizedDegrees >= 292.5 && normalizedDegrees < 337.5) {
+									direction = 'upRight';
+								}
+								
+								npc.animationSystem.setDirection(direction);
+							} else {
+								npc.animationSystem.setDirection('down');
+							}
 							npc.animationSystem.currentAnimation = 'idle';
 							npc.animationSystem.currentFrame = 0;
 							npc.animationSystem.calculateFrameDimensions();
@@ -265,7 +396,7 @@ export default class GameScene {
 		
 		this.updateNPCCollisions();
 		
-		if (isPauseOpen || isMapSelectionOpen || isConfirmMenuOpen || isTransitionOpen || isShopOpen) {
+		if (isPauseOpen || isMapSelectionOpen || isConfirmMenuOpen || isTransitionOpen || isShopOpen || isSkillTreeOpen) {
 			return;
 		}
 
@@ -338,7 +469,11 @@ export default class GameScene {
 				);
 				
 				if (distance <= npc.interactionRange) {
-					this.engine.sceneManager.pushScene('shop', { shopId: npc.shopId });
+					if (npc.shopId === 'skillTree') {
+						this.engine.sceneManager.pushScene('skillTree');
+					} else {
+						this.engine.sceneManager.pushScene('shop', { shopId: npc.shopId });
+					}
 					this.engine.audio.play('ok', 0.3, 0.1);
 					return;
 				}

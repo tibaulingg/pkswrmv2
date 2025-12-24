@@ -50,14 +50,14 @@ export default class SaveManager {
 			defeatedPokemonCounts: engine.defeatedPokemonCounts || {},
 			totalPlayTime: engine.totalPlayTime || 0,
 			gamesPlayed: engine.gamesPlayed || 0,
-			pokemonIVs: engine.pokemonIVs || {}
+			pokemonIVs: engine.pokemonIVs || {},
+			skillTreeState: engine.skillTreeState || {}
 		};
 
 		try {
 			localStorage.setItem(this.SAVE_KEY, JSON.stringify(saveData));
 			return true;
 		} catch (error) {
-			console.warn('Failed to save game data:', error);
 			return false;
 		}
 	}
@@ -105,10 +105,14 @@ export default class SaveManager {
 			} else {
 				engine.pokemonIVs = {};
 			}
+			if (saveData.skillTreeState) {
+				engine.skillTreeState = saveData.skillTreeState;
+			} else {
+				engine.skillTreeState = {};
+			}
 
 			return saveData;
 		} catch (error) {
-			console.warn('Failed to load game data:', error);
 			return null;
 		}
 	}
@@ -127,7 +131,6 @@ export default class SaveManager {
 			localStorage.removeItem(this.SAVE_KEY);
 			return true;
 		} catch (error) {
-			console.warn('Failed to delete save data:', error);
 			return false;
 		}
 	}
@@ -140,7 +143,6 @@ export default class SaveManager {
 			}
 			return JSON.parse(savedData);
 		} catch (error) {
-			console.warn('Failed to get save data:', error);
 			return null;
 		}
 	}

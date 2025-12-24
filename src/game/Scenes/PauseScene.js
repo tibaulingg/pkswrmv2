@@ -430,8 +430,15 @@ export default class PauseScene {
 			
 			const eggConfig = item.config;
 			const progress = this.engine.eggProgress[item.uniqueId] || { currentKills: 0, requiredKills: eggConfig.requiredKills };
-			const requiredKills = progress.requiredKills !== undefined ? progress.requiredKills : eggConfig.requiredKills;
+			let requiredKills = progress.requiredKills !== undefined ? progress.requiredKills : eggConfig.requiredKills;
 			const currentKills = progress.currentKills || 0;
+			
+			const battleScene = this.engine.sceneManager.scenes.battle;
+			if (battleScene && progress.requiredKills === undefined) {
+				const hatchSpeedMultiplier = battleScene.getEggHatchSpeedMultiplier();
+				requiredKills = Math.max(1, Math.floor(eggConfig.requiredKills * hatchSpeedMultiplier));
+				this.engine.eggProgress[item.uniqueId] = { currentKills: 0, requiredKills: requiredKills };
+			}
 			
 			if (currentKills >= requiredKills) {
 				this.engine.audio.play('ok', 0.1, 0.1);
@@ -996,19 +1003,42 @@ export default class PauseScene {
 
 				let currentX = itemStartX;
 				
+				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[pokemonId] ? this.engine.pokemonIVs[pokemonId] : null;
+				const isShiny = ivs && ivs.shiny;
+				
 				const pokemonSprite = this.engine.sprites.get(`pokemon_${pokemonId}_normal`);
 				if (pokemonSprite) {
 					const iconSize = 24;
+					
+					if (isShiny) {
+						renderer.ctx.save();
+						renderer.ctx.globalAlpha = 0.3;
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.fillRect(currentX - 2, y - 4, iconSize + 4, iconSize + 4);
+						renderer.ctx.globalAlpha = 1;
+						renderer.ctx.restore();
+					}
+					
 					renderer.drawImage(pokemonSprite, currentX, y - 2, iconSize, iconSize);
+					
+					if (isShiny) {
+						renderer.ctx.save();
+						renderer.ctx.font = 'bold 12px Pokemon';
+						renderer.ctx.fillStyle = '#FFD700';
+						renderer.ctx.strokeStyle = '#000000';
+						renderer.ctx.lineWidth = 1.5;
+						renderer.ctx.strokeText('✨', currentX + iconSize - 8, y - 2);
+						renderer.ctx.fillText('✨', currentX + iconSize - 8, y - 2);
+						renderer.ctx.restore();
+					}
+					
 					currentX += iconSize + 10;
 				}
 				
 				const pokemonConfig = getPokemonConfig(pokemonId);
 				const pokemonName = pokemonConfig ? pokemonConfig.name : pokemonId;
-				renderer.ctx.fillStyle = textColor;
+				renderer.ctx.fillStyle = isShiny ? '#FFD700' : textColor;
 				renderer.ctx.fillText(pokemonName, currentX, y);
-				
-				const ivs = this.engine.pokemonIVs && this.engine.pokemonIVs[pokemonId] ? this.engine.pokemonIVs[pokemonId] : null;
 				if (ivs) {
 					const totalIV = ivs.hp + ivs.damage + ivs.speed + ivs.attackSpeed + ivs.range + ivs.knockback;
 					const maxIV = 31 * 6;
@@ -1117,6 +1147,15 @@ export default class PauseScene {
 							{ label: 'RNG', value: ivs.range || 0 },
 							{ label: 'KNOC', value: ivs.knockback || 0 }
 						];
+						
+						if (ivs.shiny) {
+							renderer.ctx.font = `bold ${statsFontSize + 2} Pokemon`;
+							renderer.ctx.fillStyle = '#FFD700';
+							renderer.ctx.strokeStyle = '#000000';
+							renderer.ctx.lineWidth = 2;
+							renderer.ctx.strokeText('✨ SHINY ✨', itemStartX - 30, statsY + lineSpacing - 5);
+							renderer.ctx.fillText('✨ SHINY ✨', itemStartX - 30, statsY + lineSpacing - 5);
+						}
 						
 						renderer.ctx.font = `bold ${statsFontSize} Pokemon`;
 						renderer.ctx.fillStyle = '#FFD700';

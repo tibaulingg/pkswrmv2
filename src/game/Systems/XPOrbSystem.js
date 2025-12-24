@@ -116,7 +116,7 @@ class XPOrb {
 		renderer.ctx.fillStyle = highlightGradient;
 		renderer.ctx.beginPath();
 		renderer.ctx.arc(this.x - currentSize * 0.25, renderY - currentSize * 0.25, currentSize * 0.6, 0, Math.PI * 2);
-		renderer.ctx.fill();
+		renderer.ctx.fill();	
 
 		renderer.ctx.shadowBlur = 0;
 		renderer.ctx.globalAlpha = 1;

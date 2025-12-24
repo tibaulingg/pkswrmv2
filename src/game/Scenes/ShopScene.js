@@ -493,7 +493,10 @@ export default class ShopScene {
 			this.engine.pokemonIVs = {};
 		}
 		
-		const newIVs = generateIVs();
+		const battleScene = this.engine.sceneManager.scenes.battle;
+		const ivBonus = battleScene ? battleScene.getEggIVBonus() : 1;
+		const shinyChance = battleScene ? battleScene.getShinyChance() : 0.001;
+		const newIVs = generateIVs(ivBonus, shinyChance);
 		
 		if (this.engine.pokemonIVs[hatchedPokemon]) {
 			this.engine.pokemonIVs[hatchedPokemon] = mergeIVs(this.engine.pokemonIVs[hatchedPokemon], newIVs);
@@ -580,7 +583,10 @@ export default class ShopScene {
 								}
 								const uniqueId = `${item.id}_${Date.now()}_${Math.random()}_${i}`;
 								engine.eggUniqueIds[item.id].push(uniqueId);
-								engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: item.requiredKills };
+								const battleScene = engine.sceneManager.scenes.battle;
+								const hatchSpeedMultiplier = battleScene ? battleScene.getEggHatchSpeedMultiplier() : 1.0;
+								const adjustedRequiredKills = Math.max(1, Math.floor(item.requiredKills * hatchSpeedMultiplier));
+								engine.eggProgress[uniqueId] = { currentKills: 0, requiredKills: adjustedRequiredKills };
 							}
 						}
 						

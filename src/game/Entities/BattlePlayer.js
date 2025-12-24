@@ -1,5 +1,6 @@
 import { getSpellConfig } from '../Config/SpellConfig.js';
 import { calculateStatWithIV } from '../Systems/IVSystem.js';
+import { Upgrades, UpgradeType } from '../Config/UpgradeConfig.js';
 
 const BASE_SPEED = 2;
 
@@ -91,6 +92,8 @@ export default class BattlePlayer {
 		this.hpRegen = 0;
 		this.regenTimer = 0;
 		this.projectileSpeedMultiplier = 1;
+		this.projectileCount = 1;
+		this.dodgeChance = 0;
 		this.fetchRange = 150;
 		this.critChance = 0.05;
 		this.critDamage = 1.5;
@@ -98,6 +101,7 @@ export default class BattlePlayer {
 		this.hasAoE = false;
 		this.hasPiercing = false;
 		this.hasBounce = false;
+		this.hasEffect = false;
 		this.bounceCount = 1; // Ancien système, gardé pour compatibilité
 		this.aoeDamageMultiplier = 1;
 		this.aoeRadiusMultiplier = 1;
@@ -107,6 +111,10 @@ export default class BattlePlayer {
 		this.bounceMaxCount = 1; // Nombre max de rebonds
 		this.bounceDetectionRange = 300; // Rayon de détection pour les rebonds
 		this.bounceRange = 600;
+		this.effectProcChance = 1; // Chance de base de déclencher un effet (15%)
+		this.effectDamageMultiplier = 1.0; // Multiplicateur de dégâts des effets
+		this.effectIntensityMultiplier = 1.0; // Multiplicateur d'intensité des effets
+		this.effectDurationMultiplier = 1.0; // Multiplicateur de durée des effets
 		this.xpGainMultiplier = 1;
 		this.moneyGainMultiplier = 1;
 		this.duration = 1;
@@ -389,7 +397,6 @@ export default class BattlePlayer {
 			const baseMultiplier = 1.5;
 			const levelExponent = 1 + (this.level - 1) * 0.05;
 			this.xpToNextLevel = Math.floor(this.xpToNextLevel * baseMultiplier * levelExponent);
-			this.increaseStatsOnLevelUp();
 			return true;
 		}
 		return false;
@@ -399,41 +406,30 @@ export default class BattlePlayer {
 		const LEVEL_UP_STAT_INCREASE = 0.05;
 		
 		if (this.baseSpeed !== undefined) {
-			const oldSpeed = this.speed;
 			this.speed = calculateStatWithIV(this.baseSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.speed, 'speed');
-			this.triggerStatAnimation('speed', oldSpeed, this.speed);
 		}
 		
 		if (this.baseHp !== undefined) {
 			const oldMaxHp = this.maxHp;
 			this.maxHp = calculateStatWithIV(this.baseHp * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.hp, 'hp');
 			this.hp = Math.min(this.maxHp, this.hp + (this.maxHp - oldMaxHp));
-			this.triggerStatAnimation('maxHp', oldMaxHp, this.maxHp);
 		}
 		
 		if (this.baseDamage !== undefined) {
-			const oldDamage = this.damage;
 			this.damage = calculateStatWithIV(this.baseDamage * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.damage, 'damage');
-			this.triggerStatAnimation('damage', oldDamage, this.damage);
 		}
 		
 		if (this.baseAttackSpeed !== undefined) {
-			const oldAttackSpeed = this.attackSpeed;
 			this.attackSpeed = calculateStatWithIV(this.baseAttackSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.attackSpeed, 'attackSpeed');
 			this.attackCooldownMax = 1000 / this.attackSpeed;
-			this.triggerStatAnimation('attackSpeed', oldAttackSpeed, this.attackSpeed);
 		}
 		
 		if (this.baseRange !== undefined) {
-			const oldRange = this.range;
 			this.range = calculateStatWithIV(this.baseRange * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.range, 'range');
-			this.triggerStatAnimation('range', oldRange, this.range);
 		}
 		
 		if (this.baseKnockback !== undefined) {
-			const oldKnockback = this.knockback;
 			this.knockback = calculateStatWithIV(this.baseKnockback * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.knockback, 'knockback');
-			this.triggerStatAnimation('knockback', oldKnockback, this.knockback);
 		}
 	}
 
@@ -451,11 +447,46 @@ export default class BattlePlayer {
 		};
 	}
 
+	hasUpgradeType(upgradeType) {
+		for (const upgradeId in this.upgrades) {
+			const upgrade = Upgrades[upgradeId];
+			if (upgrade) {
+				if (upgrade.grants && upgrade.grants.includes(upgradeType)) {
+					return true;
+				}
+				if (upgrade.type === upgradeType) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	applyUpgrade(upgrade) {
 		if (!this.upgrades[upgrade.id]) {
 			this.upgrades[upgrade.id] = 0;
 		}
 		this.upgrades[upgrade.id]++;
+
+		if (upgrade.grants && upgrade.grants.length > 0) {
+			for (const grantedType of upgrade.grants) {
+				if (grantedType === UpgradeType.PROJECTILE_AOE) {
+					this.hasAoE = true;
+					this.hasPiercing = false;
+					this.hasBounce = false;
+				} else if (grantedType === UpgradeType.PROJECTILE_PIERCING) {
+					this.hasPiercing = true;
+					this.hasAoE = false;
+					this.hasBounce = false;
+				} else if (grantedType === UpgradeType.PROJECTILE_BOUNCE) {
+					this.hasBounce = true;
+					this.hasAoE = false;
+					this.hasPiercing = false;
+				} else if (grantedType === UpgradeType.PROJECTILE_EFFECT) {
+					this.hasEffect = true;
+				}
+			}
+		}
 
 		switch(upgrade.type) {
 			case 'damage':
@@ -500,22 +531,6 @@ export default class BattlePlayer {
 			case 'projectileSpeed':
 				this.projectileSpeedMultiplier *= upgrade.value;
 				break;
-			case 'projectileAoe':
-				this.hasAoE = true;
-				this.hasPiercing = false;
-				this.hasBounce = false;
-				break;
-			case 'projectilePiercing':
-				this.hasPiercing = true;
-				this.hasAoE = false;
-				this.hasBounce = false;
-				break;
-			case 'projectileBounce':
-				this.hasBounce = true;
-				this.bounceCount = upgrade.value || 1;
-				this.hasAoE = false;
-				this.hasPiercing = false;
-				break;
 			case 'aoeRadius':
 				this.aoeRadiusMultiplier *= upgrade.value;
 				break;
@@ -534,17 +549,17 @@ export default class BattlePlayer {
 			case 'bounceDetectionRange':
 				this.bounceDetectionRange += upgrade.value;
 				break;
-			case 'projectileEnhancement':
-				// Ancien système, gardé pour compatibilité mais ne devrait plus être proposé
-				if (this.hasAoE) {
-					this.aoeDamageMultiplier += 0.2;
-					this.aoeRadiusMultiplier += 0.15;
-				} else if (this.hasPiercing) {
-					this.piercingCount += 1;
-				} else if (this.hasBounce) {
-					this.bounceCount += 1;
-					this.bounceRange += 50;
-				}
+			case 'effectProcChance':
+				this.effectProcChance = Math.min(1.0, this.effectProcChance + upgrade.value);
+				break;
+			case 'effectDamage':
+				this.effectDamageMultiplier *= upgrade.value;
+				break;
+			case 'effectIntensity':
+				this.effectIntensityMultiplier *= upgrade.value;
+				break;
+			case 'effectDuration':
+				this.effectDurationMultiplier *= upgrade.value;
 				break;
 			case 'fetchRange':
 				this.fetchRange *= upgrade.value;
@@ -568,51 +583,6 @@ export default class BattlePlayer {
 			case 'duration':
 				this.duration *= upgrade.value;
 				break;
-			case 'spell':
-				this.unlockSpell(upgrade.value);
-				break;
-			case 'spellDamage':
-				if (upgrade.value && upgrade.value.spellId) {
-					const spellId = upgrade.value.spellId;
-					if (!this.spellLevels[spellId]) {
-						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
-					}
-					this.spellLevels[spellId].damage++;
-					if (!this.spellDamageMultipliers[spellId]) {
-						this.spellDamageMultipliers[spellId] = 1;
-					}
-					this.spellDamageMultipliers[spellId] *= upgrade.value.multiplier;
-					this.updateSpellStats(spellId);
-				}
-				break;
-			case 'spellRange':
-				if (upgrade.value && upgrade.value.spellId) {
-					const spellId = upgrade.value.spellId;
-					if (!this.spellLevels[spellId]) {
-						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
-					}
-					this.spellLevels[spellId].range++;
-					if (!this.spellRangeMultipliers[spellId]) {
-						this.spellRangeMultipliers[spellId] = 1;
-					}
-					this.spellRangeMultipliers[spellId] *= upgrade.value.multiplier;
-					this.updateSpellStats(spellId);
-				}
-				break;
-			case 'spellCooldown':
-				if (upgrade.value && upgrade.value.spellId) {
-					const spellId = upgrade.value.spellId;
-					if (!this.spellLevels[spellId]) {
-						this.spellLevels[spellId] = { damage: 0, range: 0, cooldown: 0 };
-					}
-					this.spellLevels[spellId].cooldown++;
-					if (!this.spellCooldownMultipliers[spellId]) {
-						this.spellCooldownMultipliers[spellId] = 1;
-					}
-					this.spellCooldownMultipliers[spellId] *= upgrade.value.multiplier;
-					this.updateSpellStats(spellId);
-				}
-				break;
 			default:
 				break;
 		}
@@ -630,15 +600,8 @@ export default class BattlePlayer {
 	}
 
 	toggleAutoShoot() {
-		console.log('toggleAutoShoot called', {
-			attackType: this.attackType,
-			currentAutoShoot: this.autoShoot
-		});
 		if (this.attackType === 'range') {
 			this.autoShoot = !this.autoShoot;
-			console.log('autoShoot toggled to', this.autoShoot);
-		} else {
-			console.log('attackType is not range, cannot toggle');
 		}
 	}
 
@@ -712,15 +675,15 @@ export default class BattlePlayer {
 		
 		let level = 0;
 		
-		if (this.hasAoE) {
+		if (this.hasUpgradeType(UpgradeType.PROJECTILE_AOE)) {
 			level = 1;
 			const baseMultiplier = 1.0;
 			const currentMultiplier = this.aoeRadiusMultiplier;
 			const enhancementLevel = Math.max(0, Math.floor((currentMultiplier - baseMultiplier) / 0.15));
 			level += enhancementLevel;
-		} else if (this.hasPiercing) {
+		} else if (this.hasUpgradeType(UpgradeType.PROJECTILE_PIERCING)) {
 			level = 1 + Math.max(0, this.piercingMaxCount);
-		} else if (this.hasBounce) {
+		} else if (this.hasUpgradeType(UpgradeType.PROJECTILE_BOUNCE)) {
 			level = Math.max(0, this.bounceMaxCount);
 		}
 		
@@ -786,13 +749,19 @@ export default class BattlePlayer {
 				playerVelocityY: this.velocityY,
 				projectileColor: this.projectileColor,
 				projectileSpeed: this.projectileSpeedMultiplier,
-				aoeRadius: this.hasAoE ? 80 * this.aoeRadiusMultiplier : 0,
-				hasPiercing: this.hasPiercing,
-				hasBounce: this.hasBounce,
+				aoeRadius: this.hasUpgradeType(UpgradeType.PROJECTILE_AOE) ? 80 * this.aoeRadiusMultiplier : 0,
+				hasPiercing: this.hasUpgradeType(UpgradeType.PROJECTILE_PIERCING),
+				hasBounce: this.hasUpgradeType(UpgradeType.PROJECTILE_BOUNCE),
+				hasEffect: this.hasUpgradeType(UpgradeType.PROJECTILE_EFFECT),
 				bounceCount: this.bounceMaxCount,
 				piercingCount: this.piercingMaxCount,
 				bounceRange: this.bounceDetectionRange,
 				piercingDamageReduction: this.piercingDamageReduction,
+				effectProcChance: this.effectProcChance,
+				effectDamageMultiplier: this.effectDamageMultiplier,
+				effectIntensityMultiplier: this.effectIntensityMultiplier,
+				effectDurationMultiplier: this.effectDurationMultiplier,
+				playerPokemonType: this.pokemonConfig?.type || 'normal',
 				projectileType: this.type
 			};
 		} else if (this.attackType === 'circular_sweep' && this.baseAttackSpell) {
@@ -838,6 +807,12 @@ export default class BattlePlayer {
 
 	takeDamage(amount) {
 		if (!this.isAlive || this.invulnerableTime > 0) return false;
+
+		if (this.dodgeChance && this.dodgeChance > 0) {
+			if (Math.random() < this.dodgeChance) {
+				return false;
+			}
+		}
 
 		this.hp -= amount;
 		this.lostHp = this.displayedHp - this.hp;

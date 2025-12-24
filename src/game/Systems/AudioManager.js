@@ -54,7 +54,6 @@ export default class AudioManager {
 
 		const music = this.musics.get(name);
 		if (!music) {
-			console.warn('Music not found:', name);
 			return;
 		}
 
@@ -74,9 +73,7 @@ export default class AudioManager {
 		
 		const playPromise = this.currentMusic.play();
 		if (playPromise !== undefined) {
-			playPromise.catch(error => {
-				console.warn('Error playing music:', error);
-			});
+			playPromise.catch(() => {});
 		}
 	}
 
@@ -88,9 +85,7 @@ export default class AudioManager {
 		if (this.currentMusic) {
 			const playPromise = this.currentMusic.play();
 			if (playPromise !== undefined) {
-				playPromise.catch(error => {
-					console.warn('Error playing pending music:', error);
-				});
+				playPromise.catch(() => {});
 			}
 			this.pendingMusic = null;
 			this.pendingMusicVolume = null;
@@ -122,9 +117,7 @@ export default class AudioManager {
 			this.currentMusic.pause();
 		} else if (enabled && this.currentMusicName && this.userInteracted) {
 			if (this.currentMusic) {
-				this.currentMusic.play().catch(error => {
-					console.warn('Error resuming music:', error);
-				});
+				this.currentMusic.play().catch(() => {});
 			} else {
 				this.playMusic(this.currentMusicName);
 			}

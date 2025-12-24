@@ -44,6 +44,8 @@ export default class GameEngine {
 
 		this.pokemonIVs = {}
 
+		this.skillTreeState = {}
+
 		this.defeatedPokemonCounts = {}
 		this.totalPlayTime = 0
 		this.gamesPlayed = 0
@@ -127,6 +129,7 @@ export default class GameEngine {
 			['piplup', ['walk', 'hurt', 'charge']],
 			['chimchar', ['walk', 'hurt', 'charge']],
 			['turtwig', ['walk', 'hurt', 'charge']],
+			['ditto', ['normal', 'idle', 'hurt', 'walk']],
 		]
 
 		for (const [name, states] of pokemonSprites) {
@@ -149,6 +152,8 @@ export default class GameEngine {
 			this.audio.loadMusic(`map_${map}`, `${base}/${map}.mp3`)
 		}
 
+		await loadOptional('fireeffect', '/fireeffect.png')
+
 		const sounds = {
 			orb: '/orb.wav',
 			coins: '/coins.wav',
@@ -159,6 +164,7 @@ export default class GameEngine {
 			crit: '/crit.mp3',
 			death: '/death_impact.mp3',
 			chest_reward: '/chest_reward.mp3',
+			pokemon_level_up: '/pokemon_level_up.mp3',
 		}
 
 		for (const [id, path] of Object.entries(sounds)) {
