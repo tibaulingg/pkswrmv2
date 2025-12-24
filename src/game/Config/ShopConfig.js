@@ -6,17 +6,62 @@ export const ShopConfig = {
 			{
 				itemId: 'apple',
 				buyPrice: 100,
-				sellPrice: 100,
+				sellPrice: 50,
 			},
 			{
 				itemId: 'golden_apple',
 				buyPrice: 200,
-				sellPrice: 200,
+				sellPrice: 100,
 			},
 			{
 				itemId: 'mystic_water',
-				buyPrice: 300,
-				sellPrice: 300,
+				buyPrice: 5000,
+				sellPrice: 2500,
+			},
+			{
+				itemId: 'fire_stone',
+				buyPrice: 5000,
+				sellPrice: 2500,
+			},
+			{
+				itemId: 'leaf_stone',
+				buyPrice: 5000,
+				sellPrice: 2500,
+			},
+			{
+				itemId: 'thunder_stone',
+				buyPrice: 5000,
+				sellPrice: 2500,
+			},
+			{
+				itemId: 'power_bracelet',
+				buyPrice: 8000,
+				sellPrice: 4000,
+			},
+			{
+				itemId: 'speed_boots',
+				buyPrice: 8000,
+				sellPrice: 4000,
+			},
+			{
+				itemId: 'vitality_amulet',
+				buyPrice: 8000,
+				sellPrice: 4000,
+			},
+			{
+				itemId: 'crit_charm',
+				buyPrice: 10000,
+				sellPrice: 5000,
+			},
+			{
+				itemId: 'attack_speed_ring',
+				buyPrice: 10000,
+				sellPrice: 5000,
+			},
+			{
+				itemId: 'range_scope',
+				buyPrice: 10000,
+				sellPrice: 5000,
 			},
 			{
 				itemId: 'rattata_tail',

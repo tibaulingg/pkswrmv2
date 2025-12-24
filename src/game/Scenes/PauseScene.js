@@ -393,9 +393,6 @@ export default class PauseScene {
 				this.engine.equippedItems.splice(index, 1);
 				this.engine.audio.play('ok', 0.3, 0.1);
 			} else {
-				if (this.engine.equippedItems.length > 0) {
-					this.engine.equippedItems = [];
-				}
 				this.engine.equippedItems.push(uniqueId);
 				this.engine.audio.play('ok', 0.3, 0.1);
 			}

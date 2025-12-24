@@ -66,6 +66,123 @@ export const ItemConfig = {
 			value: 0.1
 		}
 	},
+	fire_stone: {
+		id: 'fire_stone',
+		name: 'Pierre de Feu',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les dégâts de feu de 15%',
+		effect: {
+			type: 'fireDamageBoost',
+			value: 0.15
+		}
+	},
+	leaf_stone: {
+		id: 'leaf_stone',
+		name: 'Pierre Plante',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les dégâts de plante de 15%',
+		effect: {
+			type: 'grassDamageBoost',
+			value: 0.15
+		}
+	},
+	thunder_stone: {
+		id: 'thunder_stone',
+		name: 'Pierre Foudre',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les dégâts électriques de 15%',
+		effect: {
+			type: 'electricDamageBoost',
+			value: 0.15
+		}
+	},
+	power_bracelet: {
+		id: 'power_bracelet',
+		name: 'Bracelet de Force',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les dégâts de 20%',
+		effect: {
+			type: 'damageBoost',
+			value: 0.20
+		}
+	},
+	speed_boots: {
+		id: 'speed_boots',
+		name: 'Bottes de Vitesse',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente la vitesse de 25%',
+		effect: {
+			type: 'speedBoost',
+			value: 0.25
+		}
+	},
+	vitality_amulet: {
+		id: 'vitality_amulet',
+		name: 'Amulette de Vitalité',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les PV max de 30%',
+		effect: {
+			type: 'hpBoost',
+			value: 0.30
+		}
+	},
+	crit_charm: {
+		id: 'crit_charm',
+		name: 'Charme Critique',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente les chances de critique de 10%',
+		effect: {
+			type: 'critChanceBoost',
+			value: 0.10
+		}
+	},
+	attack_speed_ring: {
+		id: 'attack_speed_ring',
+		name: 'Anneau de Vitesse',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente la vitesse d\'attaque de 30%',
+		effect: {
+			type: 'attackSpeedBoost',
+			value: 0.30
+		}
+	},
+	range_scope: {
+		id: 'range_scope',
+		name: 'Lunette de Portée',
+		category: 'equipable',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/mystic_water.png',
+		description: 'Augmente la portée de 40%',
+		effect: {
+			type: 'rangeBoost',
+			value: 0.40
+		}
+	},
 	egg_common: {
 		id: 'egg_common',
 		name: 'Oeuf Commun',

@@ -2,7 +2,7 @@ import { getSpellConfig } from '../Config/SpellConfig.js';
 import { calculateStatWithIV } from '../Systems/IVSystem.js';
 import { Upgrades, UpgradeType } from '../Config/UpgradeConfig.js';
 
-const BASE_SPEED = 2;
+const BASE_SPEED = 1.9;
 
 export default class BattlePlayer {
 	constructor(x, y, animationSystem = null, pokemonConfig = null, ivs = null) {
@@ -111,7 +111,7 @@ export default class BattlePlayer {
 		this.bounceMaxCount = 1; // Nombre max de rebonds
 		this.bounceDetectionRange = 300; // Rayon de détection pour les rebonds
 		this.bounceRange = 600;
-		this.effectProcChance = 1; // Chance de base de déclencher un effet (15%)
+		this.effectProcChance = 0.2; // Chance de base de déclencher un effet (15%)
 		this.effectDamageMultiplier = 1.0; // Multiplicateur de dégâts des effets
 		this.effectIntensityMultiplier = 1.0; // Multiplicateur d'intensité des effets
 		this.effectDurationMultiplier = 1.0; // Multiplicateur de durée des effets
@@ -131,6 +131,9 @@ export default class BattlePlayer {
 		this.spellRangeMultipliers = {};
 		this.spellCooldownMultipliers = {};
 		this.waterDamageMultiplier = 1.0;
+		this.fireDamageMultiplier = 1.0;
+		this.grassDamageMultiplier = 1.0;
+		this.electricDamageMultiplier = 1.0;
 		
 		this.enemyRepulsionRadius = 80;
 		this.enemyRepulsionStrength = 0.0;
@@ -142,7 +145,33 @@ export default class BattlePlayer {
 		const effect = itemConfig.effect;
 		
 		if (effect.type === 'waterDamageBoost') {
+			if (!this.waterDamageMultiplier) this.waterDamageMultiplier = 1.0;
 			this.waterDamageMultiplier += effect.value;
+		} else if (effect.type === 'fireDamageBoost') {
+			if (!this.fireDamageMultiplier) this.fireDamageMultiplier = 1.0;
+			this.fireDamageMultiplier += effect.value;
+		} else if (effect.type === 'grassDamageBoost') {
+			if (!this.grassDamageMultiplier) this.grassDamageMultiplier = 1.0;
+			this.grassDamageMultiplier += effect.value;
+		} else if (effect.type === 'electricDamageBoost') {
+			if (!this.electricDamageMultiplier) this.electricDamageMultiplier = 1.0;
+			this.electricDamageMultiplier += effect.value;
+		} else if (effect.type === 'damageBoost') {
+			this.damage *= (1 + effect.value);
+		} else if (effect.type === 'speedBoost') {
+			this.speed *= (1 + effect.value);
+		} else if (effect.type === 'hpBoost') {
+			const hpRatio = this.hp / this.maxHp;
+			this.maxHp *= (1 + effect.value);
+			this.hp = this.maxHp * hpRatio;
+			this.displayedHp = this.hp;
+		} else if (effect.type === 'critChanceBoost') {
+			this.critChance += effect.value;
+		} else if (effect.type === 'attackSpeedBoost') {
+			this.attackSpeed *= (1 + effect.value);
+			this.attackCooldownMax = 1000 / this.attackSpeed;
+		} else if (effect.type === 'rangeBoost') {
+			this.range *= (1 + effect.value);
 		}
 	}
 
@@ -152,7 +181,29 @@ export default class BattlePlayer {
 		const effect = itemConfig.effect;
 		
 		if (effect.type === 'waterDamageBoost') {
-			this.waterDamageMultiplier -= effect.value;
+			if (this.waterDamageMultiplier) this.waterDamageMultiplier -= effect.value;
+		} else if (effect.type === 'fireDamageBoost') {
+			if (this.fireDamageMultiplier) this.fireDamageMultiplier -= effect.value;
+		} else if (effect.type === 'grassDamageBoost') {
+			if (this.grassDamageMultiplier) this.grassDamageMultiplier -= effect.value;
+		} else if (effect.type === 'electricDamageBoost') {
+			if (this.electricDamageMultiplier) this.electricDamageMultiplier -= effect.value;
+		} else if (effect.type === 'damageBoost') {
+			this.damage /= (1 + effect.value);
+		} else if (effect.type === 'speedBoost') {
+			this.speed /= (1 + effect.value);
+		} else if (effect.type === 'hpBoost') {
+			const hpRatio = this.hp / this.maxHp;
+			this.maxHp /= (1 + effect.value);
+			this.hp = this.maxHp * hpRatio;
+			this.displayedHp = this.hp;
+		} else if (effect.type === 'critChanceBoost') {
+			this.critChance -= effect.value;
+		} else if (effect.type === 'attackSpeedBoost') {
+			this.attackSpeed /= (1 + effect.value);
+			this.attackCooldownMax = 1000 / this.attackSpeed;
+		} else if (effect.type === 'rangeBoost') {
+			this.range /= (1 + effect.value);
 		}
 	}
 
@@ -592,8 +643,14 @@ export default class BattlePlayer {
 		const isCrit = Math.random() < this.critChance;
 		let finalDamage = isCrit ? this.damage * this.critDamage : this.damage;
 		
-		if (this.type === 'water') {
+		if (this.type === 'water' && this.waterDamageMultiplier) {
 			finalDamage *= this.waterDamageMultiplier;
+		} else if (this.type === 'fire' && this.fireDamageMultiplier) {
+			finalDamage *= this.fireDamageMultiplier;
+		} else if (this.type === 'grass' && this.grassDamageMultiplier) {
+			finalDamage *= this.grassDamageMultiplier;
+		} else if (this.type === 'electric' && this.electricDamageMultiplier) {
+			finalDamage *= this.electricDamageMultiplier;
 		}
 		
 		return { damage: finalDamage, isCrit: isCrit };

@@ -1,3 +1,9 @@
+const BASE_EFFECT_DAMAGE = 5;
+const BASE_EFFECT_INTENSITY = 0.5;
+const BASE_EFFECT_DURATION = 3000;
+
+export { BASE_EFFECT_DAMAGE, BASE_EFFECT_INTENSITY, BASE_EFFECT_DURATION };
+
 export default class Projectile {
 	constructor(x, y, targetX, targetY, damage, speed = 0.6, maxDistance = 600, color = '#ffff00', size = 8, playerVelocityX = 0, playerVelocityY = 0, aoeRadius = 0, isEnemy = false, hasPiercing = false, hasBounce = false, bounceCount = 0, piercingCount = 0, bounceRange = 300, type = 'normal', piercingDamageReduction = 0.2, hasEffect = false, effectProcChance = 0, effectDamageMultiplier = 1, effectIntensityMultiplier = 1, effectDurationMultiplier = 1, playerPokemonType = 'normal', critChance = 0, critDamage = 1.5) {
 		this.x = x;

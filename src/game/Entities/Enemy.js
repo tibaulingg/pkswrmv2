@@ -88,11 +88,19 @@ export default class Enemy {
 		this.statusEffect = null;
 		this.effectAnimationTime = 0;
 		this.spriteManager = spriteManager;
+		this.trail = [];
+		this.trailMaxLength = 15;
+		this.trailUpdateTimer = 0;
+		this.trailUpdateInterval = 50;
 	}
 
 	applyStatusEffect(effect) {
 		this.statusEffect = effect;
 		this.effectAnimationTime = 0;
+		if (effect && effect.slowAmount !== undefined) {
+			this.trail = [];
+			this.trailUpdateTimer = 0;
+		}
 	}
 
 	update(deltaTime, playerX, playerY, collisionSystem = null, playerWidth = 32, playerHeight = 32, otherEnemies = [], playerVelocityX = 0, playerVelocityY = 0) {
@@ -105,11 +113,29 @@ export default class Enemy {
 			if (this.statusEffect.duration <= 0) {
 				this.statusEffect = null;
 				this.speed = this.baseSpeed;
+				this.trail = [];
 			} else {
 				if (this.statusEffect.slowAmount !== undefined) {
 					this.speed = this.baseSpeed * (1 - this.statusEffect.slowAmount);
+					
+					this.trailUpdateTimer += deltaTime;
+					if (this.trailUpdateTimer >= this.trailUpdateInterval) {
+						const centerX = this.getCenterX();
+						const centerY = this.getCenterY();
+						
+						if (this.trail.length === 0 || 
+						    Math.abs(this.trail[this.trail.length - 1].x - centerX) > 2 ||
+						    Math.abs(this.trail[this.trail.length - 1].y - centerY) > 2) {
+							this.trail.push({ x: centerX, y: centerY });
+							if (this.trail.length > this.trailMaxLength) {
+								this.trail.shift();
+							}
+						}
+						this.trailUpdateTimer = 0;
+					}
 				} else {
 					this.speed = this.baseSpeed;
+					this.trail = [];
 				}
 
 				if (this.statusEffect.tickInterval !== Infinity && this.statusEffect.tickTimer >= this.statusEffect.tickInterval) {
@@ -522,6 +548,39 @@ export default class Enemy {
 			}
 		}
 
+		if (this.statusEffect && this.statusEffect.slowAmount !== undefined && this.trail.length > 1) {
+			renderer.ctx.save();
+			renderer.ctx.globalCompositeOperation = 'source-over';
+			renderer.ctx.lineCap = 'round';
+			renderer.ctx.lineJoin = 'round';
+			
+			const effectType = this.statusEffect.type;
+			let trailColor = 'rgba(200, 200, 200, '; // slow - gris par défaut
+			if (effectType === 'wet') {
+				trailColor = 'rgba(100, 150, 255, '; // wet - bleu
+			} else if (effectType === 'freeze') {
+				trailColor = 'rgba(150, 200, 255, '; // freeze - bleu clair
+			} else if (effectType === 'slow') {
+				trailColor = 'rgba(200, 200, 200, '; // slow - gris
+			}
+			
+			for (let i = 1; i < this.trail.length; i++) {
+				const prevPoint = this.trail[i - 1];
+				const currentPoint = this.trail[i];
+				const progress = i / this.trail.length;
+				const alpha = 0.4 + progress * 0.4;
+				const lineWidth = 4 + progress * 4;
+				
+				renderer.ctx.strokeStyle = trailColor + alpha + ')';
+				renderer.ctx.lineWidth = lineWidth;
+				renderer.ctx.beginPath();
+				renderer.ctx.moveTo(prevPoint.x, prevPoint.y);
+				renderer.ctx.lineTo(currentPoint.x, currentPoint.y);
+				renderer.ctx.stroke();
+			}
+			renderer.ctx.restore();
+		}
+
 		if (!this.isBoss && this.hp < this.maxHp) {
 			const hpBarWidth = 40;
 			const hpBarHeight = 8;
@@ -550,32 +609,58 @@ export default class Enemy {
 			
 			if (effectType === 'burn') {
 				effectSprite = this.spriteManager.get('fireeffect');
+			} else if (effectType === 'poison') {
+				effectSprite = this.spriteManager.get('poisoneffect');
 			}
 			
 			if (effectSprite) {
-				const frameWidth = 111 / 7;
-				const frameHeight = 17;
-				const frameIndex = Math.floor((this.effectAnimationTime / 100) % 7);
-				const sourceX = frameIndex * frameWidth;
 				const centerX = this.getCenterX();
 				const centerY = this.getCenterY();
 				const effectY = centerY - this.spriteHeight / 2 - 20;
 				const effectSize = 30;
 
-				renderer.ctx.save();
-				renderer.ctx.imageSmoothingEnabled = false;
-				renderer.ctx.drawImage(
-					effectSprite,
-					sourceX,
-					0,
-					frameWidth,
-					frameHeight,
-					centerX - effectSize / 2,
-					effectY - effectSize / 2,
-					effectSize,
-					effectSize
-				);
-				renderer.ctx.restore();
+				if (effectType === 'burn') {
+					const frameWidth = 111 / 7;
+					const frameHeight = 17;
+					const frameIndex = Math.floor((this.effectAnimationTime / 100) % 7);
+					const sourceX = frameIndex * frameWidth;
+
+					renderer.ctx.save();
+					renderer.ctx.imageSmoothingEnabled = false;
+					renderer.ctx.drawImage(
+						effectSprite,
+						sourceX,
+						0,
+						frameWidth,
+						frameHeight,
+						centerX - effectSize / 2,
+						effectY - effectSize / 2,
+						effectSize,
+						effectSize
+					);
+					renderer.ctx.restore();
+				} else if (effectType === 'poison') {
+					const poisonFrameCount = 6;
+					const poisonFrameWidth = 111 / 6;
+					const poisonFrameHeight = 17;
+					const poisonFrameIndex = Math.floor((this.effectAnimationTime / 100) % poisonFrameCount);
+					const poisonSourceX = poisonFrameIndex * poisonFrameWidth;
+
+					renderer.ctx.save();
+					renderer.ctx.imageSmoothingEnabled = false;
+					renderer.ctx.drawImage(
+						effectSprite,
+						poisonSourceX,
+						0,
+						poisonFrameWidth,
+						poisonFrameHeight,
+						centerX - effectSize / 2,
+						effectY - effectSize / 2,
+						effectSize,
+						effectSize
+					);
+					renderer.ctx.restore();
+				}
 			} else if (this.statusEffect) {
 				const centerX = this.getCenterX();
 				const centerY = this.getCenterY();
@@ -584,22 +669,7 @@ export default class Enemy {
 				
 				renderer.ctx.save();
 				
-				if (effectType === 'poison') {
-					renderer.ctx.fillStyle = 'rgba(150, 0, 255, 0.7)';
-					renderer.ctx.beginPath();
-					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
-					renderer.ctx.fill();
-					
-					for (let i = 0; i < 3; i++) {
-						const angle = (this.effectAnimationTime * 0.01 + i * Math.PI * 2 / 3) % (Math.PI * 2);
-						const offsetX = Math.cos(angle) * (effectSize / 3);
-						const offsetY = Math.sin(angle) * (effectSize / 3);
-						renderer.ctx.fillStyle = 'rgba(200, 0, 255, 0.9)';
-						renderer.ctx.beginPath();
-						renderer.ctx.arc(centerX + offsetX, effectY + offsetY, 3, 0, Math.PI * 2);
-						renderer.ctx.fill();
-					}
-				} else if (effectType === 'stun') {
+				if (effectType === 'stun') {
 					renderer.ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
 					renderer.ctx.lineWidth = 3;
 					renderer.ctx.setLineDash([5, 5]);
@@ -607,13 +677,6 @@ export default class Enemy {
 					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
 					renderer.ctx.stroke();
 					renderer.ctx.setLineDash([]);
-				} else if (effectType === 'slow' || effectType === 'wet' || effectType === 'freeze') {
-					renderer.ctx.fillStyle = effectType === 'freeze' ? 'rgba(150, 200, 255, 0.7)' : 
-					                        effectType === 'wet' ? 'rgba(100, 150, 255, 0.7)' : 
-					                        'rgba(200, 200, 200, 0.7)';
-					renderer.ctx.beginPath();
-					renderer.ctx.arc(centerX, effectY, effectSize / 2, 0, Math.PI * 2);
-					renderer.ctx.fill();
 				}
 				
 				renderer.ctx.restore();

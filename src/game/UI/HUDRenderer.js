@@ -22,6 +22,7 @@ export default class HUDRenderer {
 		}
 
 		this.renderTopLeftInfo(renderer, survivalTime, battleScene);
+		this.renderEquippedItems(renderer, engine, canvasWidth, canvasHeight);
 		this.renderHUDBackground(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine);
 		this.renderHPXP(renderer, player, canvasWidth, canvasHeight, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss);
 		this.renderSimpleHUD(renderer, player, canvasWidth, mapData, selectedPokemon, engine, bossTimer, maxBossTimer, currentBoss, battleScene);
@@ -219,6 +220,57 @@ export default class HUDRenderer {
 		renderer.ctx.strokeText(timerText, padding, y);
 		renderer.ctx.fillText(timerText, padding, y);
 		
+		renderer.ctx.restore();
+	}
+
+	renderEquippedItems(renderer, engine, canvasWidth, canvasHeight) {
+		if (!engine || !engine.equippedItems || engine.equippedItems.length === 0) return;
+
+		const minimapSize = 180;
+		const minimapX = canvasWidth - minimapSize - 10;
+		const minimapY = 10;
+		const padding = 10;
+		const itemSize = 40;
+		const itemSpacing = 8;
+		const startX = minimapX;
+		const startY = minimapY + minimapSize + padding;
+		let currentY = startY;
+
+		renderer.ctx.save();
+
+		engine.equippedItems.forEach(uniqueId => {
+			const parts = uniqueId.split('_');
+			let baseItemId = null;
+			if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+				baseItemId = parts.slice(0, -1).join('_');
+			} else {
+				baseItemId = uniqueId;
+			}
+			
+			const itemConfig = ItemConfig[baseItemId];
+			if (!itemConfig) return;
+
+			const itemX = startX;
+			const itemY = currentY;
+
+			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+			renderer.ctx.fillRect(itemX, itemY, itemSize, itemSize);
+
+			const rarityColor = this.getItemRarityColor(itemConfig);
+			renderer.ctx.strokeStyle = rarityColor;
+			renderer.ctx.lineWidth = 2;
+			renderer.ctx.strokeRect(itemX + 1, itemY + 1, itemSize - 2, itemSize - 2);
+
+			const itemSprite = engine.sprites.get(`item_${baseItemId}`);
+			if (itemSprite) {
+				const iconSize = itemSize - 8;
+				const iconOffset = 4;
+				renderer.ctx.drawImage(itemSprite, itemX + iconOffset, itemY + iconOffset, iconSize, iconSize);
+			}
+
+			currentY += itemSize + itemSpacing;
+		});
+
 		renderer.ctx.restore();
 	}
 	
@@ -574,53 +626,6 @@ export default class HUDRenderer {
 
 		if (engine) {
 			currentX += maxSpells * (spellSize + spellSpacing) - spellSpacing + iconSpacing;
-
-			const equippedUniqueId = engine.equippedItems && engine.equippedItems.length > 0 ? engine.equippedItems[0] : null;
-			let baseItemId = null;
-			if (equippedUniqueId) {
-				const parts = equippedUniqueId.split('_');
-				if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
-					baseItemId = parts.slice(0, -1).join('_');
-				} else {
-					baseItemId = equippedUniqueId;
-				}
-			}
-			const equippedItem = baseItemId ? ItemConfig[baseItemId] : null;
-
-			const itemIconX = currentX;
-			const itemIconY = spellY;
-			const itemIconSize = iconSize / 2;
-			const itemIconOffset = (iconSize - itemIconSize) / 2;
-			
-			renderer.ctx.save();
-			renderer.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-			renderer.ctx.fillRect(itemIconX, itemIconY, iconSize, iconSize);
-			
-			if (equippedItem) {
-				const rarityColor = this.getItemRarityColor(equippedItem);
-				renderer.ctx.strokeStyle = rarityColor;
-				renderer.ctx.lineWidth = 1;
-				renderer.ctx.strokeRect(itemIconX + 0.5, itemIconY + 0.5, iconSize - 1, iconSize - 1);
-			} else {
-				renderer.ctx.strokeStyle = 'rgba(68, 68, 68, 0.3)';
-				renderer.ctx.lineWidth = 1;
-				renderer.ctx.setLineDash([5, 5]);
-				renderer.ctx.strokeRect(itemIconX + 0.5, itemIconY + 0.5, iconSize - 1, iconSize - 1);
-				renderer.ctx.setLineDash([]);
-			}
-			
-			if (equippedItem) {
-				let itemSprite = engine.sprites.get(`item_${baseItemId}`);
-				if (!itemSprite) {
-					itemSprite = engine.sprites.get(baseItemId);
-				}
-				if (itemSprite) {
-					renderer.ctx.drawImage(itemSprite, itemIconX + itemIconOffset, itemIconY + itemIconOffset, itemIconSize, itemIconSize);
-				}
-			}
-			renderer.ctx.restore();
-			
-			currentX += iconSize + iconSpacing;
 
 			const consumableItem = engine.assignedConsumable ? ItemConfig[engine.assignedConsumable] : null;
 			const consumableQuantity = engine.assignedConsumable ? (engine.inventory[engine.assignedConsumable] || 0) : 0;

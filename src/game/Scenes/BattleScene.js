@@ -16,6 +16,7 @@ import { getPokemonConfig, PokemonSprites, getPokemonLootTable } from '../Config
 import { getRandomUpgrades, RarityColors, RarityGlowColors, RarityBackgroundColors, UpgradeIcons, UpgradeType, UpgradeRarity } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { createStatusEffect, getEffectForPlayerPokemonType } from '../Systems/StatusEffectSystem.js';
+import { BASE_EFFECT_DAMAGE, BASE_EFFECT_INTENSITY, BASE_EFFECT_DURATION } from '../Entities/Projectile.js';
 import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '../Config/CollisionConfig.js';
 import SaveManager from '../Systems/SaveManager.js';
 import ChestSystem from '../Systems/ChestSystem.js';
@@ -880,14 +881,11 @@ export default class BattleScene {
 				
 				if (projectile.hasEffect && Math.random() < projectile.effectProcChance) {
 					const effectType = getEffectForPlayerPokemonType(projectile.playerPokemonType);
-					const baseDamage = 5;
-					const baseIntensity = 0.5;
-					const baseDuration = 2000;
 					const statusEffect = createStatusEffect(
 						effectType,
-						baseDamage,
-						baseIntensity,
-						baseDuration,
+						BASE_EFFECT_DAMAGE,
+						BASE_EFFECT_INTENSITY,
+						BASE_EFFECT_DURATION,
 						projectile.effectDamageMultiplier,
 						projectile.effectIntensityMultiplier,
 						projectile.effectDurationMultiplier
@@ -931,14 +929,11 @@ export default class BattleScene {
 					
 					if (projectile.hasEffect && Math.random() < projectile.effectProcChance) {
 						const effectType = getEffectForPlayerPokemonType(projectile.playerPokemonType);
-						const baseDamage = 2;
-						const baseIntensity = 0.5;
-						const baseDuration = 2000;
 						const statusEffect = createStatusEffect(
 							effectType,
-							baseDamage,
-							baseIntensity,
-							baseDuration,
+							BASE_EFFECT_DAMAGE,
+							BASE_EFFECT_INTENSITY,
+							BASE_EFFECT_DURATION,
 							projectile.effectDamageMultiplier,
 							projectile.effectIntensityMultiplier,
 							projectile.effectDurationMultiplier

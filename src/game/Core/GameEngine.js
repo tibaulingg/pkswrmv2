@@ -153,6 +153,7 @@ export default class GameEngine {
 		}
 
 		await loadOptional('fireeffect', '/fireeffect.png')
+		await loadOptional('poisoneffect', '/poisoneffect.png')
 
 		const sounds = {
 			orb: '/orb.wav',
