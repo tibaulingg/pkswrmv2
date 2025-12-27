@@ -1,12 +1,4 @@
 export const ItemConfig = {
-	key: {
-		id: 'key',
-		name: 'Clé',
-		category: 'relic',
-		rarity: 'common',
-		iconImage: '/sprites/items/key.png',
-		description: 'Permet d\'ouvrir des coffres',
-	},
 	rattata_tail: {
 		id: 'rattata_tail',
 		name: 'Queue de Rattata',
@@ -15,14 +7,53 @@ export const ItemConfig = {
 		iconImage: '/sprites/items/rattata_tail.png',
 		description: 'Peut être vendue',
 	},
-    bronze_chest: {
-		id: 'bronze_chest',
+    basic_chest: {
+		id: 'basic_chest',
 		name: 'Coffre en Bronze',
 		category: 'chest',
 		rarity: 'rare',
 		icon: '',
-		iconImage: '/sprites/items/bronze_chest.png',
+		iconImage: '/sprites/items/basic_chest.png',
 		description: 'Coffre en Bronze, peut contenir des objets',
+		lootTable: [
+			{ itemId: 'golden_apple', chance: 0.7 },
+			{ itemId: 'mystic_water', chance: 0.3 },
+		],
+	},
+	rare_chest: {
+		id: 'rare_chest',
+		name: 'Coffre en Argent',
+		category: 'chest',
+		rarity: 'epic',
+		icon: '',
+		iconImage: '/sprites/items/rare_chest.png',
+		description: 'Coffre en Argent, peut contenir des objets',
+		lootTable: [
+			{ itemId: 'golden_apple', chance: 0.7 },
+			{ itemId: 'mystic_water', chance: 0.3 },
+		],
+	},
+	epic_chest: {
+		id: 'epic_chest',
+		name: 'Coffre en Or',
+		category: 'chest',
+		rarity: 'legendary',
+		icon: '',
+		iconImage: '/sprites/items/epic_chest.png',
+		description: 'Coffre en Or, peut contenir des objets',
+		lootTable: [
+			{ itemId: 'golden_apple', chance: 0.7 },
+			{ itemId: 'mystic_water', chance: 0.3 },
+		],
+	},
+	legendary_chest: {
+		id: 'legendary_chest',
+		name: 'Coffre Légendaire',
+		category: 'chest',
+		rarity: 'legendary',
+		icon: '',
+		iconImage: '/sprites/items/legendary_chest.png',
+		description: 'Coffre Légendaire, peut contenir des objets',
 		lootTable: [
 			{ itemId: 'golden_apple', chance: 0.7 },
 			{ itemId: 'mystic_water', chance: 0.3 },
@@ -190,8 +221,8 @@ export const ItemConfig = {
 		iconImage: '/sprites/items/egg_common.png',
 		description: 'Un oeuf commun',
 		rarity: 'common',
-		requiredKills: 10,
-		possiblePokemon: ['rattata', 'pidgey']
+		requiredKills: 100,
+		possiblePokemon: ['rattata', 'pidgey'],
 	},
 	egg_rare: {
 		id: 'egg_rare',
@@ -200,8 +231,8 @@ export const ItemConfig = {
 		iconImage: '/sprites/items/egg_rare.png',
 		description: 'Un oeuf rare',
 		rarity: 'rare',
-		requiredKills: 25,
-		possiblePokemon: ['wooper']
+		requiredKills: 250,
+		possiblePokemon: ['wooper'],
 	},
 	egg_epic: {
 		id: 'egg_epic',
@@ -210,8 +241,8 @@ export const ItemConfig = {
 		iconImage: '/sprites/items/egg_epic.png',
 		description: 'Un oeuf épique',
 		rarity: 'epic',
-		requiredKills: 50,
-		possiblePokemon: ['kecleon', 'quagsire', 'ditto', 'chansey']
+		requiredKills: 500,
+		possiblePokemon: ['kecleon', 'quagsire', 'ditto', 'chansey'],
 	},
 	egg_legendary: {
 		id: 'egg_legendary',
@@ -219,9 +250,9 @@ export const ItemConfig = {
 		category: 'egg',
 		iconImage: '/sprites/items/egg_legendary.png',
 		description: 'Un oeuf légendaire',
-		rarity: 'epic',
-		requiredKills: 100,
-		possiblePokemon: ['garchomp']
+		rarity: 'legendary',
+		requiredKills: 1000,
+		possiblePokemon: ['garchomp'],
 	}
 };
 

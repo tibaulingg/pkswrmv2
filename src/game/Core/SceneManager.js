@@ -9,6 +9,7 @@ import TransitionScene from '../Scenes/TransitionScene.js';
 import ShopScene from '../Scenes/ShopScene.js';
 import GameOverScene from '../Scenes/GameOverScene.js';
 import SkillTreeScene from '../Scenes/SkillTreeScene.js';
+import HatchResultScene from '../Scenes/HatchResultScene.js';
 
 export default class SceneManager {
 	constructor(engine) {
@@ -23,7 +24,8 @@ export default class SceneManager {
 			transition: new TransitionScene(this.engine),
 			shop: new ShopScene(this.engine),
 			gameOver: new GameOverScene(this.engine),
-			skillTree: new SkillTreeScene(this.engine)
+			skillTree: new SkillTreeScene(this.engine),
+			hatchResult: new HatchResultScene(this.engine)
 		};
 		this.stack = [];
 	}

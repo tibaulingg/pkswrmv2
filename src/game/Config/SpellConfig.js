@@ -12,7 +12,7 @@ export const Spells = {
 		cooldownMax: 15000,
 		damageMultiplier: 1.5,
 		baseRadius: 50,
-		animation: 'charge',
+		animation: 'attack',
 		animationDuration: 500,
 		particleColor: '#8B4513',
 		knockback: 5
@@ -35,7 +35,7 @@ export const Spells = {
 		cooldownMax: 10000,
 		damageMultiplier: 2,
 		baseRadius: 250,
-		animation: 'charge',
+		animation: 'attack',
 		animationDuration: 3000,
 		particleColor: '#4dd0e1',
 		knockback: 10

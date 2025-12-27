@@ -13,7 +13,7 @@ import HUDRenderer from '../UI/HUDRenderer.js';
 import SpellSystem from '../Systems/SpellSystem.js';
 import { Spells } from '../Config/SpellConfig.js';
 import { getPokemonConfig, PokemonSprites, getPokemonLootTable } from '../Config/SpriteConfig.js';
-import { getRandomUpgrades, RarityColors, RarityGlowColors, RarityBackgroundColors, UpgradeIcons, UpgradeType, UpgradeRarity } from '../Config/UpgradeConfig.js';
+import { getRandomUpgrades, RarityColors, RarityGlowColors, RarityBackgroundColors, UpgradeIcons, UpgradeType, UpgradeRarity, Upgrades } from '../Config/UpgradeConfig.js';
 import CollisionSystem from '../Systems/CollisionSystem.js';
 import { createStatusEffect, getEffectForPlayerPokemonType } from '../Systems/StatusEffectSystem.js';
 import { BASE_EFFECT_DAMAGE, BASE_EFFECT_INTENSITY, BASE_EFFECT_DURATION } from '../Entities/Projectile.js';
@@ -21,6 +21,9 @@ import { MapTileCollisions, tilesToCollisionRects, MapCollisionColors } from '..
 import SaveManager from '../Systems/SaveManager.js';
 import ChestSystem from '../Systems/ChestSystem.js';
 import { SkillTreeConfig } from '../Config/SkillTreeConfig.js';
+import { calculateStatWithIV } from '../Systems/IVSystem.js';
+import BossSystem from '../Systems/BossSystem.js';
+import { BOSS_CONFIG } from '../Config/BossConfig.js';
 
 const TILE_SIZE = 32;
 
@@ -187,6 +190,32 @@ export default class BattleScene {
 		this.bossDefeated = false;
 		this.isEndlessAfterVictory = false;
 		this.chestSystem = new ChestSystem(this.engine);
+		this.bossSystem = new BossSystem(this.engine);
+		
+		// Système d'étages
+		this.currentFloor = 1;
+		this.totalFloors = 0; // Sera défini lors de l'initialisation
+		this.mobsKilledThisFloor = 0;
+		this.stairs = null; // L'escalier qui apparaît
+		this.isTransitioning = false; // Pour l'écran noir de transition
+		this.transitionProgress = 0;
+		this.transitionDuration = 2000; // 2 secondes
+		this.transitionPhase = 'fade-out'; // 'fade-out', 'text', 'fade-in'
+		this.processedEnemyDeaths = new Set(); // Pour éviter les doubles comptages
+		this.isGoingToFinalMap = false; // Flag pour aller vers la map finale
+		this.isFinalMap = false; // Flag pour indiquer qu'on est dans la map finale
+		this.finalMapChest = null; // Le coffre dans la map finale
+		
+		// Animation d'entrée dans la map finale
+		this.finalMapEntryAnimation = {
+			isActive: false,
+			progress: 0,
+			duration: 1500, // 1.5 secondes
+			startX: 0,
+			startY: 0,
+			targetX: 0,
+			targetY: 0
+		};
 	}
 
 		init(mapData) {
@@ -205,22 +234,37 @@ export default class BattleScene {
 			this.bossDefeated = false;
 			this.isEndlessAfterVictory = false;
 			
+			// Initialiser le système d'étages
+			this.currentFloor = 1;
+			const minFloors = mapData.minFloors || 8;
+			const maxFloors = mapData.maxFloors || 12;
+			this.totalFloors = minFloors + Math.floor(Math.random() * (maxFloors - minFloors + 1));
+			this.mobsKilledThisFloor = 0;
+			this.stairs = null;
+			this.isTransitioning = false;
+			this.transitionProgress = 0;
+			this.transitionPhase = 'fade-out';
+			this.processedEnemyDeaths = new Set(); // Réinitialiser le Set
+			
 			const selectedPokemon = this.engine.selectedPokemon || 'quagsire';
 			const pokemonConfig = getPokemonConfig(selectedPokemon);
 			const pokemonWalkSprite = this.engine.sprites.get(`${selectedPokemon}_walk`);
 			const pokemonHurtSprite = this.engine.sprites.get(`${selectedPokemon}_hurt`);
-			const pokemonChargeSprite = this.engine.sprites.get(`${selectedPokemon}_charge`);
+			const pokemonattackSprite = this.engine.sprites.get(`${selectedPokemon}_attack`);
 			const pokemonFaintSprite = this.engine.sprites.get(`${selectedPokemon}_faint`);
 			const spriteImages = {};
 			if (pokemonWalkSprite) spriteImages.walk = pokemonWalkSprite;
 			if (pokemonHurtSprite) spriteImages.hurt = pokemonHurtSprite;
-			if (pokemonChargeSprite) spriteImages.charge = pokemonChargeSprite;
+			if (pokemonattackSprite) spriteImages.attack = pokemonattackSprite;
 			if (pokemonFaintSprite) spriteImages.faint = pokemonFaintSprite;
 			const hasSprites = Object.keys(spriteImages).length > 0;
 			const animationSystem = pokemonConfig && hasSprites ? 
 				new AnimationSystem(pokemonConfig, spriteImages) : null;
 			
-			this.loadMapBackground(mapData.image);
+			// Charger la bonne map (normale ou boss)
+			const isLastFloor = this.currentFloor === this.totalFloors;
+			const mapImage = isLastFloor ? (mapData.bossImage || mapData.image) : mapData.image;
+			this.loadMapBackground(mapImage);
 			
 			const pokemonIVs = this.engine.pokemonIVs && this.engine.pokemonIVs[selectedPokemon] ? this.engine.pokemonIVs[selectedPokemon] : null;
 			this.player = new BattlePlayer(this.mapWidth / 2 - 16, this.mapHeight / 2 - 16, animationSystem, pokemonConfig, pokemonIVs);
@@ -229,7 +273,13 @@ export default class BattleScene {
 	
 			if (this.engine.equippedItems) {
 				this.engine.equippedItems.forEach(uniqueId => {
-					const baseItemId = uniqueId.split('_')[0];
+					const parts = uniqueId.split('_');
+					let baseItemId = null;
+					if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+						baseItemId = parts.slice(0, -1).join('_');
+					} else {
+						baseItemId = uniqueId;
+					}
 					const itemConfig = ItemConfig[baseItemId];
 					if (itemConfig) {
 						this.player.applyEquippedItem(baseItemId, itemConfig);
@@ -243,12 +293,19 @@ export default class BattleScene {
 				this.engine.playedPokemons.add(selectedPokemon);
 			}
 			
-			const mapTileCollisions = MapTileCollisions[mapData.image] || [];
+			const mapTileCollisions = MapTileCollisions[mapImage] || [];
 			const tileRects = tilesToCollisionRects(mapTileCollisions, TILE_SIZE);
 			this.collisionSystem = new CollisionSystem(tileRects);
 			this.debugCollisions = false;
 			
-			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, mapData.bossTimer, mapData.bossType, this.engine, this.collisionSystem);
+			// Ne pas spawner le boss au timer, il apparaîtra au dernier étage
+			const enemyScaling = mapData.enemyScaling || {
+				baseLevel: 1,
+				levelPerFloor: 3,
+				levelPerMinute: 0.5,
+				maxLevel: 100
+			};
+			this.enemySpawner = new EnemySpawner(mapData.id, this.mapWidth, this.mapHeight, this.engine.sprites, null, mapData.bossType, this.engine, this.collisionSystem, enemyScaling);
 			this.camera = new Camera(BALANCE_CONFIG.CAMERA.WIDTH, BALANCE_CONFIG.CAMERA.HEIGHT, this.mapWidth, this.mapHeight, BALANCE_CONFIG.CAMERA.ZOOM);
 			this.projectiles = [];
 			this.enemyProjectiles = [];
@@ -300,6 +357,12 @@ export default class BattleScene {
 			return;
 		}
 		
+		// Gestion de la transition d'étage
+		if (this.isTransitioning) {
+			this.updateFloorTransition(deltaTime);
+			return;
+		}
+		
 		if (this.upgradeChoices) {
 			this.upgradeAnimationProgress = Math.min(this.upgradeAnimationProgress + deltaTime, this.upgradeAnimationDuration);
 			if (this.upgradePressAnimation > 0) {
@@ -319,9 +382,18 @@ export default class BattleScene {
 		const currentScene = this.engine.sceneManager.getCurrentScene();
 		const isPauseOpen = currentScene && (currentScene.constructor.name === 'PauseScene' || currentScene === this.engine.sceneManager.scenes.pause);
 		const isConfirmMenuOpen = currentScene && (currentScene.constructor.name === 'ConfirmMenuScene' || currentScene === this.engine.sceneManager.scenes.confirmMenu);
+		const isHatchResultOpen = currentScene && (currentScene.constructor.name === 'HatchResultScene' || currentScene === this.engine.sceneManager.scenes.hatchResult);
 		
-		if (isPauseOpen || isConfirmMenuOpen) {
+		if (isPauseOpen || isConfirmMenuOpen || isHatchResultOpen) {
 			return;
+		}
+		
+		// Vérifier la collision avec l'escalier
+		this.checkStairsCollision();
+		
+		// Vérifier la collision avec le coffre final
+		if (this.isFinalMap) {
+			this.checkFinalChestCollision();
 		}
 		
 		if (this.state === 'dying') {
@@ -374,21 +446,88 @@ export default class BattleScene {
 		if (key === 'KeyF' && !this.upgradeChoices) {
 			this.useAssignedConsumable();
 		}
-		if (key === 'Space' && !this.upgradeChoices && this.player && this.player.attackType === 'range') {
-			this.player.toggleAutoShoot();
+		// Désactiver le toggle autoattack dans la map finale
+		if (key === 'Space' && !this.upgradeChoices && this.player && this.player.attackType === 'range' && !this.isFinalMap) {
+			this.player.toggleAutoattack();
 		}
 
+		// Gérer l'animation d'entrée dans la map finale
+		if (this.finalMapEntryAnimation.isActive) {
+			this.finalMapEntryAnimation.progress += deltaTime;
+			const t = Math.min(this.finalMapEntryAnimation.progress / this.finalMapEntryAnimation.duration, 1);
+			
+			// Utiliser une fonction d'easing pour un mouvement fluide (ease-out)
+			const easeOut = 1 - Math.pow(1 - t, 3);
+			
+			// Interpoler la position du joueur
+			this.player.x = this.finalMapEntryAnimation.startX + 
+				(this.finalMapEntryAnimation.targetX - this.finalMapEntryAnimation.startX) * easeOut;
+			this.player.y = this.finalMapEntryAnimation.startY + 
+				(this.finalMapEntryAnimation.targetY - this.finalMapEntryAnimation.startY) * easeOut;
+			
+			// Maintenir la direction du joueur pendant l'animation
+			if (this.player.animationSystem && this.finalMapEntryAnimation.direction) {
+				this.player.animationSystem.setDirection(this.finalMapEntryAnimation.direction);
+				this.player.animationSystem.update(deltaTime, true, this.player.directionX, this.player.directionY);
+			}
+			
+			// Mettre à jour la caméra pour suivre le joueur pendant l'animation
+			if (this.camera) {
+				this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
+				this.camera.update(deltaTime);
+			}
+			
+			// Désactiver les contrôles du joueur pendant l'animation
+			if (this.player) {
+				this.player.velocityX = 0;
+				this.player.velocityY = 0;
+			}
+			
+			// Terminer l'animation une fois complétée
+			if (t >= 1) {
+				this.finalMapEntryAnimation.isActive = false;
+				// S'assurer que le joueur est exactement à la position cible
+				this.player.x = this.finalMapEntryAnimation.targetX;
+				this.player.y = this.finalMapEntryAnimation.targetY;
+			}
+			
+			// Ne pas mettre à jour le reste du gameplay pendant l'animation
+			return;
+		}
+
+		// Mettre à jour le système de coffres (toujours, même pendant l'ouverture)
+		if (this.chestSystem) {
+			this.chestSystem.update(deltaTime);
+			// Gérer l'input pour l'ouverture de coffre
+			if (this.chestSystem.isOpening) {
+				this.chestSystem.handleInput(this.engine.input);
+			}
+		}
+		
+		// Empêcher le mouvement du joueur pendant l'ouverture du coffre
+		if (this.chestSystem && this.chestSystem.isOpening) {
+			// Bloquer les mouvements du joueur
+			if (this.player) {
+				this.player.velocityX = 0;
+				this.player.velocityY = 0;
+			}
+			// Ne pas mettre à jour le reste du gameplay pendant l'ouverture
+			return;
+		}
+		
 		if (this.player && this.player.isAlive) {
 			const enemies = this.getAllEnemies();
 			this.player.update(deltaTime, this.engine.input, this.mapWidth, this.mapHeight, this.camera, this.collisionSystem, enemies);
 			
-			if ((this.player.attackType === 'range' && this.player.autoShoot) || this.player.attackType === 'circular_sweep') {
+			if ((this.player.attackType === 'range' && this.player.autoattack) || this.player.attackType === 'circular_sweep') {
 				this.updatePlayerAutoAim();
 			}
 			
 			this.camera.update(deltaTime);
 			this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
 
+			// Désactiver les attaques dans la map finale
+			if (!this.isFinalMap) {
 			const attackData = this.player.performAttack();
 			if (attackData) {
 				if (attackData.type === 'melee') {
@@ -402,6 +541,7 @@ export default class BattleScene {
 
 			this.updateProjectiles(deltaTime);
 			this.updateEnemyProjectiles(deltaTime);
+			}
 			this.updateCircularStrikes(deltaTime);
 			this.updateSystems(deltaTime);
 			this.updateRockTraps(deltaTime);
@@ -410,9 +550,12 @@ export default class BattleScene {
 			if (this.enemySpawner) {
 				const playerVelocityX = this.player.velocityX * 16;
 				const playerVelocityY = this.player.velocityY * 16;
+				// Ne pas mettre à jour le spawner dans la map finale
+				if (!this.isFinalMap) {
 				this.enemySpawner.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.width, this.player.height, playerVelocityX, playerVelocityY);
+				}
 				
-				this.updateEnemyAttacks();
+				this.updateEnemyAttacks(deltaTime);
 				this.updateProjectileCollisions();
 			}
 		}
@@ -462,6 +605,13 @@ export default class BattleScene {
 	}
 
 	handleEnemyDeath(enemy) {
+		// Protection supplémentaire : utiliser un Set pour éviter les doubles appels
+		// On vérifie le Set AVANT de vérifier isAlive car takeDamage définit déjà isAlive = false
+		if (this.processedEnemyDeaths.has(enemy)) {
+			return; // Déjà traité
+		}
+		this.processedEnemyDeaths.add(enemy);
+		
 		const enemyCenterX = enemy.getCenterX();
 		const enemyCenterY = enemy.getCenterY();
 		
@@ -508,9 +658,433 @@ export default class BattleScene {
 		}
 
 		if (enemy.isBoss) {
-			// Ne pas transférer les récompenses immédiatement
-			// Elles seront transférées à la mort en endless ou au retour au village
-			this.showVictoryScreen();
+			// Arrêter immédiatement la musique boss
+			this.engine.audio.stopMusic();
+			// Désactiver le spawn d'ennemis immédiatement après la mort du boss
+			if (this.enemySpawner) {
+				this.enemySpawner.spawnFrozen = true;
+				this.enemySpawner.bossSpawned = true;
+			}
+			// Spawner l'escalier final après la mort du boss
+			this.spawnFinalStairs(enemy.getCenterX(), enemy.getCenterY());
+			// Ne plus afficher l'écran de victoire
+			// this.showVictoryScreen(); // Désactivé
+		} else {
+			// Comptage des mobs pour le système d'étages (ne compter que les vrais ennemis, pas les boss)
+			this.mobsKilledThisFloor++;
+			const mobsRequired = this.mapData?.mobsPerFloor || 15;
+			
+			console.log(`Mobs tués: ${this.mobsKilledThisFloor} / ${mobsRequired} (Étage ${this.currentFloor}/${this.totalFloors}, isBoss: ${enemy.isBoss})`);
+			
+			// Vérifier si on doit spawn l'escalier (au dernier ennemi tué)
+			if (this.mobsKilledThisFloor >= mobsRequired && !this.stairs && this.currentFloor < this.totalFloors) {
+				// Spawner l'escalier à la position de l'ennemi tué
+				console.log(`🪜 SPAWN ESCALIER après ${this.mobsKilledThisFloor} kills`);
+				this.spawnStairs(enemyCenterX, enemyCenterY);
+			}
+		}
+	}
+
+	spawnStairs(x, y) {
+		// Vérifier que la position est valide (pas dans un mur)
+		// Si la position est invalide, trouver une position proche valide
+		let finalX = x;
+		let finalY = y;
+		
+		if (this.collisionSystem) {
+			// Vérifier si la position initiale est valide (taille normale 64x64)
+			const stairsSize = 64;
+			const isValid = !this.collisionSystem.checkCollision(
+				x - stairsSize / 2,
+				y - stairsSize / 2,
+				stairsSize,
+				stairsSize
+			);
+			
+			// Si pas valide, chercher une position valide à proximité
+			if (!isValid) {
+				let found = false;
+				const maxAttempts = 50;
+				const searchRadius = 100;
+				
+				for (let i = 0; i < maxAttempts && !found; i++) {
+					const angle = (Math.PI * 2 * i) / maxAttempts;
+					const testX = x + Math.cos(angle) * searchRadius;
+					const testY = y + Math.sin(angle) * searchRadius;
+					
+					if (!this.collisionSystem.checkCollision(
+						testX - stairsSize / 2,
+						testY - stairsSize / 2,
+						stairsSize,
+						stairsSize
+					)) {
+						finalX = testX;
+						finalY = testY;
+						found = true;
+					}
+				}
+				
+				// Si toujours pas trouvé, utiliser le centre de la map
+				if (!found) {
+					finalX = this.mapWidth / 2;
+					finalY = this.mapHeight / 2;
+				}
+			}
+		}
+		
+		this.stairs = {
+			x: finalX,
+			y: finalY,
+			width: 64, // Taille normale
+			height: 64
+		};
+		
+		console.log(`Escalier spawné à l'étage ${this.currentFloor} / ${this.totalFloors} à la position (${finalX}, ${finalY})`);
+	}
+
+	spawnFinalStairs(x, y) {
+		// Escalier final qui mène vers la map "forest_boss.png"
+		this.stairs = {
+			x: x,
+			y: y,
+			width: 64,
+			height: 64,
+			isFinal: true // Marqueur pour l'escalier final
+		};
+		
+		console.log(`Escalier final spawné après la mort du boss à la position (${x}, ${y})`);
+	}
+
+	updateFloorTransition(deltaTime) {
+		this.transitionProgress += deltaTime;
+		
+		if (this.transitionPhase === 'fade-out') {
+			// Fondu au noir (500ms)
+			if (this.transitionProgress >= 500) {
+				this.transitionProgress = 0;
+				this.transitionPhase = 'text';
+			}
+		} else if (this.transitionPhase === 'text') {
+			// Affichage du texte "E-X" (1000ms) ou écran noir pour la map finale
+			if (this.isGoingToFinalMap) {
+				// Pour la map finale, juste écran noir sans texte
+				if (this.transitionProgress >= 1000) {
+					this.transitionProgress = 0;
+					this.transitionPhase = 'fade-in';
+					this.loadFinalMap();
+					this.isGoingToFinalMap = false;
+				}
+			} else {
+				// Pour les étages normaux, afficher "E-X"
+				if (this.transitionProgress >= 1000) {
+					this.transitionProgress = 0;
+					this.transitionPhase = 'fade-in';
+					this.advanceToNextFloor();
+				}
+			}
+		} else if (this.transitionPhase === 'fade-in') {
+			// Pendant le fade-in, continuer à mettre à jour le joueur et la caméra
+			// pour qu'il soit visible dès le début du fade-in
+			if (this.player && this.camera) {
+				this.camera.update(deltaTime);
+				this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
+			}
+			
+			// Fondu depuis le noir (500ms)
+			if (this.transitionProgress >= 500) {
+				this.isTransitioning = false;
+				this.transitionProgress = 0;
+				this.transitionPhase = 'fade-out';
+			}
+		}
+	}
+
+	advanceToNextFloor() {
+		this.currentFloor++;
+		this.mobsKilledThisFloor = 0;
+		this.stairs = null;
+		this.processedEnemyDeaths.clear(); // Nettoyer le Set pour le nouvel étage
+		
+		// Mettre à jour l'étage dans l'EnemySpawner
+		if (this.enemySpawner) {
+			this.enemySpawner.currentFloor = this.currentFloor;
+			// Réinitialiser le timer de spawn pour le nouvel étage
+			this.enemySpawner.spawnTimer = 0;
+			this.enemySpawner.gameTime = 0; // Réinitialiser le temps de jeu pour le calcul de niveau
+		}
+		
+		// Vérifier si c'est le dernier étage (boss)
+		const isLastFloor = this.currentFloor === this.totalFloors;
+		
+		// Charger la bonne map
+		const mapImage = isLastFloor ? (this.mapData.bossImage || this.mapData.image) : this.mapData.image;
+		this.loadMapBackground(mapImage);
+		
+		// Recharger les collisions de la map
+		const mapTileCollisions = MapTileCollisions[mapImage] || [];
+		const tileRects = tilesToCollisionRects(mapTileCollisions, TILE_SIZE);
+		this.collisionSystem = new CollisionSystem(tileRects);
+		
+		// Nettoyer TOUS les éléments de l'étage précédent
+		// Nettoyer tous les ennemis
+		if (this.enemySpawner) {
+			const enemies = this.enemySpawner.getEnemies();
+			enemies.length = 0;
+		}
+		
+		// Nettoyer tous les projectiles
+		this.projectiles = [];
+		this.enemyProjectiles = [];
+		
+		// Nettoyer les effets de sorts actifs
+		this.activeSpellEffects = [];
+		this.activeCircularStrikes = [];
+		
+		// Nettoyer les particules
+		this.particleSystem.clear();
+		
+		// Nettoyer les XP orbs
+		this.xpOrbSystem.clear();
+		
+		// Nettoyer les coins
+		if (this.coinSystem) {
+			this.coinSystem.clear();
+		}
+		
+		// Nettoyer les items droppés
+		if (this.itemDropSystem) {
+			this.itemDropSystem.clear();
+		}
+		
+		// Nettoyer les coffres
+		if (this.chestSystem) {
+			this.chestSystem.clear();
+		}
+		
+		// Nettoyer les nombres de dégâts
+		this.damageNumberSystem.clear();
+		
+		// Si c'est le dernier étage, spawner le boss
+		if (isLastFloor) {
+			console.log(`Étage final ! Spawn du boss ${this.mapData.bossType}`);
+			if (this.enemySpawner && this.player) {
+				// Arrêter la musique actuelle
+				this.engine.audio.stopMusic();
+				// Spawner le boss via EnemySpawner
+				this.enemySpawner.spawnBoss(this.player.getCenterX(), this.player.getCenterY());
+				// Jouer la musique du boss
+				this.engine.audio.playMusic('boss');
+			}
+		}
+		
+		// Repositionner le joueur au centre
+		this.player.x = this.mapWidth / 2 - this.player.width / 2;
+		this.player.y = this.mapHeight / 2 - this.player.height / 2;
+		
+		// S'assurer que la caméra suit le joueur immédiatement
+		if (this.camera) {
+			this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
+			this.camera.update(0); // Mettre à jour la caméra immédiatement
+		}
+		
+		console.log(`Passage à l'étage ${this.currentFloor} / ${this.totalFloors}`);
+	}
+
+	loadFinalMap() {
+		// Charger la map finale "forest_boss.png"
+		const finalMapImage = 'forest_boss';
+		this.isFinalMap = true; // Marquer qu'on est dans la map finale
+		this.loadMapBackground(finalMapImage);
+		
+		// Les dimensions de la map sont maintenant adaptées automatiquement
+		// car loadMapBackground utilise bgImage.width et bgImage.height
+		
+		// Recharger les collisions de la map
+		const mapTileCollisions = MapTileCollisions[finalMapImage] || [];
+		const tileRects = tilesToCollisionRects(mapTileCollisions, TILE_SIZE);
+		this.collisionSystem = new CollisionSystem(tileRects);
+		
+		// Nettoyer tous les éléments
+		if (this.enemySpawner) {
+			const enemies = this.enemySpawner.getEnemies();
+			enemies.length = 0;
+			// Désactiver complètement le spawn d'ennemis dans la map finale
+			this.enemySpawner.spawnFrozen = true; // Geler les spawns
+			this.enemySpawner.bossSpawned = true; // Empêcher le spawn du boss aussi
+		}
+		
+		this.projectiles = [];
+		this.enemyProjectiles = [];
+		this.activeSpellEffects = [];
+		this.activeCircularStrikes = [];
+		this.particleSystem.clear();
+		this.xpOrbSystem.clear();
+		if (this.coinSystem) {
+			this.coinSystem.clear();
+		}
+		if (this.itemDropSystem) {
+			this.itemDropSystem.clear();
+		}
+		if (this.chestSystem) {
+			this.chestSystem.clear();
+		}
+		this.damageNumberSystem.clear();
+		this.stairs = null;
+		
+		// Définir le point d'arrivée depuis la configuration de la map
+		const spawnConfig = this.mapData?.finalMapSpawn || { x: 239, y: 90, direction: 'down' };
+		const spawnX = spawnConfig.x - this.player.width / 2;
+		const spawnY = spawnConfig.y - this.player.height / 2;
+		
+		// Position finale (centre de la map)
+		const targetX = this.mapWidth / 2 - this.player.width / 2;
+		const targetY = this.mapHeight / 2 - this.player.height / 2;
+		
+		console.log(`Map finale: dimensions=(${this.mapWidth}, ${this.mapHeight}), joueur target=(${targetX}, ${targetY})`);
+		
+		// Définir la direction du joueur selon la configuration
+		const direction = spawnConfig.direction || 'down';
+		if (this.player.animationSystem) {
+			this.player.animationSystem.setDirection(direction);
+		}
+		// Définir directionX et directionY selon la direction
+		switch(direction) {
+			case 'down':
+				this.player.directionX = 0;
+				this.player.directionY = 1;
+				break;
+			case 'up':
+				this.player.directionX = 0;
+				this.player.directionY = -1;
+				break;
+			case 'left':
+				this.player.directionX = -1;
+				this.player.directionY = 0;
+				break;
+			case 'right':
+				this.player.directionX = 1;
+				this.player.directionY = 0;
+				break;
+		}
+		
+		// Démarrer l'animation d'entrée
+		this.finalMapEntryAnimation.isActive = true;
+		this.finalMapEntryAnimation.progress = 0;
+		this.finalMapEntryAnimation.startX = spawnX;
+		this.finalMapEntryAnimation.startY = spawnY;
+		this.finalMapEntryAnimation.targetX = targetX;
+		this.finalMapEntryAnimation.targetY = targetY;
+		this.finalMapEntryAnimation.direction = direction;
+		
+		// Positionner le joueur au point de départ
+		this.player.x = spawnX;
+		this.player.y = spawnY;
+		
+		// Mettre à jour la caméra avec les nouvelles dimensions et un zoom plus élevé
+		if (this.camera) {
+			this.camera.mapWidth = this.mapWidth;
+			this.camera.mapHeight = this.mapHeight;
+			// Augmenter significativement le zoom pour la map finale
+			this.camera.zoom = 5; // Zoom beaucoup plus élevé (au lieu de 2.0 par défaut)
+			this.camera.follow(this.player.getCenterX(), this.player.getCenterY());
+			this.camera.update(0);
+		}
+
+		//Réduire la taille du sprite du joueur
+		this.player.scale = 1;
+		this.player.width = 32;
+		this.player.height = 32;
+		this.player.spriteWidth = 32;
+		this.player.spriteHeight = 32;
+		this.player.hitboxWidth = 32;
+		this.player.hitboxHeight = 32;
+		this.player.hitboxX = this.player.x + this.player.width / 2;
+		this.player.hitboxY = this.player.y + this.player.height / 2;
+		this.player.shadow = null;
+		// Désactiver l'ombre dans la map finale
+		this.player.drawShadow = false;
+		// Marquer que le joueur est dans la map finale pour désactiver la barre de visée
+		this.player.isFinalMap = true;
+		
+		// Spawner le coffre final selon la configuration
+		const chestConfig = this.mapData?.finalMapChest;
+		if (chestConfig) {
+			// Déterminer le type de coffre selon les probabilités
+			const rand = Math.random();
+			let cumulativeChance = 0;
+			let chestType = 'basic_chest'; // Par défaut
+			
+			for (const [type, prob] of Object.entries(chestConfig.probabilities)) {
+				cumulativeChance += prob;
+				if (rand <= cumulativeChance) {
+					chestType = type;
+					break;
+				}
+			}
+			
+			// Créer le coffre (taille réduite)
+			this.finalMapChest = {
+				x: chestConfig.x,
+				y: chestConfig.y,
+				width: 32,
+				height: 32,
+				itemId: chestType
+			};
+			console.log(`Coffre final créé: type=${chestType}, position=(${chestConfig.x}, ${chestConfig.y}), mapSize=(${this.mapWidth}, ${this.mapHeight})`);
+		}
+		
+		// Arrêter la musique boss et jouer la musique after_boss
+		this.engine.audio.stopMusic();
+		this.engine.audio.playMusic('after_boss');
+		
+		console.log(`Map finale chargée: ${finalMapImage} (${this.mapWidth}x${this.mapHeight}), joueur centré à (${this.player.x}, ${this.player.y})`);
+	}
+
+	checkFinalChestCollision() {
+		if (!this.finalMapChest || !this.player || !this.chestSystem) return;
+		if (this.chestSystem.isOpening) return; // Ne pas vérifier si le coffre est déjà en train de s'ouvrir
+		
+		// Vérifier la collision entre le joueur et le coffre
+		const playerCenterX = this.player.x + this.player.width / 2;
+		const playerCenterY = this.player.y + this.player.height / 2;
+		const chestCenterX = this.finalMapChest.x + this.finalMapChest.width / 2;
+		const chestCenterY = this.finalMapChest.y + this.finalMapChest.height / 2;
+		
+		const dx = playerCenterX - chestCenterX;
+		const dy = playerCenterY - chestCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		// Rayon de collision de 40 pixels
+		if (distance < 40) {
+			// Lancer l'animation d'ouverture du coffre
+			this.chestSystem.startOpening(this.finalMapChest);
+		}
+	}
+
+	checkStairsCollision() {
+		if (!this.stairs || !this.player) return;
+		
+		// Vérifier la collision entre le joueur et l'escalier (hitbox plus petite)
+		const playerCenterX = this.player.x + this.player.width / 2;
+		const playerCenterY = this.player.y + this.player.height / 2;
+		const stairsCenterX = this.stairs.x;
+		const stairsCenterY = this.stairs.y;
+		
+		const dx = playerCenterX - stairsCenterX;
+		const dy = playerCenterY - stairsCenterY;
+		const distance = Math.sqrt(dx * dx + dy * dy);
+		
+		// Hitbox réduite : le joueur doit vraiment être sur l'escalier (rayon de 32px au lieu de width/2)
+		if (distance < 32) {
+			// Démarrer la transition
+			this.isTransitioning = true;
+			this.transitionProgress = 0;
+			this.transitionPhase = 'fade-out';
+			
+			// Si c'est l'escalier final, on va vers la map finale
+			if (this.stairs.isFinal) {
+				this.isGoingToFinalMap = true;
+			}
 		}
 	}
 
@@ -541,101 +1115,44 @@ export default class BattleScene {
 
 	dropLootFromPokemon(x, y, pokemonName) {
 		const lootTable = getPokemonLootTable(pokemonName);
+		
+		// Si la loot table est vide, pas de drop
 		if (!lootTable || lootTable.length === 0) {
 			return;
 		}
 
-		const lootRareChance = this.getLootRareChance();
-		const baseDropChanceBonus = this.getBaseDropChance();
-		const epicDropChanceBonus = this.getEpicDropChance();
-
-		if (lootTable.length === 0) {
-			return;
+		// 1 chance sur 100 qu'un item drop
+		if (Math.random() >= 0.01) {
+			return; // Pas de drop cette fois
 		}
 
-		const itemsByTier = {
-			common: [],
-			rare: [],
-			epic: []
-		};
+		// Filtrer les items valides (qui existent et sont droppables)
+		const validLoot = [];
 
 		for (const loot of lootTable) {
 			const itemConfig = ItemConfig[loot.itemId];
 			if (!itemConfig) continue;
 			
-			const rarity = this.getItemRarity(loot.itemId, itemConfig);
+			// Filtrer les items non droppables (droppable: false)
+			if (itemConfig.droppable === false) continue;
 			
-			itemsByTier[rarity].push({
+			validLoot.push({
 				itemId: loot.itemId,
-				itemConfig: itemConfig,
-				rarity: rarity
+				itemConfig: itemConfig
 			});
 		}
 
-		const BASE_DROP_CHANCE = 0.10;
-		const finalDropChance = Math.min(1.0, BASE_DROP_CHANCE + baseDropChanceBonus);
-		const dropRoll = Math.random();
-		
-		if (dropRoll >= finalDropChance) {
+		if (validLoot.length === 0) {
 			return;
 		}
 
-		let commonChance = 0.80;
-		let rareChance = 0.15;
-		let epicChance = 0.05 + epicDropChanceBonus;
-
-		if (lootRareChance > 0) {
-			const bonus = lootRareChance * 0.3;
-			commonChance = Math.max(0.50, commonChance - bonus);
-			rareChance = Math.min(0.40, rareChance + bonus * 0.6);
-			epicChance = Math.min(0.15, epicChance + bonus * 0.4);
-		}
-
-		const total = commonChance + rareChance + epicChance;
-		commonChance /= total;
-		rareChance /= total;
-		epicChance /= total;
-
-		const tierRoll = Math.random();
-		let selectedTier = null;
-		let tierChance = 0;
-
-		if (tierRoll < commonChance) {
-			selectedTier = 'common';
-			tierChance = commonChance;
-		} else if (tierRoll < commonChance + rareChance) {
-			selectedTier = 'rare';
-			tierChance = rareChance;
-		} else {
-			selectedTier = 'epic';
-			tierChance = epicChance;
-		}
-
-		let tierItems = itemsByTier[selectedTier];
+		// Choisir un item au hasard dans la loot table
+		const selectedLoot = validLoot[Math.floor(Math.random() * validLoot.length)];
+		const itemImage = this.engine.sprites.get(`item_${selectedLoot.itemId}`);
 		
-		if (tierItems.length === 0) {
-			const fallbackTiers = ['common', 'rare', 'epic'];
-			for (const fallbackTier of fallbackTiers) {
-				if (itemsByTier[fallbackTier].length > 0) {
-					selectedTier = fallbackTier;
-					tierItems = itemsByTier[fallbackTier];
-					break;
-				}
-			}
-			
-			if (tierItems.length === 0) {
-				return;
-			}
+		if (itemImage) {
+			this.spawnItemDrop(x, y, selectedLoot.itemId, itemImage, selectedLoot.itemConfig);
 		}
-
-		const selectedItem = tierItems[Math.floor(Math.random() * tierItems.length)];
-		const itemImage = this.engine.sprites.get(`item_${selectedItem.itemId}`);
-		
-		if (!itemImage) {
-			return;
-		}
-
-		this.spawnItemDrop(x, y, selectedItem.itemId, itemImage, selectedItem.itemConfig);
 	}
 
 	spawnItemDrop(x, y, itemId, itemImage, itemConfig) {
@@ -722,6 +1239,20 @@ export default class BattleScene {
 		this.damageNumberSystem.update(deltaTime);
 		this.spellSystem.update(deltaTime, this.player);
 		
+		const explosionResult = this.bossSystem.update(deltaTime, this.enemyProjectiles, this.player);
+		if (explosionResult) {
+			this.killerEnemy = explosionResult.enemy;
+			this.damageNumberSystem.addDamage(this.player.getCenterX(), this.player.getCenterY() + BALANCE_CONFIG.UI.DAMAGE_NUMBER_OFFSET_Y, explosionResult.damage, true);
+			if (this.camera) {
+				this.camera.shake(BALANCE_CONFIG.CAMERA.SHAKE_INTENSITY_HIT, BALANCE_CONFIG.CAMERA.SHAKE_DURATION_HIT);
+			}
+			this.engine.audio.play('hit', BALANCE_CONFIG.AUDIO.HIT_VOLUME_PLAYER, BALANCE_CONFIG.AUDIO.HIT_PITCH_PLAYER);
+			const died = this.player.takeDamage(explosionResult.damage);
+			if (died) {
+				this.startDeathAnimation();
+			}
+		}
+		
 		const collectedXP = this.xpOrbSystem.update(deltaTime, this.player.getCenterX(), this.player.getCenterY(), this.player.fetchRange);
 		if (collectedXP > 0) {
 			this.engine.audio.play('orb', BALANCE_CONFIG.AUDIO.ORB_VOLUME, BALANCE_CONFIG.AUDIO.ORB_PITCH);
@@ -769,13 +1300,29 @@ export default class BattleScene {
 		
 	}
 
-	updateEnemyAttacks() {
+	updateEnemyAttacks(deltaTime) {
 		const enemies = this.getAllEnemies();
 		const playerCenterX = this.player.getCenterX();
 		const playerCenterY = this.player.getCenterY();
 		
 		enemies.forEach(enemy => {
-			if (enemy.attackType === 'range') {
+			if (enemy.isBoss && enemy.attackType === 'range') {
+				if (enemy.specialAttackTimer === undefined) {
+					enemy.specialAttackTimer = 0;
+				}
+				
+				if (!this.bossSystem.isSpecialAttacking(enemy)) {
+					enemy.specialAttackTimer += deltaTime;
+					
+					if (enemy.specialAttackTimer >= enemy.specialAttackInterval) {
+						this.bossSystem.startSpecialAttack(enemy);
+						enemy.specialAttackTimer = 0;
+					} else if (!this.bossSystem.isCharging(enemy) && enemy.canAttack()) {
+						this.bossSystem.startattack(enemy, playerCenterX, playerCenterY, BOSS_CONFIG.PROJECTILE.attack_DURATION);
+						enemy.attackCooldown = enemy.attackCooldownMax;
+					}
+				}
+			} else if (enemy.attackType === 'range') {
 				const dx = playerCenterX - enemy.getCenterX();
 				const dy = playerCenterY - enemy.getCenterY();
 				const distance = Math.sqrt(dx * dx + dy * dy);
@@ -783,22 +1330,36 @@ export default class BattleScene {
 				if (distance <= enemy.attackRange && enemy.canAttack()) {
 					const attackData = enemy.attack(playerCenterX, playerCenterY);
 					if (attackData && attackData.type === 'range') {
-						const projectile = new Projectile(
-							attackData.startX,
-							attackData.startY,
-							attackData.targetX,
-							attackData.targetY,
-							attackData.damage,
-							attackData.speed,
-							BALANCE_CONFIG.PROJECTILES.MAX_LIFETIME,
-							attackData.color,
-							attackData.size,
-							0,
-							0,
-							false,
-							0,
-							true
-						);
+					const projectile = new Projectile(
+						attackData.startX,
+						attackData.startY,
+						attackData.targetX,
+						attackData.targetY,
+						attackData.damage,
+						attackData.speed,
+						BALANCE_CONFIG.PROJECTILES.MAX_LIFETIME,
+						attackData.color,
+						attackData.size,
+						0,
+						0,
+						0,
+						true,
+						false,
+						false,
+						0,
+						0,
+						300,
+						'normal',
+						0.2,
+						false,
+						0,
+						1,
+						1,
+						1,
+						'normal',
+						0,
+						1.5
+					);
 						projectile.sourceEnemy = enemy;
 						this.enemyProjectiles.push(projectile);
 					}
@@ -1159,11 +1720,11 @@ export default class BattleScene {
 			if (activeEffect) {
 				if (this.player.animationSystem) {
 					const remainingTime = activeEffect.duration - (Date.now() - activeEffect.startTime);
-					if (this.player.animationSystem.currentAnimation !== 'charge') {
-						this.player.animationSystem.setAnimation('charge', activeEffect.duration);
+					if (this.player.animationSystem.currentAnimation !== 'attack') {
+						this.player.animationSystem.setAnimation('attack', activeEffect.duration);
 						this.player.spellAnimationTime = remainingTime;
 					} else if (this.player.animationSystem.customAnimationDuration !== activeEffect.duration) {
-						this.player.animationSystem.setAnimation('charge', activeEffect.duration);
+						this.player.animationSystem.setAnimation('attack', activeEffect.duration);
 						this.player.spellAnimationTime = remainingTime;
 					} else {
 						this.player.spellAnimationTime = remainingTime;
@@ -1258,6 +1819,23 @@ export default class BattleScene {
 		if (leveledUp) {
 			this.engine.audio.play('pokemon_level_up', 0.7, 0.0);
 			this.player.increaseStatsOnLevelUp();
+			
+			if (this.engine.equippedItems) {
+				this.engine.equippedItems.forEach(uniqueId => {
+					const parts = uniqueId.split('_');
+					let baseItemId = null;
+					if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+						baseItemId = parts.slice(0, -1).join('_');
+					} else {
+						baseItemId = uniqueId;
+					}
+					const itemConfig = ItemConfig[baseItemId];
+					if (itemConfig) {
+						this.player.applyEquippedItem(baseItemId, itemConfig);
+					}
+				});
+			}
+			
 			this.upgradeChoices = getRandomUpgrades(BALANCE_CONFIG.UI.UPGRADE_CHOICES_COUNT, this.player.upgrades, this.player);
 			this.selectedUpgradeIndex = 0;
 			this.upgradeAnimationProgress = 0;
@@ -1381,7 +1959,7 @@ export default class BattleScene {
 
 		let targetX, targetY;
 
-		if (attackData.autoShoot) {
+		if (attackData.autoattack) {
 			const enemies = this.enemySpawner.getEnemies();
 			if (enemies.length === 0) return;
 
@@ -1412,8 +1990,8 @@ export default class BattleScene {
 			targetY = attackData.aimY;
 		}
 
-		const playerVelX = attackData.autoShoot ? 0 : (attackData.playerVelocityX || 0);
-		const playerVelY = attackData.autoShoot ? 0 : (attackData.playerVelocityY || 0);
+		const playerVelX = attackData.autoattack ? 0 : (attackData.playerVelocityX || 0);
+		const playerVelY = attackData.autoattack ? 0 : (attackData.playerVelocityY || 0);
 		
 		let aoeRadius = 0;
 		if (this.player.hasUpgradeType && this.player.hasUpgradeType(UpgradeType.PROJECTILE_AOE)) {
@@ -1679,12 +2257,27 @@ export default class BattleScene {
 
 	render(renderer) {
 		if (this.state === 'playing' || this.state === 'gameover' || this.state === 'victory' || this.state === 'dying') {
+			// Pendant le fade-in, on doit rendre le jeu normalement
+			if (this.isTransitioning && this.transitionPhase === 'fade-in') {
 			this.renderBattle(renderer);
+			} else if (!this.isTransitioning) {
+				this.renderBattle(renderer);
+			}
 			
 			if (this.state === 'dying') {
 				this.applyGrayscaleFilter(renderer);
 			}
 			
+		}
+		
+		// Afficher la transition d'étage par-dessus tout
+		if (this.isTransitioning) {
+			this.renderFloorTransition(renderer);
+		}
+
+		// Rendre le système de coffres (animation d'ouverture) après tout le reste pour l'overlay
+		if (this.chestSystem && this.chestSystem.isOpening) {
+			this.chestSystem.render(renderer);
 		}
 
 		if (this.upgradeChoices) {
@@ -1738,6 +2331,24 @@ export default class BattleScene {
 			});
 		}
 
+		// Rendu de l'escalier (taille normale 64x64)
+		if (this.stairs) {
+			const stairsImage = this.engine.sprites.get('stairs');
+			if (stairsImage) {
+				// Centrer l'image de l'escalier sur sa position (taille normale)
+				renderer.ctx.drawImage(stairsImage, this.stairs.x - this.stairs.width / 2, this.stairs.y - this.stairs.height / 2, this.stairs.width, this.stairs.height);
+			}
+		}
+
+		// Rendu du coffre final (après la caméra pour être visible)
+		if (this.finalMapChest && !this.chestSystem.isOpening) {
+			// Les sprites de coffre sont chargés directement avec leur nom (basic_chest, rare_chest, etc.)
+			const chestImage = this.engine.sprites.get(this.finalMapChest.itemId);
+			if (chestImage) {
+				renderer.ctx.drawImage(chestImage, this.finalMapChest.x, this.finalMapChest.y, this.finalMapChest.width, this.finalMapChest.height);
+			}
+		}
+
 		if (this.player) {
 			renderableEntities.push({
 				type: 'player',
@@ -1756,6 +2367,8 @@ export default class BattleScene {
 			}
 		});
 
+		// Ne pas rendre les projectiles dans la map finale
+		if (!this.isFinalMap) {
 		this.projectiles.forEach(projectile => {
 			projectile.render(renderer, this.debugCollisions);
 		});
@@ -1763,6 +2376,9 @@ export default class BattleScene {
 		this.enemyProjectiles.forEach(projectile => {
 			projectile.render(renderer);
 		});
+		}
+
+		this.bossSystem.render(renderer);
 
 		this.renderCircularStrikes(renderer);
 
@@ -1788,7 +2404,8 @@ export default class BattleScene {
 			renderer.ctx.fillRect(0, 0, renderer.width, renderer.height);
 		}
 
-		if (this.player) {
+		// Ne pas afficher le HUD dans la map finale
+		if (this.player && !this.isFinalMap) {
 			const bossTimerRemaining = this.enemySpawner ? this.enemySpawner.getBossTimerRemaining() : null;
 			const bossTimerMax = this.enemySpawner ? this.enemySpawner.getBossTimerMax() : null;
 			const currentBoss = this.enemySpawner ? this.enemySpawner.getBoss() : null;
@@ -1797,14 +2414,22 @@ export default class BattleScene {
 			this.hudRenderer.render(renderer, this.player, renderer.width, renderer.height, this.survivalTime, bossTimerRemaining, bossTimerMax, selectedPokemon, this.engine, currentBoss, this.mapData, bossDefeated, this);
 		}
 
-		this.renderMinimap(renderer);
+		// Ne pas afficher la minimap dans la map finale
+		if (!this.isFinalMap) {
+			this.renderMinimap(renderer);
+		}
 
+		// Ne pas afficher le viseur dans la map finale
+		if (!this.isFinalMap) {
 		if (this.player && this.player.attackType === 'range') {
-			if (!this.player.autoShoot) {
+			if (!this.player.autoattack) {
 				this.engine.canvas.style.cursor = 'none';
 				this.renderManualCursor(renderer);
 			} else {
 				this.engine.canvas.style.cursor = 'none';
+				}
+			} else {
+				this.engine.canvas.style.cursor = 'default';
 			}
 		} else {
 			this.engine.canvas.style.cursor = 'default';
@@ -1812,7 +2437,9 @@ export default class BattleScene {
 	}
 
 	renderManualCursor(renderer) {
-		if (!this.player || this.player.autoShoot || this.player.attackType !== 'range') return;
+		// Ne pas afficher le viseur dans la map finale
+		if (this.isFinalMap) return;
+		if (!this.player || this.player.autoattack || this.player.attackType !== 'range') return;
 
 		const mousePos = this.engine.input.getMousePosition();
 
@@ -1923,6 +2550,53 @@ export default class BattleScene {
 				const orbMinimapY = minimapYWithTitle + minimapPadding + (orb.y * mapScale);
 				renderer.ctx.fillRect(orbMinimapX - 1, orbMinimapY - 1, BALANCE_CONFIG.VISUAL.XP_ORB_SIZE, BALANCE_CONFIG.VISUAL.XP_ORB_SIZE);
 			});
+		}
+		
+		// Afficher l'escalier sur la minimap
+		if (this.stairs) {
+			const stairsMinimapX = minimapX + minimapPadding + (this.stairs.x * mapScale);
+			const stairsMinimapY = minimapYWithTitle + minimapPadding + (this.stairs.y * mapScale);
+			const stairsMarkerSize = 6; // Taille du marqueur sur la minimap
+			
+			// Effet de glow pulsant
+			const time = Date.now() / 500;
+			const glowIntensity = 0.5 + Math.sin(time) * 0.3;
+			
+			renderer.ctx.save();
+			
+			// Glow externe
+			const gradient = renderer.ctx.createRadialGradient(
+				stairsMinimapX, stairsMinimapY, 0,
+				stairsMinimapX, stairsMinimapY, stairsMarkerSize + 3
+			);
+			gradient.addColorStop(0, `rgba(0, 255, 255, ${glowIntensity})`);
+			gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+			
+			renderer.ctx.fillStyle = gradient;
+			renderer.ctx.beginPath();
+			renderer.ctx.arc(stairsMinimapX, stairsMinimapY, stairsMarkerSize + 3, 0, Math.PI * 2);
+			renderer.ctx.fill();
+			
+			// Marqueur de l'escalier (carré cyan)
+			renderer.ctx.fillStyle = `rgba(0, 255, 255, ${0.9 + Math.sin(time) * 0.1})`;
+			renderer.ctx.fillRect(
+				stairsMinimapX - stairsMarkerSize / 2,
+				stairsMinimapY - stairsMarkerSize / 2,
+				stairsMarkerSize,
+				stairsMarkerSize
+			);
+			
+			// Contour brillant
+			renderer.ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 + Math.sin(time) * 0.2})`;
+			renderer.ctx.lineWidth = 1.5;
+			renderer.ctx.strokeRect(
+				stairsMinimapX - stairsMarkerSize / 2,
+				stairsMinimapY - stairsMarkerSize / 2,
+				stairsMarkerSize,
+				stairsMarkerSize
+			);
+			
+			renderer.ctx.restore();
 		}
 
 		renderer.ctx.restore();
@@ -2063,6 +2737,49 @@ export default class BattleScene {
 		}
 		
 		return null;
+	}
+
+	renderFloorTransition(renderer) {
+		const ctx = renderer.ctx;
+		ctx.save();
+		
+		// Réinitialiser toutes les transformations de la caméra
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		
+		// Utiliser les dimensions du canvas depuis ctx
+		const canvasWidth = ctx.canvas.width;
+		const canvasHeight = ctx.canvas.height;
+		
+		if (this.transitionPhase === 'fade-out') {
+			// Fondu vers le noir
+			const progress = Math.min(this.transitionProgress / 500, 1);
+			ctx.fillStyle = `rgba(0, 0, 0, ${progress})`;
+			ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+		} else if (this.transitionPhase === 'text') {
+			// Écran noir avec texte (sauf pour la map finale)
+			ctx.fillStyle = 'black';
+			ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+			
+			// Afficher "E-X" au centre seulement si ce n'est pas la map finale
+			if (!this.isGoingToFinalMap) {
+				ctx.fillStyle = 'white';
+				ctx.font = 'bold 120px Arial';
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				const text = `E-${this.currentFloor}`;
+				ctx.fillText(text, canvasWidth / 2, canvasHeight / 2);
+			}
+		} else if (this.transitionPhase === 'fade-in') {
+			// Pendant le fade-in, on doit rendre le jeu normalement d'abord
+			// puis appliquer le fade noir par-dessus
+			// Mais comme renderFloorTransition est appelé après renderBattle,
+			// on applique juste le fade noir par-dessus
+			const progress = Math.min(this.transitionProgress / 500, 1);
+			ctx.fillStyle = `rgba(0, 0, 0, ${1 - progress})`;
+			ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+		}
+		
+		ctx.restore();
 	}
 
 	renderUpgradeMenu(renderer) {
@@ -2657,7 +3374,7 @@ export default class BattleScene {
 		renderer.ctx.textAlign = 'center';
 		const instructionText = this.upgradeAnimationProgress >= this.upgradeAnimationDuration 
 			? '← → pour naviguer | ENTRÉE pour choisir'
-			: 'Chargement...';
+			: 'attackment...';
 		const instructionY = renderer.height - 50;
 		renderer.ctx.strokeText(instructionText, renderer.width / 2, instructionY);
 		renderer.ctx.fillText(instructionText, renderer.width / 2, instructionY);
@@ -2801,6 +3518,80 @@ export default class BattleScene {
 
 	showDefeatMenu() {
 		this.engine.gameManager.endGame('defeat', this);
+	}
+
+	recalculateStatsFromBase() {
+		if (!this.player) return;
+		
+		const LEVEL_UP_STAT_INCREASE = 0.05;
+		
+		if (this.player.baseSpeed !== undefined) {
+			const baseSpeedWithLevel = this.player.baseSpeed * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.speed = calculateStatWithIV(baseSpeedWithLevel, this.player.ivs?.speed, 'speed');
+		}
+		
+		if (this.player.baseHp !== undefined) {
+			const hpRatio = this.player.hp / this.player.maxHp;
+			
+			// Calculer le total des bonus HP des upgrades
+			let hpUpgradeBonus = 0;
+			if (this.player.upgrades) {
+				for (const upgradeId in this.player.upgrades) {
+					const upgrade = Upgrades[upgradeId];
+					if (upgrade && upgrade.type === UpgradeType.MAX_HP) {
+						hpUpgradeBonus += upgrade.value * (this.player.upgrades[upgradeId] || 0);
+					}
+				}
+			}
+			
+			const baseHpWithLevel = this.player.baseHp * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.maxHp = calculateStatWithIV(baseHpWithLevel, this.player.ivs?.hp, 'hp');
+			
+			// Réappliquer les bonus HP des upgrades
+			this.player.maxHp += hpUpgradeBonus;
+			
+			this.player.hp = Math.min(this.player.maxHp, this.player.hp * hpRatio);
+			this.player.displayedHp = this.player.hp;
+		}
+		
+		if (this.player.baseDamage !== undefined) {
+			const baseDamageWithLevel = this.player.baseDamage * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.damage = calculateStatWithIV(baseDamageWithLevel, this.player.ivs?.damage, 'damage');
+		}
+		
+		if (this.player.baseAttackSpeed !== undefined) {
+			const baseAttackSpeedWithLevel = this.player.baseAttackSpeed * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.attackSpeed = calculateStatWithIV(baseAttackSpeedWithLevel, this.player.ivs?.attackSpeed, 'attackSpeed');
+			this.player.attackCooldownMax = 1000 / this.player.attackSpeed;
+		}
+		
+		if (this.player.baseRange !== undefined) {
+			const baseRangeWithLevel = this.player.baseRange * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.range = calculateStatWithIV(baseRangeWithLevel, this.player.ivs?.range, 'range');
+		}
+		
+		if (this.player.baseKnockback !== undefined) {
+			const baseKnockbackWithLevel = this.player.baseKnockback * (1 + (this.player.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.player.knockback = calculateStatWithIV(baseKnockbackWithLevel, this.player.ivs?.knockback, 'knockback');
+		}
+		
+		this.applySkillTreeEffects();
+		
+		if (this.engine.equippedItems) {
+			this.engine.equippedItems.forEach(uniqueId => {
+				const parts = uniqueId.split('_');
+				let baseItemId = null;
+				if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+					baseItemId = parts.slice(0, -1).join('_');
+				} else {
+					baseItemId = uniqueId;
+				}
+				const itemConfig = ItemConfig[baseItemId];
+				if (itemConfig) {
+					this.player.applyEquippedItem(baseItemId, itemConfig);
+				}
+			});
+		}
 	}
 
 	applySkillTreeEffects() {

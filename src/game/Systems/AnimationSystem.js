@@ -14,6 +14,8 @@ export default class AnimationSystem {
 		this.idleTimer = 0;
 		this.isPlayingIdle = false;
 		this.idleAnimationComplete = false;
+		this.animationCycleComplete = false;
+		this.lastFrameReached = false;
 		
 		this.calculateFrameDimensions();
 	}
@@ -51,6 +53,8 @@ export default class AnimationSystem {
 		this.currentFrame = 0;
 		this.frameTime = 0;
 		this.customAnimationDuration = duration;
+		this.animationCycleComplete = false;
+		this.lastFrameReached = false;
 		
 		if (duration !== null) {
 			const anim = this.spriteConfig.animations[animationName];
@@ -133,7 +137,20 @@ export default class AnimationSystem {
 			
 			if (this.frameTime >= this.frameDuration) {
 				this.frameTime = 0;
-				this.currentFrame = (this.currentFrame + 1) % anim.frames;
+				const nextFrame = (this.currentFrame + 1) % anim.frames;
+				
+				// Détecter si on a fait un cycle complet (retour à la frame 0 après avoir été à la dernière frame)
+				if (this.currentFrame === anim.frames - 1 && nextFrame === 0) {
+					this.animationCycleComplete = true;
+					this.lastFrameReached = true;
+				} else if (nextFrame === 0 && this.currentFrame > 0) {
+					// Cas où on revient à 0 mais qu'on n'était pas à la dernière frame (ne devrait pas arriver normalement)
+					this.animationCycleComplete = true;
+				} else {
+					this.animationCycleComplete = false;
+				}
+				
+				this.currentFrame = nextFrame;
 			}
 			
 			if (this.forcedDirection === null && isMoving) {

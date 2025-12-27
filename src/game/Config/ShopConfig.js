@@ -65,7 +65,6 @@ export const ShopConfig = {
 			},
 			{
 				itemId: 'rattata_tail',
-				buyPrice: 1,
 				sellPrice: 50,
 			},
 		]
@@ -76,22 +75,22 @@ export const ShopConfig = {
 		items: [
 			{
 				itemId: 'egg_common',
-				buyPrice: 500,
+				buyPrice: 1000,
 				sellPrice: 250,
 			},
 			{
 				itemId: 'egg_rare',
-				buyPrice: 1500,
+				buyPrice: 10000,
 				sellPrice: 750,
 			},
 			{
 				itemId: 'egg_epic',
-				buyPrice: 3000,
+				buyPrice: 35000,
 				sellPrice: 1500,
 			},
 			{
 				itemId: 'egg_legendary',
-				buyPrice: 5000,
+				buyPrice: 50000,
 				sellPrice: 2500,
 			},
 		]

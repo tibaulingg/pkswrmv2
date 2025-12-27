@@ -217,6 +217,7 @@ export default class GameScene {
 		const isTransitionOpen = currentScene && (currentScene.constructor.name === 'TransitionScene' || currentScene === this.engine.sceneManager.scenes.transition);
 		const isShopOpen = currentScene && (currentScene.constructor.name === 'ShopScene' || currentScene === this.engine.sceneManager.scenes.shop);
 		const isSkillTreeOpen = currentScene && (currentScene.constructor.name === 'SkillTreeScene' || currentScene === this.engine.sceneManager.scenes.skillTree);
+		const isHatchResultOpen = currentScene && (currentScene.constructor.name === 'HatchResultScene' || currentScene === this.engine.sceneManager.scenes.hatchResult);
 		
 		if (this.eggHatchingAnimation) {
 			this.eggHatchingAnimation.timer += deltaTime;
@@ -243,13 +244,20 @@ export default class GameScene {
 				}
 			}
 			
+			// Afficher l'écran de résultat dès que le pokémon apparaît (après eggShowDuration)
+			// Le pokémon apparaît à eggShowDuration, on affiche l'écran juste après un court délai
 			if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.eggShowDuration && !this.eggHatchingAnimation.confirmMenuShown) {
-				this.showHatchConfirmMenu();
-				this.eggHatchingAnimation.confirmMenuShown = true;
-			}
-			
-			if (this.eggHatchingAnimation.timer >= this.eggHatchingAnimation.totalDuration && !this.eggHatchingAnimation.confirmMenuShown) {
-				this.eggHatchingAnimation = null;
+				// Attendre un petit délai pour voir le pokémon spawn et entendre le son
+				if (!this.eggHatchingAnimation.screenShownScheduled) {
+					this.eggHatchingAnimation.screenShownScheduled = true;
+					setTimeout(() => {
+						if (this.eggHatchingAnimation && !this.eggHatchingAnimation.confirmMenuShown) {
+							this.showHatchResultScreen();
+							this.eggHatchingAnimation.confirmMenuShown = true;
+							// Ne pas nettoyer l'animation immédiatement pour qu'elle continue à être visible
+						}
+					}, 800); // Délai pour voir le pokémon spawn et entendre le son
+				}
 			}
 			
 			if (this.eggHatchingAnimation) {
@@ -323,10 +331,10 @@ export default class GameScene {
 					npc.animationSystem.setDirection(direction);
 				}
 				
-				if (npc.animationSystem.currentAnimation === 'charge') {
+				if (npc.animationSystem.currentAnimation === 'attack') {
 					npc.animationSystem.update(deltaTime, false, 0, 0);
 					
-					if (npc.chargeStartTime && Date.now() - npc.chargeStartTime >= npc.chargeDuration) {
+					if (npc.attackStartTime && Date.now() - npc.attackStartTime >= npc.attackDuration) {
 						const pokemonConfig = getPokemonConfig(npc.id);
 						const idleSprite = this.engine.sprites.get(`${npc.id}_idle`);
 						if (pokemonConfig && idleSprite) {
@@ -375,8 +383,8 @@ export default class GameScene {
 							npc.animationSystem.calculateFrameDimensions();
 							npc.idleTimer = 700;
 							npc.animationSystem.setAnimation('idle', npc.fasterIdleDuration);
-							npc.chargeStartTime = null;
-							npc.chargeDuration = null;
+							npc.attackStartTime = null;
+							npc.attackDuration = null;
 						}
 					}
 				} else {
@@ -396,7 +404,7 @@ export default class GameScene {
 		
 		this.updateNPCCollisions();
 		
-		if (isPauseOpen || isMapSelectionOpen || isConfirmMenuOpen || isTransitionOpen || isShopOpen || isSkillTreeOpen) {
+		if (isPauseOpen || isMapSelectionOpen || isConfirmMenuOpen || isTransitionOpen || isShopOpen || isSkillTreeOpen || isHatchResultOpen) {
 			return;
 		}
 
@@ -556,12 +564,13 @@ export default class GameScene {
 		this.camera.restore(renderer.ctx);
 	}
 
-	startEggHatchingAnimation(chanseyNpc, eggId, hatchedPokemon) {
+	startEggHatchingAnimation(chanseyNpc, eggId, hatchedPokemon, hatchResultData = null) {
 		this.eggHatchingAnimation = {
 			eggId: eggId,
 			hatchedPokemon: hatchedPokemon,
+			hatchResultData: hatchResultData,
 			timer: 0,
-			chargeDuration: 1000,
+			attackDuration: 1000,
 			eggShowDuration: 2000,
 			hatchDuration: 2000,
 			totalDuration: 5000,
@@ -572,68 +581,11 @@ export default class GameScene {
 		};
 	}
 
-	showHatchConfirmMenu() {
-		const gameScene = this;
-		const hatchedPokemon = this.eggHatchingAnimation.hatchedPokemon;
-		const pokemonConfig = getPokemonConfig(hatchedPokemon);
-		const pokemonName = pokemonConfig ? pokemonConfig.name : hatchedPokemon;
-		const message = `Accueillir ${pokemonName} ?`;
-		
-		const onYes = (engine) => {
-			if (!engine.encounteredPokemons) {
-				engine.encounteredPokemons = new Set();
-			}
-			if (!engine.playedPokemons) {
-				engine.playedPokemons = new Set();
-			}
-			engine.encounteredPokemons.add(hatchedPokemon);
-			engine.playedPokemons.add(hatchedPokemon);
-			SaveManager.saveGame(engine, false);
-			engine.sceneManager.popScene();
-			gameScene.eggHatchingAnimation = null;
-			
-			setTimeout(() => {
-				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
-				const shopScene = engine.sceneManager.stack.find(
-					scene => scene === engine.sceneManager.scenes.shop
-				);
-				if (shopScene) {
-					shopScene.mode = 'hatching';
-					shopScene.selectedItemIndex = 0;
-					shopScene.currentPage = 0;
-				}
-			}, 100);
-		};
-		
-		const onNo = (engine) => {
-			if (!engine.encounteredPokemons) {
-				engine.encounteredPokemons = new Set();
-			}
-			engine.encounteredPokemons.add(hatchedPokemon);
-			SaveManager.saveGame(engine, false);
-			engine.sceneManager.popScene();
-			gameScene.eggHatchingAnimation = null;
-			
-			setTimeout(() => {
-				engine.sceneManager.pushScene('shop', { shopId: 'chansey' });
-				const shopScene = engine.sceneManager.stack.find(
-					scene => scene === engine.sceneManager.scenes.shop
-				);
-				if (shopScene) {
-					shopScene.mode = 'hatching';
-					shopScene.selectedItemIndex = 0;
-					shopScene.currentPage = 0;
-				}
-			}, 100);
-		};
-		
-		this.engine.sceneManager.pushScene('confirmMenu', {
-			message: message,
-			onYes: onYes,
-			onNo: onNo
+	showHatchResultScreen() {
+		const hatchResultData = this.eggHatchingAnimation.hatchResultData;
+		this.engine.sceneManager.pushScene('hatchResult', {
+			hatchResultData: hatchResultData
 		});
-		
-		this.engine.audio.play('ok', 0.3, 0.1);
 	}
 }
 

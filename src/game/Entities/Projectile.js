@@ -122,6 +122,43 @@ export default class Projectile {
 		}
 		
 		if (this.isEnemy) {
+			if (this.isBossProjectile) {
+				renderer.ctx.save();
+				const outerGlow = this.size / 2 + 12;
+				const gradient = renderer.ctx.createRadialGradient(
+					this.x, this.y, this.size / 2,
+					this.x, this.y, outerGlow
+				);
+				gradient.addColorStop(0, 'rgba(255, 0, 0, 0.9)');
+				gradient.addColorStop(0.3, 'rgba(255, 50, 0, 0.7)');
+				gradient.addColorStop(0.6, 'rgba(255, 0, 0, 0.4)');
+				gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+				renderer.ctx.fillStyle = gradient;
+				renderer.ctx.beginPath();
+				renderer.ctx.arc(this.x, this.y, outerGlow, 0, Math.PI * 2);
+				renderer.ctx.fill();
+				renderer.ctx.restore();
+				
+				renderer.ctx.save();
+				const pulse = Math.sin(this.animationTime * 0.05) * 0.1 + 0.9;
+				const innerGradient = renderer.ctx.createRadialGradient(
+					this.x, this.y, 0,
+					this.x, this.y, this.size / 2
+				);
+				innerGradient.addColorStop(0, 'rgba(255, 200, 0, 1)');
+				innerGradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.9)');
+				innerGradient.addColorStop(1, 'rgba(255, 0, 0, 0.8)');
+				renderer.ctx.fillStyle = innerGradient;
+				renderer.ctx.beginPath();
+				renderer.ctx.arc(this.x, this.y, this.size / 2 * pulse, 0, Math.PI * 2);
+				renderer.ctx.fill();
+				renderer.ctx.strokeStyle = '#000000';
+				renderer.ctx.lineWidth = 3;
+				renderer.ctx.stroke();
+				renderer.ctx.restore();
+				return;
+			}
+			
 			renderer.ctx.save();
 			const gradient = renderer.ctx.createRadialGradient(
 				this.x, this.y, this.size / 2,

@@ -1,7 +1,7 @@
 import AudioManager from '../Systems/AudioManager.js'
 import GameManager from '../Systems/GameManager.js'
 import SpriteManager from '../Systems/SpriteManager.js'
-import { EnemyTypes, MapEnemies } from '../Config/EnemyConfig.js'
+import { getEnemyConfig, MapEnemies } from '../Config/EnemyConfig.js'
 import { ItemConfig } from '../Config/ItemConfig.js'
 import { PokemonSprites } from '../Config/SpriteConfig.js'
 import InputManager from './InputManager.js'
@@ -96,6 +96,7 @@ export default class GameEngine {
 			hub: '/hub.png',
 			coins: '/coins.png',
 			stone: '/stone.png',
+			stairs: '/stairs.png',
 			game_over: '/game_over.png'
 		}
 
@@ -108,7 +109,10 @@ export default class GameEngine {
 			golden_apple: '/sprites/items/golden_apple.png',
 			mystic_water: '/sprites/items/mystic_water.png',
 			key: '/sprites/items/key.png',
-			bronze_chest: '/sprites/items/bronze_chest.png',
+			basic_chest: '/sprites/items/basic_chest.png',
+			rare_chest: '/sprites/items/rare_chest.png',
+			epic_chest: '/sprites/items/epic_chest.png',
+			legendary_chest: '/sprites/items/legendary_chest.png',
 			rattata_tail: '/sprites/items/rattata_tail.png',
 			no_egg: '/sprites/items/no_egg.png'
 		}
@@ -118,18 +122,23 @@ export default class GameEngine {
 		}
 
 		const pokemonSprites = [
-			['quagsire', ['walk', 'hurt', 'faint', 'charge']],
+			['quagsire', ['walk', 'hurt', 'faint', 'attack']],
 			['rattata', ['walk', 'hurt', 'faint']],
-			['caterpie', ['walk', 'hurt', 'faint', 'shoot']],
+			['caterpie', ['walk', 'hurt', 'faint', 'attack']],
 			['pidgey', ['walk', 'hurt', 'faint']],
 			['kecleon', ['normal', 'happy', 'idle', 'hurt', 'walk']],
-			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk', 'charge']],
-			['garchomp', ['normal', 'hurt', 'walk', 'charge', 'sleep']],
+			['chansey', ['normal', 'happy', 'idle', 'hurt', 'walk', 'attack']],
+			['garchomp', ['normal', 'hurt', 'walk', 'attack', 'sleep']],
 			['wooper', ['walk', 'hurt']],
-			['piplup', ['walk', 'hurt', 'charge']],
-			['chimchar', ['walk', 'hurt', 'charge']],
-			['turtwig', ['walk', 'hurt', 'charge']],
+			['piplup', ['walk', 'hurt', 'attack']],
+			['chimchar', ['walk', 'hurt', 'attack']],
+			['turtwig', ['walk', 'hurt', 'attack']],
 			['ditto', ['normal', 'idle', 'hurt', 'walk']],
+			['pikachu', ['walk', 'hurt', 'attack']],
+			['digglet', ['walk', 'hurt', 'attack']],
+			['dugtrio', ['walk', 'hurt', 'attack']],
+			['geodude', ['walk', 'hurt']],
+			['rhydon', ['walk', 'hurt', 'attack']],
 		]
 
 		for (const [name, states] of pokemonSprites) {
@@ -146,11 +155,14 @@ export default class GameEngine {
 			}
 		}
 
-		const maps = ['forest', 'mountain', 'cave', 'desert', 'volcano']
+		const maps = ['forest', 'montain', 'cave', 'desert', 'volcano']
 		for (const map of maps) {
 			await loadOptional(`map_${map}`, `/maps/${map}.png`)
 			this.audio.loadMusic(`map_${map}`, `${base}/${map}.mp3`)
 		}
+		
+		// Charger la map finale forest_boss
+		await loadOptional('map_forest_boss', '/forest_boss.png')
 
 		await loadOptional('fireeffect', '/fireeffect.png')
 		await loadOptional('poisoneffect', '/poisoneffect.png')
@@ -166,6 +178,7 @@ export default class GameEngine {
 			death: '/death_impact.mp3',
 			chest_reward: '/chest_reward.mp3',
 			pokemon_level_up: '/pokemon_level_up.mp3',
+			earthquake: '/earthquake.wav',
 		}
 
 		for (const [id, path] of Object.entries(sounds)) {
@@ -176,7 +189,9 @@ export default class GameEngine {
 			main_menu: '/main_menu.mp3',
 			hub: '/hub.mp3',
 			victory: '/victory.mp3',
-			defeat: '/defeat.mp3'
+			defeat: '/defeat.mp3',
+			boss: '/boss.mp3',
+			after_boss: '/after_boss.mp3'
 		}
 
 		for (const [id, path] of Object.entries(musics)) {
@@ -187,7 +202,7 @@ export default class GameEngine {
 			...Object.keys(PokemonSprites),
 			...Object.values(MapEnemies)
 				.flat()
-				.map(e => EnemyTypes[e.type]?.pokemon)
+				.map(e => getEnemyConfig(e.type)?.pokemon)
 				.filter(Boolean)
 		])
 

@@ -85,7 +85,10 @@ export const MapTileCollisions = {
 		{ fromX: 62, fromY: 0, toX: 64, toY: 64 },
 		{ fromX: 0, fromY: 62, toX: 64, toY: 64 },
 	],
-	mountain: [],
+	forest_boss: [
+		//{ fromX: 1, fromY: 1, toX: 500, toY: 500 }
+	],
+	montain: [],
 	cave: [],
 	desert: [],
 	volcano: []
@@ -93,7 +96,7 @@ export const MapTileCollisions = {
 
 export const MapCollisionColors = {
 	forest: 'rgba(100, 255, 100, 0.5)',
-	mountain: 'rgba(150, 150, 200, 0.5)',
+	montain: 'rgba(150, 150, 200, 0.5)',
 	cave: 'rgba(100, 100, 150, 0.5)',
 	desert: 'rgba(255, 200, 100, 0.5)',
 	volcano: 'rgba(255, 100, 50, 0.5)'

@@ -18,6 +18,39 @@ export default class MapSelectionScene {
 		this.confirmMenu = null;
 	}
 
+	isMapAvailable(index) {
+		return index <= 1;
+	}
+
+	findNextAvailableMapIndex(currentIndex, direction) {
+		if (currentIndex === Maps.length) {
+			if (direction === -1) {
+				for (let i = Maps.length - 1; i >= 0; i--) {
+					if (this.isMapAvailable(i)) {
+						return i;
+					}
+				}
+			}
+			return Maps.length;
+		}
+
+		if (direction === 1) {
+			for (let i = currentIndex + 1; i < Maps.length; i++) {
+				if (this.isMapAvailable(i)) {
+					return i;
+				}
+			}
+			return Maps.length;
+		} else {
+			for (let i = currentIndex - 1; i >= 0; i--) {
+				if (this.isMapAvailable(i)) {
+					return i;
+				}
+			}
+			return currentIndex;
+		}
+	}
+
 	update(deltaTime) {
 		this.blinkTimer += deltaTime;
 
@@ -29,22 +62,16 @@ export default class MapSelectionScene {
 		const key = this.engine.input.consumeLastKey();
 		
 		if (key === 'ArrowUp') {
-			if (this.selectedMapIndex === Maps.length) {
-				this.selectedMapIndex = 0;
-			} else if (this.selectedMapIndex > 0) {
-				this.selectedMapIndex = 0;
-			}
+			this.selectedMapIndex = this.findNextAvailableMapIndex(this.selectedMapIndex, -1);
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (key === 'ArrowDown') {
-			if (this.selectedMapIndex === 0) {
-				this.selectedMapIndex = Maps.length;
-			}
+			this.selectedMapIndex = this.findNextAvailableMapIndex(this.selectedMapIndex, 1);
 			this.engine.audio.play('ok', 0.3, 0.1);
 		} else if (key === 'Enter') {
 			if (this.selectedMapIndex === Maps.length) {
 				this.engine.sceneManager.popScene();
 				this.engine.audio.play('ok', 0.3, 0.1);
-			} else if (this.selectedMapIndex === 0) {
+			} else if (this.selectedMapIndex >= 0 && this.selectedMapIndex < Maps.length && this.isMapAvailable(this.selectedMapIndex)) {
 				const selectedMap = Maps[this.selectedMapIndex];
 				this.openConfirmMenu(selectedMap);
 				this.engine.audio.play('ok', 0.3, 0.1);
@@ -70,7 +97,7 @@ export default class MapSelectionScene {
 			const x = mapStartX;
 			const y = mapStartY + index * mapSpacing;
 			const isSelected = index === this.selectedMapIndex;
-			const isAvailable = index === 0;
+			const isAvailable = this.isMapAvailable(index);
 
 			renderer.ctx.save();
 			if (isAvailable) {
@@ -93,36 +120,45 @@ export default class MapSelectionScene {
 			}
 		});
 
-		const displayIndex = this.hoveredMapIndex !== null ? this.hoveredMapIndex : this.selectedMapIndex;
-		if (displayIndex < Maps.length && displayIndex === 0) {
-			const currentMap = Maps[displayIndex];
-			
-			if (currentMap) {
-				const blinkCycle = 500;
-				const isVisible = Math.floor(this.blinkTimer / blinkCycle) % 2 === 0;
-				
-				if (isVisible) {
-					const arrowSize = 12;
-					const arrowX = currentMap.arrowX + 95;
-					const arrowY = currentMap.arrowY + 2
+		Maps.forEach((map, index) => {
+			if (!this.isMapAvailable(index)) return;
 
-					renderer.ctx.save();
-					renderer.ctx.fillStyle = '#ffff00';
-					renderer.ctx.strokeStyle = '#000000';
-					renderer.ctx.lineWidth = 2;
-					renderer.ctx.beginPath();
-					renderer.ctx.moveTo(arrowX, arrowY);
-					renderer.ctx.lineTo(arrowX + arrowSize, arrowY - arrowSize / 2);
-					renderer.ctx.lineTo(arrowX + arrowSize, arrowY + arrowSize / 2);
-					renderer.ctx.closePath();
-					renderer.ctx.fill();
-					renderer.ctx.stroke();
-					renderer.ctx.restore();
-				}
+			const isSelected = index === this.selectedMapIndex;
+			const circleX = map.arrowX + 95;
+			const circleY = map.arrowY + 2;
+			const circleRadius = 4;
+
+			renderer.ctx.save();
+			renderer.ctx.fillStyle = '#ffff00';
+			renderer.ctx.strokeStyle = '#000000';
+			renderer.ctx.lineWidth = 1;
+			renderer.ctx.beginPath();
+			renderer.ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+			renderer.ctx.fill();
+			renderer.ctx.stroke();
+			renderer.ctx.restore();
+
+			if (isSelected) {
+				const arrowSize = 18;
+				const arrowX = map.arrowX + 95;
+				const arrowY = map.arrowY + 2;
+
+				renderer.ctx.save();
+				renderer.ctx.fillStyle = '#ffff00';
+				renderer.ctx.strokeStyle = '#000000';
+				renderer.ctx.lineWidth = 3;
+				renderer.ctx.beginPath();
+				renderer.ctx.moveTo(arrowX, arrowY);
+				renderer.ctx.lineTo(arrowX + arrowSize, arrowY - arrowSize / 2);
+				renderer.ctx.lineTo(arrowX + arrowSize, arrowY + arrowSize / 2);
+				renderer.ctx.closePath();
+				renderer.ctx.fill();
+				renderer.ctx.stroke();
+				renderer.ctx.restore();
 			}
-		}
+		});
 
-		const returnButtonY = mapStartY + Maps.length * mapSpacing + 70;
+		const returnButtonY = mapStartY + Maps.length * mapSpacing + 210;
 		const isReturnSelected = this.selectedMapIndex === Maps.length;
 		
 		renderer.ctx.save();

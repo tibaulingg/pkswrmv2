@@ -1,3 +1,5 @@
+import { BOSS_CONFIG } from '../Config/BossConfig.js';
+
 export default class Enemy {
 	constructor(x, y, type, config, animationSystem, level = 1, particleColor = '#ff0000', pokemonConfig = null, spriteManager = null) {
 		this.x = x;
@@ -47,16 +49,25 @@ export default class Enemy {
 		this.speed = this.baseSpeed;
 		this.damage = Math.floor(baseDamage * damageMultiplier * damageLevelMultiplier);
 
-		this.attackType = pokemonConfig?.attackType || 'melee';
-		if (this.attackType === 'range') {
-			this.attackRange = pokemonConfig?.range || 250;
+		if (this.isBoss) {
+			this.attackType = 'range';
+			this.attackRange = BOSS_CONFIG.ATTACK_RANGE;
+			this.specialAttackTimer = 0;
+			this.specialAttackInterval = BOSS_CONFIG.SPECIAL_ATTACK.INTERVAL;
 		} else {
-			this.attackRange = Math.max(this.width, this.height) * 0.7;
+			this.attackType = pokemonConfig?.attackType || 'melee';
+			if (this.attackType === 'range') {
+				this.attackRange = pokemonConfig?.range || 250;
+			} else {
+				this.attackRange = Math.max(this.width, this.height) * 0.7;
+			}
 		}
 
 		this.isAlive = true;
 		this.attackCooldown = 0;
 		this.attackCooldownMax = 1000;
+		this.isAttacking = false;
+		this.attackAnimationComplete = false;
 		this.directionX = 0;
 		this.directionY = 0;
 
@@ -222,7 +233,28 @@ export default class Enemy {
 		const separationMoveY = separationForce.y * deltaTime / 16;
 
 		if (this.attackType === 'range') {
-			if (distance > this.attackRange) {
+			if (this.isBoss) {
+				this.directionX = dx / distance;
+				this.directionY = dy / distance;
+
+				const moveX = this.directionX * this.speed * deltaTime / 16 + separationMoveX;
+				const moveY = this.directionY * this.speed * deltaTime / 16 + separationMoveY;
+
+				const newX = this.x + moveX;
+				const newY = this.y + moveY;
+
+				if (collisionSystem) {
+					if (collisionSystem.canMoveTo(newX + hitboxOffsetX, this.y + hitboxOffsetY, this.width, this.height)) {
+						this.x = newX;
+					}
+					if (collisionSystem.canMoveTo(this.x + hitboxOffsetX, newY + hitboxOffsetY, this.width, this.height)) {
+						this.y = newY;
+					}
+				} else {
+					this.x = newX;
+					this.y = newY;
+				}
+			} else if (distance > this.attackRange) {
 				this.directionX = dx / distance;
 				this.directionY = dy / distance;
 
@@ -338,8 +370,22 @@ export default class Enemy {
 			this.animationSystem.update(deltaTime, true, this.directionX, this.directionY);
 		}
 
+		// Vérifier si l'animation d'attaque est terminée
+		if (this.isAttacking && this.animationSystem) {
+			if (this.animationSystem.animationCycleComplete && !this.attackAnimationComplete) {
+				this.attackAnimationComplete = true;
+			}
+		}
+
 		if (this.attackCooldown > 0) {
 			this.attackCooldown -= deltaTime;
+		} else if (this.isAttacking && this.attackAnimationComplete) {
+			// Revenir à 'walk' seulement quand le cooldown ET l'animation sont terminés
+			this.isAttacking = false;
+			this.attackAnimationComplete = false;
+			if (this.animationSystem && this.hurtAnimationTime <= 0) {
+				this.animationSystem.setAnimation('walk');
+			}
 		}
 
 		if (this.hitFlashTime > 0) {
@@ -349,7 +395,22 @@ export default class Enemy {
 		if (this.hurtAnimationTime > 0) {
 			this.hurtAnimationTime -= deltaTime;
 			if (this.hurtAnimationTime <= 0 && this.animationSystem) {
-				this.animationSystem.setAnimation('walk');
+				if (this.isAttacking && this.attackType === 'range' && !this.attackAnimationComplete) {
+					// Revenir à l'animation d'attaque si on est encore en train d'attaquer et que l'animation n'est pas terminée
+					const attackAnimation = this.animationSystem.spriteConfig?.animations?.attack 
+						? 'attack' 
+						: (this.animationSystem.spriteConfig?.animations?.charge ? 'charge' : 'walk');
+					
+					if (attackAnimation !== 'walk') {
+						const anim = this.animationSystem.spriteConfig?.animations[attackAnimation];
+						const attackDuration = anim ? 1200 : null; // 1200ms pour toute l'animation
+						this.animationSystem.setAnimation(attackAnimation, attackDuration);
+					} else {
+						this.animationSystem.setAnimation('walk');
+					}
+				} else if (!this.isAttacking || this.attackAnimationComplete) {
+					this.animationSystem.setAnimation('walk');
+				}
 			}
 		}
 
@@ -380,16 +441,23 @@ export default class Enemy {
 
 	attack(playerX, playerY) {
 		this.attackCooldown = this.attackCooldownMax;
+		this.isAttacking = true;
+		this.attackAnimationComplete = false;
 
 		if (this.attackType === 'range') {
 			if (this.animationSystem) {
-				const enemy = this;
-				this.animationSystem.setAnimation('shoot');
-				setTimeout(() => {
-					if (enemy.animationSystem && enemy.isAlive) {
-						enemy.animationSystem.setAnimation('walk');
-					}
-				}, 300);
+				// Essayer d'utiliser 'attack' d'abord, sinon 'charge'
+				const attackAnimation = this.animationSystem.spriteConfig?.animations?.attack 
+					? 'attack' 
+					: (this.animationSystem.spriteConfig?.animations?.charge ? 'charge' : null);
+				
+				if (attackAnimation) {
+					// Utiliser une durée plus longue pour l'animation d'attaque (1200ms pour qu'elle soit bien visible)
+					const anim = this.animationSystem.spriteConfig?.animations[attackAnimation];
+					const attackDuration = anim ? 1200 : null; // 1200ms pour toute l'animation (environ 100-130ms par frame)
+					this.animationSystem.setAnimation(attackAnimation, attackDuration);
+					this.attackAnimationComplete = false;
+				}
 			}
 
 			return {

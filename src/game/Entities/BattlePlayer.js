@@ -57,6 +57,12 @@ export default class BattlePlayer {
 		const baseDamage = pokemonConfig?.damage;
 		this.baseDamage = baseDamage;
 		this.damage = calculateStatWithIV(baseDamage, ivs?.damage, 'damage');
+		console.log('[STATS] Initial damage calculation:', {
+			baseDamage,
+			iv: ivs?.damage,
+			finalDamage: this.damage,
+			formula: `baseDamage (${baseDamage}) * (1 + iv (${ivs?.damage || 0}) * 0.01) = ${this.damage}`
+		});
 		const baseAttackSpeed = pokemonConfig?.attackSpeed || 1.0;
 		this.baseAttackSpeed = baseAttackSpeed;
 		this.attackSpeed = calculateStatWithIV(baseAttackSpeed, ivs?.attackSpeed, 'attackSpeed');
@@ -76,7 +82,7 @@ export default class BattlePlayer {
 		this.spellAnimationTime = 0;
 		this.spellAnimationDuration = 0;
 		
-		this.autoShoot = true;
+		this.autoattack = true;
 		this.aimX = 0;
 		this.aimY = 0;
 
@@ -140,7 +146,17 @@ export default class BattlePlayer {
 	}
 
 	applyEquippedItem(itemId, itemConfig) {
-		if (!itemConfig || !itemConfig.effect) return;
+		console.log('[STATS] applyEquippedItem called:', {
+			itemId,
+			itemConfig: itemConfig ? itemConfig.name : 'null',
+			hasEffect: itemConfig && itemConfig.effect ? true : false,
+			effectType: itemConfig && itemConfig.effect ? itemConfig.effect.type : 'none'
+		});
+		
+		if (!itemConfig || !itemConfig.effect) {
+			console.log('[STATS] applyEquippedItem: Skipping - no itemConfig or no effect');
+			return;
+		}
 		
 		const effect = itemConfig.effect;
 		
@@ -157,21 +173,81 @@ export default class BattlePlayer {
 			if (!this.electricDamageMultiplier) this.electricDamageMultiplier = 1.0;
 			this.electricDamageMultiplier += effect.value;
 		} else if (effect.type === 'damageBoost') {
+			const oldDamage = this.damage;
 			this.damage *= (1 + effect.value);
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldDamage,
+				newDamage: this.damage,
+				formula: `oldDamage (${oldDamage}) * (1 + ${effect.value}) = ${this.damage}`
+			});
 		} else if (effect.type === 'speedBoost') {
+			const oldSpeed = this.speed;
 			this.speed *= (1 + effect.value);
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldSpeed,
+				newSpeed: this.speed,
+				formula: `oldSpeed (${oldSpeed}) * (1 + ${effect.value}) = ${this.speed}`
+			});
 		} else if (effect.type === 'hpBoost') {
+			const oldMaxHp = this.maxHp;
 			const hpRatio = this.hp / this.maxHp;
 			this.maxHp *= (1 + effect.value);
 			this.hp = this.maxHp * hpRatio;
 			this.displayedHp = this.hp;
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldMaxHp,
+				newMaxHp: this.maxHp,
+				formula: `oldMaxHp (${oldMaxHp}) * (1 + ${effect.value}) = ${this.maxHp}`
+			});
 		} else if (effect.type === 'critChanceBoost') {
+			const oldCritChance = this.critChance;
 			this.critChance += effect.value;
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldCritChance,
+				newCritChance: this.critChance,
+				formula: `oldCritChance (${oldCritChance}) + ${effect.value} = ${this.critChance}`
+			});
 		} else if (effect.type === 'attackSpeedBoost') {
+			const oldAttackSpeed = this.attackSpeed;
 			this.attackSpeed *= (1 + effect.value);
 			this.attackCooldownMax = 1000 / this.attackSpeed;
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldAttackSpeed,
+				newAttackSpeed: this.attackSpeed,
+				formula: `oldAttackSpeed (${oldAttackSpeed}) * (1 + ${effect.value}) = ${this.attackSpeed}`
+			});
 		} else if (effect.type === 'rangeBoost') {
+			const oldRange = this.range;
 			this.range *= (1 + effect.value);
+			console.log('[STATS] Applying equipped item:', {
+				itemId,
+				itemName: itemConfig.name,
+				effectType: effect.type,
+				effectValue: effect.value,
+				oldRange,
+				newRange: this.range,
+				formula: `oldRange (${oldRange}) * (1 + ${effect.value}) = ${this.range}`
+			});
 		}
 	}
 
@@ -307,7 +383,7 @@ export default class BattlePlayer {
 		}
 
 		if ((this.attackType === 'range' || this.attackType === 'circular_sweep') && camera) {
-			if (!this.autoShoot || this.attackType === 'circular_sweep') {
+			if (!this.autoattack || this.attackType === 'circular_sweep') {
 				const mousePos = input.getMousePosition();
 				const worldPos = camera.screenToWorld(mousePos.x, mousePos.y);
 				
@@ -456,31 +532,112 @@ export default class BattlePlayer {
 	increaseStatsOnLevelUp() {
 		const LEVEL_UP_STAT_INCREASE = 0.05;
 		
+		console.log('[STATS] Level up - recalculating stats from base:', {
+			level: this.level,
+			levelUpStatIncrease: LEVEL_UP_STAT_INCREASE
+		});
+		
 		if (this.baseSpeed !== undefined) {
-			this.speed = calculateStatWithIV(this.baseSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.speed, 'speed');
+			const oldSpeed = this.speed;
+			const baseSpeedWithLevel = this.baseSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.speed = calculateStatWithIV(baseSpeedWithLevel, this.ivs?.speed, 'speed');
+			console.log('[STATS] Speed recalculation:', {
+				baseSpeed: this.baseSpeed,
+				baseSpeedWithLevel,
+				iv: this.ivs?.speed,
+				oldSpeed,
+				newSpeed: this.speed,
+				formula: `baseSpeed (${this.baseSpeed}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseSpeedWithLevel}, then * (1 + iv * 0.01) = ${this.speed}`
+			});
 		}
 		
 		if (this.baseHp !== undefined) {
 			const oldMaxHp = this.maxHp;
-			this.maxHp = calculateStatWithIV(this.baseHp * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.hp, 'hp');
+			
+			// Calculer le total des bonus HP des upgrades
+			let hpUpgradeBonus = 0;
+			if (this.upgrades) {
+				for (const upgradeId in this.upgrades) {
+					const upgrade = Upgrades[upgradeId];
+					if (upgrade && upgrade.type === UpgradeType.MAX_HP) {
+						hpUpgradeBonus += upgrade.value * (this.upgrades[upgradeId] || 0);
+					}
+				}
+			}
+			
+			const baseHpWithLevel = this.baseHp * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.maxHp = calculateStatWithIV(baseHpWithLevel, this.ivs?.hp, 'hp');
+			
+			// Réappliquer les bonus HP des upgrades
+			this.maxHp += hpUpgradeBonus;
+			
 			this.hp = Math.min(this.maxHp, this.hp + (this.maxHp - oldMaxHp));
+			console.log('[STATS] HP recalculation:', {
+				baseHp: this.baseHp,
+				baseHpWithLevel,
+				hpUpgradeBonus,
+				iv: this.ivs?.hp,
+				oldMaxHp,
+				newMaxHp: this.maxHp,
+				formula: `baseHp (${this.baseHp}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseHpWithLevel}, then * (1 + iv * 0.01) + ${hpUpgradeBonus} (upgrades) = ${this.maxHp}`
+			});
 		}
 		
 		if (this.baseDamage !== undefined) {
-			this.damage = calculateStatWithIV(this.baseDamage * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.damage, 'damage');
+			const oldDamage = this.damage;
+			const baseDamageWithLevel = this.baseDamage * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.damage = calculateStatWithIV(baseDamageWithLevel, this.ivs?.damage, 'damage');
+			console.log('[STATS] Damage recalculation (WARNING: This overwrites item multipliers!):', {
+				baseDamage: this.baseDamage,
+				baseDamageWithLevel,
+				iv: this.ivs?.damage,
+				oldDamage,
+				newDamage: this.damage,
+				formula: `baseDamage (${this.baseDamage}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseDamageWithLevel}, then * (1 + iv * 0.01) = ${this.damage}`
+			});
 		}
 		
 		if (this.baseAttackSpeed !== undefined) {
-			this.attackSpeed = calculateStatWithIV(this.baseAttackSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.attackSpeed, 'attackSpeed');
+			const oldAttackSpeed = this.attackSpeed;
+			const baseAttackSpeedWithLevel = this.baseAttackSpeed * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.attackSpeed = calculateStatWithIV(baseAttackSpeedWithLevel, this.ivs?.attackSpeed, 'attackSpeed');
 			this.attackCooldownMax = 1000 / this.attackSpeed;
+			console.log('[STATS] AttackSpeed recalculation:', {
+				baseAttackSpeed: this.baseAttackSpeed,
+				baseAttackSpeedWithLevel,
+				iv: this.ivs?.attackSpeed,
+				oldAttackSpeed,
+				newAttackSpeed: this.attackSpeed,
+				formula: `baseAttackSpeed (${this.baseAttackSpeed}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseAttackSpeedWithLevel}, then * (1 + iv * 0.01) = ${this.attackSpeed}`
+			});
 		}
 		
 		if (this.baseRange !== undefined) {
-			this.range = calculateStatWithIV(this.baseRange * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.range, 'range');
+			const oldRange = this.range;
+			const baseRangeWithLevel = this.baseRange * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.range = calculateStatWithIV(baseRangeWithLevel, this.ivs?.range, 'range');
+			console.log('[STATS] Range recalculation:', {
+				baseRange: this.baseRange,
+				baseRangeWithLevel,
+				iv: this.ivs?.range,
+				oldRange,
+				newRange: this.range,
+				formula: `baseRange (${this.baseRange}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseRangeWithLevel}, then * (1 + iv * 0.01) = ${this.range}`
+			});
 		}
 		
 		if (this.baseKnockback !== undefined) {
-			this.knockback = calculateStatWithIV(this.baseKnockback * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE), this.ivs?.knockback, 'knockback');
+			const oldKnockback = this.knockback;
+			const baseKnockbackWithLevel = this.baseKnockback * (1 + (this.level - 1) * LEVEL_UP_STAT_INCREASE);
+			this.knockback = calculateStatWithIV(baseKnockbackWithLevel, this.ivs?.knockback, 'knockback');
+			console.log('[STATS] Knockback recalculation:', {
+				baseKnockback: this.baseKnockback,
+				baseKnockbackWithLevel,
+				iv: this.ivs?.knockback,
+				oldKnockback,
+				newKnockback: this.knockback,
+				formula: `baseKnockback (${this.baseKnockback}) * (1 + (${this.level - 1}) * ${LEVEL_UP_STAT_INCREASE}) = ${baseKnockbackWithLevel}, then * (1 + iv * 0.01) = ${this.knockback}`
+			});
 		}
 	}
 
@@ -656,9 +813,9 @@ export default class BattlePlayer {
 		return { damage: finalDamage, isCrit: isCrit };
 	}
 
-	toggleAutoShoot() {
+	toggleAutoattack() {
 		if (this.attackType === 'range') {
-			this.autoShoot = !this.autoShoot;
+			this.autoattack = !this.autoattack;
 		}
 	}
 
@@ -799,7 +956,7 @@ export default class BattlePlayer {
 				damage: damageCalc.damage,
 				isCrit: damageCalc.isCrit,
 				knockback: this.knockback,
-				autoShoot: this.autoShoot,
+				autoattack: this.autoattack,
 				aimX: this.aimX,
 				aimY: this.aimY,
 				playerVelocityX: this.velocityX,
@@ -980,7 +1137,8 @@ export default class BattlePlayer {
 			renderer.ctx.restore();
 		}
 
-		if (this.isAlive && this.range > 0 && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
+		// Ne pas afficher l'arc de visée dans la map finale
+		if (this.isAlive && this.range > 0 && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0 && !this.isFinalMap) {
 			const centerX = this.getCenterX();
 			const centerY = this.getCenterY();
 			const dx = this.aimX - centerX;
@@ -1011,7 +1169,8 @@ export default class BattlePlayer {
 			}
 		}
 
-		if (this.isAlive && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0) {
+		// Ne pas afficher la barre de visée dans la map finale
+		if (this.isAlive && this.attackType === 'range' && this.aimX !== 0 && this.aimY !== 0 && !this.isFinalMap) {
 			const dx = this.aimX - this.getCenterX();
 			const dy = this.aimY - this.getCenterY();
 			const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1080,7 +1239,9 @@ export default class BattlePlayer {
 		
 		if (!isBlinking) {
 			if (this.animationSystem) {
-				this.animationSystem.render(renderer, this.x, this.y, this.scale, true, true);
+				// Utiliser drawShadow si défini, sinon true par défaut
+				const drawShadow = this.drawShadow !== undefined ? this.drawShadow : true;
+				this.animationSystem.render(renderer, this.x, this.y, this.scale, drawShadow, true);
 			} else {
 				renderer.drawRect(this.x, this.y, this.width, this.height, '#4a90e2');
 			}

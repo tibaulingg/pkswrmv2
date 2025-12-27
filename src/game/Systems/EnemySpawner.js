@@ -1,10 +1,10 @@
 import Enemy from '../Entities/Enemy.js';
 import AnimationSystem from './AnimationSystem.js';
-import { EnemyTypes, MapEnemies } from '../Config/EnemyConfig.js';
+import { getEnemyConfig, MapEnemies } from '../Config/EnemyConfig.js';
 import { getPokemonConfig } from '../Config/SpriteConfig.js';
 
 export default class EnemySpawner {
-	constructor(mapId, mapWidth, mapHeight, spriteManager, bossTimer = null, bossType = null, engine = null, collisionSystem = null) {
+	constructor(mapId, mapWidth, mapHeight, spriteManager, bossTimer = null, bossType = null, engine = null, collisionSystem = null, enemyScaling = null) {
 		this.mapId = mapId;
 		this.mapWidth = mapWidth;
 		this.mapHeight = mapHeight;
@@ -30,15 +30,29 @@ export default class EnemySpawner {
 		this.frozenEnemyLevel = null;
 		this.spawnFreezeTimer = 0;
 		this.spawnFrozen = false;
+		this.currentFloor = 1; // Étage actuel
+		
+		// Configuration du scaling des ennemis (valeurs par défaut si non fournies)
+		this.enemyScaling = enemyScaling || {
+			baseLevel: 1,
+			levelPerFloor: 3,
+			levelPerMinute: 0.5,
+			maxLevel: 100
+		};
 	}
 
 	update(deltaTime, playerX, playerY, playerWidth = 32, playerHeight = 32, playerVelocityX = 0, playerVelocityY = 0) {
+		// Si spawnFrozen est activé de manière permanente (map finale), ne rien faire
+		if (this.spawnFrozen && this.bossSpawned) {
+			return; // Ne pas spawner du tout dans la map finale
+		}
+		
 		this.gameTime += deltaTime;
 		this.spawnTimer += deltaTime;
 		this.difficultyUpdateTimer += deltaTime;
 
-		// Gestion du freeze des spawns après le boss
-		if (this.spawnFrozen) {
+		// Gestion du freeze des spawns après le boss (sauf si c'est permanent)
+		if (this.spawnFrozen && !this.bossSpawned) {
 			this.spawnFreezeTimer += deltaTime;
 			const freezeDuration = 5000 + Math.random() * 3000; // 5-8 secondes
 			if (this.spawnFreezeTimer >= freezeDuration) {
@@ -61,10 +75,10 @@ export default class EnemySpawner {
 		const spawnRateMultiplier = Math.max(0.3, 1 - (currentEnemyCount / this.maxEnemies) * 0.7);
 		const adjustedSpawnInterval = this.spawnInterval / spawnRateMultiplier;
 
-		// Ne pas spawner si freeze actif ou si boss présent avec cap
+		// Ne pas spawner si freeze actif ou si boss présent (aucun spawn pendant le boss)
 		const boss = this.getBoss();
 		const bossAlive = boss && boss.isAlive;
-		const shouldSpawn = !this.spawnFrozen && (!bossAlive || currentEnemyCount < this.getBossMaxEnemies());
+		const shouldSpawn = !this.spawnFrozen && !bossAlive; // Pas de spawn si boss est vivant
 
 		if (this.spawnTimer >= adjustedSpawnInterval && currentEnemyCount < this.maxEnemies && shouldSpawn) {
 			const spawnCount = Math.min(this.spawnCount, this.maxEnemies - currentEnemyCount);
@@ -176,7 +190,9 @@ export default class EnemySpawner {
 		const enemyType = this.getRandomEnemyType();
 		if (!enemyType) return;
 
-		const config = EnemyTypes[enemyType];
+		const config = getEnemyConfig(enemyType);
+		if (!config) return;
+		
 		if (this.engine && config.pokemon) {
 			this.engine.encounteredPokemons.add(config.pokemon);
 		}
@@ -255,14 +271,14 @@ export default class EnemySpawner {
 			const pokemonConfig = getPokemonConfig(config.pokemon);
 			const pokemonWalkSprite = this.spriteManager.get(`${config.pokemon}_walk`);
 			const pokemonHurtSprite = this.spriteManager.get(`${config.pokemon}_hurt`);
-			const pokemonShootSprite = this.spriteManager.get(`${config.pokemon}_shoot`);
+			const pokemonattackSprite = this.spriteManager.get(`${config.pokemon}_attack`);
 			if (pokemonConfig && pokemonWalkSprite && pokemonHurtSprite) {
 				const spriteImages = {
 					walk: pokemonWalkSprite,
 					hurt: pokemonHurtSprite
 				};
-				if (pokemonShootSprite) {
-					spriteImages.shoot = pokemonShootSprite;
+				if (pokemonattackSprite) {
+					spriteImages.attack = pokemonattackSprite;
 				}
 				animationSystem = new AnimationSystem(pokemonConfig, spriteImages);
 				particleColor = pokemonConfig.particleColor || particleColor;
@@ -290,14 +306,23 @@ export default class EnemySpawner {
 			return this.frozenEnemyLevel;
 		}
 		
+		// Le niveau de base dépend de l'étage actuel
+		// Utiliser la configuration de scaling de la map
+		const baseLevel = this.enemyScaling.baseLevel + (this.currentFloor - 1) * this.enemyScaling.levelPerFloor;
+		
+		// Progression dans le temps (basée sur la configuration)
 		const timeMinutes = this.gameTime / 60000;
-		const baseLevel = 1;
-		const levelPerMinute = 2.0;
-		const calculatedLevel = Math.floor(baseLevel + timeMinutes * levelPerMinute);
+		const timeLevelBonus = Math.floor(timeMinutes * this.enemyScaling.levelPerMinute);
 		
-		const randomVariation = Math.random() < 0.3 ? Math.floor(Math.random() * 4) : 0;
+		const calculatedLevel = baseLevel + timeLevelBonus;
 		
-		return Math.max(1, Math.min(100, calculatedLevel + randomVariation));
+		const randomVariation = Math.random() < 0.3 ? Math.floor(Math.random() * 2) : 0;
+		
+		let lvl =  Math.max(1, Math.min(this.enemyScaling.maxLevel, calculatedLevel + randomVariation));
+		
+		console.log('lvl', lvl);
+
+		return lvl;
 	}
 
 	getRandomEnemyType() {
@@ -319,7 +344,8 @@ export default class EnemySpawner {
 	spawnBoss(playerX, playerY) {
 		if (!this.bossType) return;
 
-		const config = EnemyTypes[this.bossType];
+		const config = getEnemyConfig(this.bossType);
+		if (!config) return;
 		if (!config) return;
 
 		// Détruire 60-80% des mobs existants
@@ -410,14 +436,15 @@ export default class EnemySpawner {
 			const pokemonConfig = getPokemonConfig(config.pokemon);
 			const pokemonWalkSprite = this.spriteManager.get(`${config.pokemon}_walk`);
 			const pokemonHurtSprite = this.spriteManager.get(`${config.pokemon}_hurt`);
-			const pokemonShootSprite = this.spriteManager.get(`${config.pokemon}_shoot`);
+			const pokemonattackSprite = this.spriteManager.get(`${config.pokemon}_attack`);
+
 			if (pokemonConfig && pokemonWalkSprite && pokemonHurtSprite) {
 				const spriteImages = {
 					walk: pokemonWalkSprite,
 					hurt: pokemonHurtSprite
 				};
-				if (pokemonShootSprite) {
-					spriteImages.shoot = pokemonShootSprite;
+				if (pokemonattackSprite) {
+					spriteImages.attack = pokemonattackSprite;
 				}
 				animationSystem = new AnimationSystem(pokemonConfig, spriteImages);
 				particleColor = pokemonConfig.particleColor || particleColor;

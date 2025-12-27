@@ -33,6 +33,11 @@ export default class ShopScene {
 
 	init(data) {
 		this.shopId = data?.shopId || 'kecleon';
+		
+		// Exposer la fonction de debug dans la console (pour debug)
+		if (typeof window !== 'undefined') {
+			window.debugAdd100ReadyEggs = () => this.debugAdd100ReadyEggs();
+		}
 		this.shopConfig = getShopConfig(this.shopId);
 		this.selectedIndex = 0;
 		this.mode = 'main';
@@ -85,6 +90,12 @@ export default class ShopScene {
 		
 		if (isConfirmMenuOpen) {
 			return;
+		}
+		
+		// Raccourci debug : F9 pour ajouter 100 œufs prêts à éclore
+		if (this.engine.input.isKeyDown('F9')) {
+			this.debugAdd100ReadyEggs();
+			this.engine.audio.play('ok', 0.5, 0.1);
 		}
 		
 		const key = this.engine.input.consumeLastKey();
@@ -498,11 +509,21 @@ export default class ShopScene {
 		const shinyChance = battleScene ? battleScene.getShinyChance() : 0.001;
 		const newIVs = generateIVs(ivBonus, shinyChance);
 		
+		// Stocker les anciens IVs pour la comparaison
+		const oldIVs = this.engine.pokemonIVs[hatchedPokemon] ? { ...this.engine.pokemonIVs[hatchedPokemon] } : null;
+		
 		if (this.engine.pokemonIVs[hatchedPokemon]) {
 			this.engine.pokemonIVs[hatchedPokemon] = mergeIVs(this.engine.pokemonIVs[hatchedPokemon], newIVs);
 		} else {
 			this.engine.pokemonIVs[hatchedPokemon] = newIVs;
 		}
+		
+		// Stocker les données pour l'écran de résultat
+		this.hatchResultData = {
+			pokemon: hatchedPokemon,
+			newIVs: this.engine.pokemonIVs[hatchedPokemon],
+			oldIVs: oldIVs
+		};
 		
 		this.engine.encounteredPokemons.add(hatchedPokemon);
 		
@@ -523,15 +544,15 @@ export default class ShopScene {
 			const chanseyNpc = gameScene.npcs && gameScene.npcs.find ? gameScene.npcs.find(npc => npc.id === 'chansey') : null;
 			if (chanseyNpc) {
 				const pokemonConfig = getPokemonConfig('chansey');
-				const chargeSprite = this.engine.sprites.get('chansey_charge');
+				const attackSprite = this.engine.sprites.get('chansey_attack');
 				const idleSprite = this.engine.sprites.get('chansey_idle');
-				if (pokemonConfig && chargeSprite && idleSprite) {
-					chanseyNpc.animationSystem = new AnimationSystem(pokemonConfig, { idle: idleSprite, charge: chargeSprite });
-					chanseyNpc.animationSystem.setAnimation('charge', 5000);
+				if (pokemonConfig && attackSprite && idleSprite) {
+					chanseyNpc.animationSystem = new AnimationSystem(pokemonConfig, { idle: idleSprite, attack: attackSprite });
+					chanseyNpc.animationSystem.setAnimation('attack', 5000);
 					chanseyNpc.animationSystem.setDirection('down');
 					
 					if (gameScene.startEggHatchingAnimation && typeof gameScene.startEggHatchingAnimation === 'function') {
-						gameScene.startEggHatchingAnimation(chanseyNpc, egg.id, hatchedPokemon);
+						gameScene.startEggHatchingAnimation(chanseyNpc, egg.id, hatchedPokemon, this.hatchResultData);
 					}
 				}
 			}
@@ -690,7 +711,7 @@ export default class ShopScene {
 			}
 		}
 
-		const ITEM_LIST_START_X = 280;
+		const ITEM_LIST_START_X = 250;
 
 		if (this.mode === 'buying') {
 
@@ -1098,6 +1119,54 @@ export default class ShopScene {
 				}
 			});
 		}
+	}
+
+	// Fonction de debug : ajoute 100 œufs prêts à éclore
+	debugAdd100ReadyEggs() {
+		if (!this.engine.inventory) {
+			this.engine.inventory = {};
+		}
+		if (!this.engine.eggProgress) {
+			this.engine.eggProgress = {};
+		}
+		if (!this.engine.eggUniqueIds) {
+			this.engine.eggUniqueIds = {};
+		}
+
+		const eggTypes = ['egg_common', 'egg_rare', 'egg_epic', 'egg_legendary'];
+		const eggCounts = [40, 30, 20, 10]; // Distribution : 40 common, 30 rare, 20 epic, 10 legendary
+
+		let totalAdded = 0;
+		eggTypes.forEach((eggType, index) => {
+			const count = eggCounts[index];
+			const eggConfig = ItemConfig[eggType];
+			if (!eggConfig) return;
+
+			if (!this.engine.eggUniqueIds[eggType]) {
+				this.engine.eggUniqueIds[eggType] = [];
+			}
+			if (!this.engine.inventory[eggType]) {
+				this.engine.inventory[eggType] = 0;
+			}
+
+			for (let i = 0; i < count; i++) {
+				const uniqueId = `${eggType}_debug_${Date.now()}_${Math.random()}_${i}`;
+				this.engine.eggUniqueIds[eggType].push(uniqueId);
+				
+				// Marquer l'œuf comme prêt à éclore (currentKills >= requiredKills)
+				this.engine.eggProgress[uniqueId] = {
+					currentKills: eggConfig.requiredKills,
+					requiredKills: eggConfig.requiredKills
+				};
+				
+				this.engine.inventory[eggType] = (this.engine.inventory[eggType] || 0) + 1;
+				totalAdded++;
+			}
+		});
+
+		SaveManager.saveGame(this.engine, false);
+		console.log(`[DEBUG] ${totalAdded} œufs prêts à éclore ajoutés !`);
+		return totalAdded;
 	}
 }
 

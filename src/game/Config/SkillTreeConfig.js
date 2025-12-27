@@ -116,24 +116,6 @@ export const SkillTreeConfig = {
 			"name": "Loot",
 			"nodes": [
 				{
-					"id": "loot_bonus_1",
-					"name": "+10% chance loot rare",
-					"cost": 6000,
-					"maxRank": 2,
-					"currentRank": 0,
-					"effect": {"lootRareChance": 0.10},
-					"requirements": []
-				},
-				{
-					"id": "loot_bonus_2",
-					"name": "+20% chance loot rare",
-					"cost": 12000,
-					"maxRank": 1,
-					"currentRank": 0,
-					"effect": {"lootRareChance": 0.20},
-					"requirements": ["loot_bonus_1"]
-				},
-				{
 					"id": "xp_gain",
 					"name": "+10% gain d'XP",
 					"cost": 7000,
