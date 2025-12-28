@@ -505,6 +505,7 @@ export default class BattleScene {
 		}
 		
 		// Empêcher le mouvement du joueur pendant l'ouverture du coffre
+		// Mais continuer à mettre à jour les ennemis et le HUD
 		if (this.chestSystem && this.chestSystem.isOpening) {
 			// Bloquer les mouvements du joueur
 			if (this.player) {
@@ -512,6 +513,28 @@ export default class BattleScene {
 				this.player.velocityY = 0;
 			}
 			// Ne pas mettre à jour le reste du gameplay pendant l'ouverture
+			// MAIS continuer à mettre à jour les ennemis et systèmes
+			if (this.enemySpawner && !this.isFinalMap) {
+				const playerVelocityX = this.player ? this.player.velocityX * 16 : 0;
+				const playerVelocityY = this.player ? this.player.velocityY * 16 : 0;
+				this.enemySpawner.update(deltaTime, 
+					this.player ? this.player.getCenterX() : 0, 
+					this.player ? this.player.getCenterY() : 0, 
+					this.player ? this.player.width : 32, 
+					this.player ? this.player.height : 32, 
+					playerVelocityX, 
+					playerVelocityY);
+			}
+			this.updateEnemyAttacks(deltaTime);
+			this.updateProjectileCollisions();
+			this.updateEnemyAI(deltaTime);
+			this.updateEnemyAnimations(deltaTime);
+			this.updateDamageNumbers(deltaTime);
+			this.updateParticles(deltaTime);
+			this.updateXPOrbs(deltaTime);
+			this.updateCoins(deltaTime);
+			this.updateItemDrops(deltaTime);
+			this.updateSpellEffects(deltaTime);
 			return;
 		}
 		

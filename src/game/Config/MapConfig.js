@@ -5,14 +5,14 @@ export const Maps = [
 		image: 'forest',
 		bossImage: 'forest', // Image pour l'étage du boss (à créer: forest_boss.png si nécessaire)
 		bossType: 'boss_pikachu',
-		minFloors: 2,
-		maxFloors: 3,
-		mobsPerFloor: 3, // Nombre de mobs à tuer pour faire apparaître l'escalier
+		minFloors: 8,
+		maxFloors: 10,
+		mobsPerFloor: 25, // Nombre de mobs à tuer pour faire apparaître l'escalier
 		// Configuration du scaling des ennemis
 		enemyScaling: {
 			baseLevel: 1,           // Niveau de base au premier étage
 			levelPerFloor: 1,       // Augmentation de niveau par étage
-			levelPerMinute: 0.5,    // Augmentation de niveau par minute dans l'étage
+			levelPerMinute: 0,    // Augmentation de niveau par minute dans l'étage
 			maxLevel: 100           // Niveau maximum
 		},
 		arrowX: 835,
